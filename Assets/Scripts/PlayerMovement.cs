@@ -17,7 +17,7 @@ public class PlayerMovement : MonoBehaviour {
 
     private void Awake(){
         m_rigidbody = GetComponent<Rigidbody>();
-        m_cameraTransform = transform.Find("Main Camera"); 
+        m_cameraTransform = transform.Find("Main Camera");
     }
 
     // Use this for initialization
@@ -30,7 +30,7 @@ public class PlayerMovement : MonoBehaviour {
 
         // Rotate player horizontally
         m_yRotation -= horizontalCameraSensitivity * Input.GetAxis("Mouse X");
-        transform.eulerAngles = new Vector3(0, m_yRotation , 0);
+        transform.eulerAngles = new Vector3(0, m_yRotation, 0);
 
         // Rotate camera vertically
         m_xCameraRotation -= verticalCameraSensitivity * Input.GetAxis("Mouse Y");

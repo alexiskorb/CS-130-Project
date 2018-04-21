@@ -12,35 +12,29 @@ public class MainMenuUI : MonoBehaviour {
     // Use this for initialization
     void Start()
     {
-        showMainMenu();
+        ShowMainMenu();
     }
 
-    // Update is called once per frame
-    void Update()
+    public void StartMatch()
     {
-
+        GameManager.Instance.StartMatch("MainScene");
     }
 
-    public void startMatch()
-    {
-        SceneManager.LoadScene("MainScene");
-    }
-
-    public void showMainMenu()
+    public void ShowMainMenu()
     {
         mainMenu.enabled = true;
         createMatchMenu.enabled = false;
         joinMatchMenu.enabled = false;
     }
 
-    public void showCreateMatchMenu()
+    public void ShowCreateMatchMenu()
     {
         mainMenu.enabled = false;
         createMatchMenu.enabled = true;
         joinMatchMenu.enabled = false;
     }
 
-    public void showJoinMatchMenu()
+    public void ShowJoinMatchMenu()
     {
         mainMenu.enabled = false;
         createMatchMenu.enabled = false;

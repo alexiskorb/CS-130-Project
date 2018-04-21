@@ -7,11 +7,11 @@ public class GameUI : MonoBehaviour {
 
     public Canvas gameMenu;
 
-    private bool enableMenu = false;
+    private bool m_enableMenu = false;
 
     // Use this for initialization
     void Start () {
-        gameMenu.enabled = enableMenu;
+        gameMenu.enabled = m_enableMenu;
 	}
 	
 	// Update is called once per frame
@@ -20,15 +20,21 @@ public class GameUI : MonoBehaviour {
         // Show menu on pause
         if (Input.GetKeyDown(KeyCode.Escape))
         {
-            enableMenu = !enableMenu;
-            gameMenu.enabled = enableMenu;
+            m_enableMenu = !m_enableMenu;
+            gameMenu.enabled = m_enableMenu;
         }
         		
 	}
 
-    public void dropMatch()
+    public void DropMatch()
     {
-        SceneManager.LoadScene("MainMenu");
+        GameManager.Instance.DropMatch("MainMenu");
+    }
+
+    public void ResumeGame()
+    {
+        m_enableMenu = false;
+        gameMenu.enabled = m_enableMenu;
     }
 
 }

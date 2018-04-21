@@ -14,7 +14,7 @@ public class GunScript : MonoBehaviour {
 	
 	// Update is called once per frame
 	void Update () {
-        
+
         // On left mouse click, shoot bullet
         if (Input.GetMouseButtonDown(0))
         {
