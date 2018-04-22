@@ -28,7 +28,7 @@ public class GameUI : MonoBehaviour {
 
     public void DropMatch()
     {
-        GameManager.Instance.DropMatch("MainMenu");
+        GameManager.Instance.DropMatch("Scenes/MainMenu");
     }
 
     public void ResumeGame()
