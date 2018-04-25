@@ -39,7 +39,7 @@ public class MainMenuUI : MonoBehaviour {
 
     public void StartMatch()
     {
-        GameManager.Instance.StartMatch("Scenes/MainScene");
+        GameManager.Instance.StartMatch("Scenes/Client/MainScene");
     }
 
     public void SubmitMainPlayerName()

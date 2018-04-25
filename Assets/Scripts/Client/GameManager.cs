@@ -62,7 +62,7 @@ public class GameManager : MonoBehaviour {
         m_players = new Dictionary<string, GameObject>();
 
         // Load into main menu at start of game
-        SceneManager.LoadScene("Scenes/MainMenu");
+        SceneManager.LoadScene("Scenes/Client/MainMenu");
     }
 
     void Update()
