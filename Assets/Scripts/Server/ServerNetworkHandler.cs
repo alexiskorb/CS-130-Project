@@ -1,8 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Networking;
 
 public class ServerNetworkHandler : MonoBehaviour {
+
+	private bool isAtStart = true;
 
     private static ServerNetworkHandler m_instance = null;
 
@@ -40,5 +43,13 @@ public class ServerNetworkHandler : MonoBehaviour {
         }
     }
 
-  
+	void Update()
+	{
+		if (isAtStart) {
+			NetworkServer.Listen(1001);
+			isAtStart = false;
+		}
+
+	}
+
 }
