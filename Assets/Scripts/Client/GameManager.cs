@@ -17,6 +17,7 @@ public class GameManager : MonoBehaviour {
     private bool m_matchNameIsSet = false;
     private bool m_matchReady = false;
     private bool m_matchStarted = false; 
+	private bool m_menuOpen = false;
 
     private Dictionary<string, GameObject> m_players;
 
@@ -82,6 +83,15 @@ public class GameManager : MonoBehaviour {
         }
         // END TEST CODE
     }
+
+	public bool MenuOpen {
+		get {
+			return m_menuOpen;
+		}
+		set {
+			m_menuOpen = value;
+		}
+	}
 
     public string MainPlayerName
     {

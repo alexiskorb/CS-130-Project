@@ -22,6 +22,7 @@ public class GameUI : MonoBehaviour {
         {
             m_enableMenu = !m_enableMenu;
             gameMenu.enabled = m_enableMenu;
+			GameManager.Instance.MenuOpen = m_enableMenu;
         }
         		
 	}
