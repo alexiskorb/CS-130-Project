@@ -8,6 +8,8 @@ using UnityEngine.SceneManagement;
 // Singleton Game Manager
 public class GameManager : MonoBehaviour {
 
+    public string startingScenePath;
+
     public GameObject mainPlayerPrefab;
     public GameObject playerPrefab;
 
@@ -63,7 +65,7 @@ public class GameManager : MonoBehaviour {
         m_players = new Dictionary<string, GameObject>();
 
         // Load into main menu at start of game
-        SceneManager.LoadScene("Scenes/Client/MainMenu");
+        SceneManager.LoadScene(startingScenePath);
     }
 
     void Update()
