@@ -181,6 +181,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ae3acc6ab5d6a6e48be05a0df4147d17, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  startingScenePath: Scenes/Client/MainMenu
   mainPlayerPrefab: {fileID: 1998137392989358, guid: 3b0091a50b5f33545b09f3efa0bed288,
     type: 2}
   playerPrefab: {fileID: 1868695881446178, guid: 09889cba0a2c90c45af25107be8023c0,
