@@ -123,7 +123,7 @@ GameObject:
   - component: {fileID: 970545278}
   - component: {fileID: 970545277}
   m_Layer: 0
-  m_Name: NetworkHandler
+  m_Name: ClientManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -137,9 +137,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 970545276}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5d29e78fe8e59ae46b4ef8125404bd86, type: 3}
+  m_Script: {fileID: 11500000, guid: b04550f0157972149a0909defa4b7d2e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  startingSceneName: MainMenu
 --- !u!4 &970545278
 Transform:
   m_ObjectHideFlags: 0
@@ -181,11 +182,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ae3acc6ab5d6a6e48be05a0df4147d17, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  startingScenePath: Scenes/Client/MainMenu
   mainPlayerPrefab: {fileID: 1998137392989358, guid: 3b0091a50b5f33545b09f3efa0bed288,
     type: 2}
   playerPrefab: {fileID: 1868695881446178, guid: 09889cba0a2c90c45af25107be8023c0,
     type: 2}
+  isServer: 0
 --- !u!4 &1326872903
 Transform:
   m_ObjectHideFlags: 0

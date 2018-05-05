@@ -34,7 +34,7 @@ public class MainMenuUI : MonoBehaviour {
         {
             m_playerLobbyText.text = "";
 
-            foreach (string playerIDs in GameManager.Instance.Players)
+            foreach (string playerIDs in GameManager.Instance.PlayerIds)
             {
                 m_playerLobbyText.text += playerIDs + "\n";
             }

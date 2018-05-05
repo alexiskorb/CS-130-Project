@@ -953,7 +953,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 64bdeb7e7b327324ba6dcfe6198c3a4e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameScenePath: Scenes/Client/MainScene
+  gameScenePath: MainScene
   mainMenu: {fileID: 1191945690}
   createMatchMenu: {fileID: 311108274}
   startMatchMenu: {fileID: 1075588608}
