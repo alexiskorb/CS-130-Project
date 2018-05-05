@@ -9,6 +9,7 @@ using UnityEngine.Networking;
 
 //Server code using the LLAPI. 
 public class LLAPIServer : MonoBehaviour {
+	public float speed = 5;
     int connectionID;
     int channelID;
     int hostID;
@@ -45,15 +46,15 @@ public class LLAPIServer : MonoBehaviour {
         //or a client disconnecting.
         switch(recNetworkEvent)
         {
-            case NetworkEventType.ConnectEvent:
-                Debug.Log("Connected");
+		case NetworkEventType.ConnectEvent:
+			Debug.Log ("Connected");
                 //If a client connects, create the specified object.
-                GameObject temp = Instantiate(playerObject, transform.position, transform.rotation);
-                players.Add(recConnectionID, temp);
+			GameObject temp = Instantiate (playerObject, transform.position, transform.rotation);
+            players.Add(recConnectionID, temp);
                 break;
             case NetworkEventType.DataEvent:
                 string msg = Encoding.Unicode.GetString(recBuffer, 0, datasize);
-                Debug.Log("Receiving: " + msg);
+                //Debug.Log("Receiving: " + msg);
                 string[] splitData = msg.Split('|');
                 switch(splitData[0])
                 {
@@ -67,12 +68,25 @@ public class LLAPIServer : MonoBehaviour {
                 Debug.Log("Disconnected");
                 break;
         }
+		foreach (KeyValuePair<int, GameObject> player in players) {
+			Vector3 currentPosition = player.Value.transform.position;
+			byte[] message = createMessage (currentPosition);
+			NetworkServer.SendBytesToPlayer (player.Value, message, message.Length, player.Key);
+		}
+	}
+
+	byte[] createMessage(Vector3 curPos){
+		string s = "MV|" + curPos.ToString ("G5");
+		Debug.Log (s);
+		byte[] bytes = Encoding.Unicode.GetBytes (s);
+		return bytes;
 	}
 
     void Move(string x, string y, GameObject obj)
     {
         float xMov = float.Parse(x);
         float yMov = float.Parse(y);
-        obj.transform.Translate(xMov, 0f, yMov);
+		Vector3 newPos = new Vector3 (xMov, 0f, yMov);
+		obj.transform.Translate (newPos);
     }
 }
