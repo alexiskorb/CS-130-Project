@@ -7,19 +7,23 @@ using Steamworks;
 
 public class MainMenuUI : MonoBehaviour {
 
+    public string gameScenePath;
     public Canvas mainMenu;
     public Canvas createMatchMenu;
     public Canvas startMatchMenu;
     public Canvas joinMatchMenu;
 
-    private GameObject m_createMatchError;
+    public GameObject createMatchError;
+    public GameObject playerLobbyName;
+    public GameObject matchNameInput;
+    public GameObject playerNameInput;
+
     private Text m_playerLobbyText;
 
     // Use this for initialization
     void Start()
     {
-        m_createMatchError = GameObject.Find("Create Match Error");
-        m_playerLobbyText = GameObject.Find("Player Lobby Text").GetComponent<Text>();
+        m_playerLobbyText = playerLobbyName.GetComponent<Text>();
 
         ShowMainMenu();
 
@@ -56,18 +60,18 @@ public class MainMenuUI : MonoBehaviour {
 
     public void StartMatch()
     {
-        GameManager.Instance.StartMatch("Scenes/Client/MainScene");
+        GameManager.Instance.StartMatch(gameScenePath);
     }
 
     public void SubmitMainPlayerName()
     {
-        string name = GameObject.Find("Player Name Input").GetComponent<InputField>().text;
+        string name = playerNameInput.GetComponent<InputField>().text;
         GameManager.Instance.MainPlayerName = name;
     }
 
     public void SubmitMatchName()
     {
-        string name = GameObject.Find("Match Name Input").GetComponent<InputField>().text;
+        string name = matchNameInput.GetComponent<InputField>().text;
         GameManager.Instance.MatchName = name;
     }
 
@@ -80,7 +84,7 @@ public class MainMenuUI : MonoBehaviour {
         }
         else
         {
-            m_createMatchError.SetActive(true);
+            createMatchError.SetActive(true);
         }
     }
 
@@ -94,7 +98,7 @@ public class MainMenuUI : MonoBehaviour {
 
     public void ShowCreateMatchMenu()
     {
-        m_createMatchError.SetActive(false);
+        createMatchError.SetActive(false);
         mainMenu.enabled = false;
         createMatchMenu.enabled = true;
         startMatchMenu.enabled = false;

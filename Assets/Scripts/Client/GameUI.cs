@@ -6,6 +6,7 @@ using UnityEngine.SceneManagement;
 public class GameUI : MonoBehaviour {
 
     public Canvas gameMenu;
+    public string endGameScenePath;
 
     private bool m_enableMenu = false;
 
@@ -29,7 +30,7 @@ public class GameUI : MonoBehaviour {
 
     public void DropMatch()
     {
-        GameManager.Instance.DropMatch("Scenes/Client/MainMenu");
+        GameManager.Instance.DropMatch(endGameScenePath);
     }
 
     public void ResumeGame()
