@@ -16,14 +16,14 @@ public class PlayerMovement : MonoBehaviour {
     private float m_xCameraRotation = 15f;
 
     private void Awake(){
-        m_rigidbody = GetComponent<Rigidbody>();
-        m_cameraTransform = transform.Find("Main Camera");
+
     }
 
     // Use this for initialization
     void Start () {
-       
-	}
+        m_rigidbody = GetComponent<Rigidbody>();
+        m_cameraTransform = transform.Find("Main Camera");
+    }
 	
 	// Update is called once per frame
 	void Update () {
