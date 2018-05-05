@@ -53,7 +53,7 @@ public class LLAPIServer : MonoBehaviour {
                 break;
             case NetworkEventType.DataEvent:
                 string msg = Encoding.Unicode.GetString(recBuffer, 0, datasize);
-                Debug.Log("Receiving: " + msg);
+                //Debug.Log("Receiving: " + msg);
                 string[] splitData = msg.Split('|');
                 switch(splitData[0])
                 {
@@ -67,6 +67,17 @@ public class LLAPIServer : MonoBehaviour {
                 Debug.Log("Disconnected");
                 break;
         }
+		foreach (KeyValuePair<int, GameObject> player in players) {
+			Vector3 currentPosition = player.Value.transform.position;
+			byte[] message = createMessage (currentPosition);
+			NetworkServer.SendBytesToPlayer (player.Value, message, message.Length, player.Key);
+		}
+	}
+
+	byte[] createMessage(Vector3 curPos){
+		string s = "MV|" + curPos.ToString ("G5");
+		byte[] bytes = Encoding.Unicode.GetBytes (s);
+		return bytes;
 	}
 
     void Move(string x, string y, GameObject obj)

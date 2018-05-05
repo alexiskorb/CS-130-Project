@@ -8,7 +8,7 @@ public class Mvmt : MonoBehaviour
 {
 
     Rigidbody rb;
-    public LLAPIClient client;
+	public LLAPIClient client;
 
     private void Start()
     {
@@ -27,5 +27,7 @@ public class Mvmt : MonoBehaviour
             string msg = "MV|" + xPos.ToString() + "|" + yPos.ToString();
             client.sendMessage(msg);
         }
+			
+		//transform.Translate(client.currentPlayerPos);
     }
 }
