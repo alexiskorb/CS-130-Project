@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using Steamworks;
 
 public class MainMenuUI : MonoBehaviour {
 
@@ -21,6 +22,22 @@ public class MainMenuUI : MonoBehaviour {
         m_playerLobbyText = GameObject.Find("Player Lobby Text").GetComponent<Text>();
 
         ShowMainMenu();
+
+		if(SteamManager.Initialized) {
+			string name = SteamFriends.GetPersonaName();
+			Debug.Log(name);
+		}
+
+		int friendCount = SteamFriends.GetFriendCount(EFriendFlags.k_EFriendFlagImmediate);
+		Debug.Log("[STEAM-FRIENDS] Listing " + friendCount + " Friends.");
+		for (int i = 0; i < friendCount; ++i) {
+			CSteamID friendSteamId = SteamFriends.GetFriendByIndex(i, EFriendFlags.k_EFriendFlagImmediate);
+			string friendName = SteamFriends.GetFriendPersonaName(friendSteamId);
+			EPersonaState friendState = SteamFriends.GetFriendPersonaState(friendSteamId);
+
+			Debug.Log(friendName + " is " + friendState);
+		}
+
     }
 
     void Update()
