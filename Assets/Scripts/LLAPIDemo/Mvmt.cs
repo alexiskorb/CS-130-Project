@@ -6,13 +6,10 @@ using System.Collections;
 //Character movement code using the LLAPI. 
 public class Mvmt : MonoBehaviour
 {
-
-    Rigidbody rb;
 	public LLAPIClient client;
 
     private void Start()
     {
-        rb = GetComponent<Rigidbody>();
     }
 
     //Read state of the object, then use the client sendMessage code to send coordinates to server.
@@ -20,7 +17,7 @@ public class Mvmt : MonoBehaviour
     {
         float xPos = Input.GetAxis("Horizontal");
         float yPos = Input.GetAxis("Vertical");
-        transform.Translate(xPos, 0, yPos);
+  //      transform.Translate(xPos, 0, yPos);
 
         if (xPos != 0 || yPos != 0)
         {

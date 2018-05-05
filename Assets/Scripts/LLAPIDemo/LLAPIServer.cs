@@ -9,6 +9,7 @@ using UnityEngine.Networking;
 
 //Server code using the LLAPI. 
 public class LLAPIServer : MonoBehaviour {
+	public float speed = 5;
     int connectionID;
     int channelID;
     int hostID;
@@ -45,11 +46,11 @@ public class LLAPIServer : MonoBehaviour {
         //or a client disconnecting.
         switch(recNetworkEvent)
         {
-            case NetworkEventType.ConnectEvent:
-                Debug.Log("Connected");
+		case NetworkEventType.ConnectEvent:
+			Debug.Log ("Connected");
                 //If a client connects, create the specified object.
-                GameObject temp = Instantiate(playerObject, transform.position, transform.rotation);
-                players.Add(recConnectionID, temp);
+			GameObject temp = Instantiate (playerObject, transform.position, transform.rotation);
+            players.Add(recConnectionID, temp);
                 break;
             case NetworkEventType.DataEvent:
                 string msg = Encoding.Unicode.GetString(recBuffer, 0, datasize);
@@ -76,6 +77,7 @@ public class LLAPIServer : MonoBehaviour {
 
 	byte[] createMessage(Vector3 curPos){
 		string s = "MV|" + curPos.ToString ("G5");
+		Debug.Log (s);
 		byte[] bytes = Encoding.Unicode.GetBytes (s);
 		return bytes;
 	}
@@ -84,6 +86,7 @@ public class LLAPIServer : MonoBehaviour {
     {
         float xMov = float.Parse(x);
         float yMov = float.Parse(y);
-        obj.transform.Translate(xMov, 0f, yMov);
+		Vector3 newPos = new Vector3 (xMov, 0f, yMov);
+		obj.transform.Translate (newPos);
     }
 }

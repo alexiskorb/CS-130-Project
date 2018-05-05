@@ -11,6 +11,7 @@ using UnityEngine.Networking;
 //Client code using the LLAPI. 
 public class LLAPIClient : MonoBehaviour
 {
+	public float speed = 5;
     int connectionID;
     int channelID;
     int hostID;
@@ -18,6 +19,9 @@ public class LLAPIClient : MonoBehaviour
     public int clientPort;
     int maxConnections = 4;
 	public Vector3 currentPlayerPos = new Vector3(0,0,0);
+
+	public GameObject player;
+
     byte error;
     // Use this for initialization
     void Start()
@@ -26,7 +30,7 @@ public class LLAPIClient : MonoBehaviour
 		clientPort = ep.Port;
 		Debug.Log ("port is: " + clientPort);
 		NetworkTransport.Init();
-        
+		player = GameObject.FindGameObjectWithTag ("Player");
     }
 
 
@@ -63,12 +67,12 @@ public class LLAPIClient : MonoBehaviour
 				string[] sArray = splitData [1].Split (',');
 
 				// store as a Vector3
-				Vector3 result = new Vector3 (
+				Vector3 newPos = new Vector3 (
 					                 float.Parse (sArray [0]),
 					                 float.Parse (sArray [1]),
 					                 float.Parse (sArray [2]));
 
-				currentPlayerPos = result;
+				player.transform.Translate (newPos);
 				Debug.Log (currentPlayerPos);
 				break;
 			}
