@@ -13,18 +13,11 @@ public class MainMenuUI : MonoBehaviour {
     public Canvas startMatchMenu;
     public Canvas joinMatchMenu;
 
-    public GameObject createMatchError;
-    public GameObject playerLobbyName;
-    public GameObject matchNameInput;
-    public GameObject playerNameInput;
-
-    private Text m_playerLobbyText;
+    private bool m_isMatchCreator = true;
 
     // Use this for initialization
     void Start()
     {
-        m_playerLobbyText = playerLobbyName.GetComponent<Text>();
-
         ShowMainMenu();
 
 		if(SteamManager.Initialized) {
@@ -46,46 +39,57 @@ public class MainMenuUI : MonoBehaviour {
 
     void Update()
     {
-        // Update player lobby text if on startMatchMenu
-        if (startMatchMenu.enabled)
-        {
-            m_playerLobbyText.text = "";
-
-            foreach (string playerIDs in GameManager.Instance.PlayerIds)
-            {
-                m_playerLobbyText.text += playerIDs + "\n";
-            }
-        }
     }
 
+    // Start a match
     public void StartMatch()
     {
         GameManager.Instance.StartMatch(gameScenePath);
     }
 
-    public void SubmitMainPlayerName()
-    {
-        string name = playerNameInput.GetComponent<InputField>().text;
-        GameManager.Instance.MainPlayerName = name;
-    }
-
-    public void SubmitMatchName()
-    {
-        string name = matchNameInput.GetComponent<InputField>().text;
-        GameManager.Instance.MatchName = name;
-    }
-
+    // Create a match
     public void CreateMatch()
     {
-        if (GameManager.Instance.MatchReady)
+        m_isMatchCreator = true;
+        if (createMatchMenu.GetComponent<CreateMatchUI>().CreateMatch())
         {
             ShowStartMatchMenu();
-            GameManager.Instance.CreateMatch();
+        }
+    }
+
+    // Join a match
+    public void JoinMatch()
+    {
+        m_isMatchCreator = false;
+        if (joinMatchMenu.GetComponent<JoinMatchUI>().JoinMatch())
+        {
+            ShowStartMatchMenu();
+        }
+    }
+
+    // Leave player lobby
+    public void CancelMatch()
+    {
+        GameManager.Instance.ExitMatchmaking();
+        if (m_isMatchCreator)
+        {
+            createMatchMenu.GetComponent<CreateMatchUI>().ResetMenu();
+            ShowCreateMatchMenu();
         }
         else
         {
-            createMatchError.SetActive(true);
+            joinMatchMenu.GetComponent<JoinMatchUI>().ResetMenu();
+            ShowJoinMatchMenu();
         }
+    }
+
+    // Return to main menu
+    public void ReturnToMainMenu()
+    {
+        GameManager.Instance.ExitMatchmaking();
+        joinMatchMenu.GetComponent<JoinMatchUI>().ResetMenu();
+        createMatchMenu.GetComponent<CreateMatchUI>().ResetMenu();
+        ShowMainMenu();
     }
 
     public void ShowMainMenu()
@@ -98,7 +102,6 @@ public class MainMenuUI : MonoBehaviour {
 
     public void ShowCreateMatchMenu()
     {
-        createMatchError.SetActive(false);
         mainMenu.enabled = false;
         createMatchMenu.enabled = true;
         startMatchMenu.enabled = false;

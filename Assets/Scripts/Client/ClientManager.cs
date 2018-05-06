@@ -134,6 +134,29 @@ public class ClientManager : MonoBehaviour
         }
     }
 
+    // Returns a list of open matches
+    public List<string> GetOpenMatches()
+    {
+        // TEMP CODE = should get this information from the server
+        List<string> matchList = new List<string>();
+        if (GameManager.Instance.MatchName != "" && !matchList.Contains(GameManager.Instance.MatchName))
+        {
+            matchList.Add(GameManager.Instance.MatchName);
+        }
+        matchList.Add("temp_match");
+        matchList.Add("temp_match2");
+        matchList.Add("temp_match3");
+        matchList.Add("temp_match4");
+        matchList.Add("temp_match5");
+        matchList.Add("temp_match6");
+        matchList.Add("temp_match7");
+        matchList.Add("temp_match8");
+        matchList.Add("temp_match9");
+        matchList.Add("temp_match10");
+        // END TEMP CODE
+        return matchList;
+    }
+
     // Send player move data
     public void SendPlayerData()
     {

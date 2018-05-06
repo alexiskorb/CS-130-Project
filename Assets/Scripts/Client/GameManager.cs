@@ -235,6 +235,14 @@ public class GameManager : MonoBehaviour {
         SceneManager.LoadScene(scene);
     }
 
+    // Resets player and match name and removes main player from player list
+    public void ExitMatchmaking()
+    {
+        RemovePlayer(m_mainPlayerName);
+        MainPlayerName = "";
+        MatchName = "";
+    }
+
     // Join a match - Not yet implemented
     public void JoinMatch()
     {
