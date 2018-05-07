@@ -29,6 +29,7 @@ public class GameManager : MonoBehaviour {
     private bool m_matchStarted = false; 
 	private bool m_menuOpen = false;
     private string m_gameScene = "";
+    private string m_endScene = "";
 
     // Dictionary mapping player names to player objects
     private Dictionary<string, GameObject> m_players;
@@ -85,15 +86,20 @@ public class GameManager : MonoBehaviour {
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
-    // Call startMatchEvent when game scene is loaded
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        // Call startMatchEvent when game scene is loaded
         if (scene.name == m_gameScene)
         {
             if (startMatchEvent != null)
             {
                 startMatchEvent(m_mainPlayerName, m_matchName);
             }
+        }
+        // Reset game manager when end scene is loaded.
+        if (scene.name == m_endScene)
+        {
+            ResetGameManager();
         }
     }
 
@@ -232,13 +238,18 @@ public class GameManager : MonoBehaviour {
         {
             dropMatchEvent(m_mainPlayerName, m_matchName);
         }
+        m_endScene = scene;
         SceneManager.LoadScene(scene);
     }
 
     // Resets player and match name and removes main player from player list
-    public void ExitMatchmaking()
+    public void ResetGameManager()
     {
-        RemovePlayer(m_mainPlayerName);
+        List<string> playerIds = new List<string>(m_players.Keys);
+        foreach (string playerId in playerIds)
+        {
+            RemovePlayer(playerId);
+        }
         MainPlayerName = "";
         MatchName = "";
     }

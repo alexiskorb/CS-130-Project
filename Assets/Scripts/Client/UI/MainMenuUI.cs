@@ -70,7 +70,7 @@ public class MainMenuUI : MonoBehaviour {
     // Leave player lobby
     public void CancelMatch()
     {
-        GameManager.Instance.ExitMatchmaking();
+        GameManager.Instance.ResetGameManager();
         if (m_isMatchCreator)
         {
             createMatchMenu.GetComponent<CreateMatchUI>().ResetMenu();
@@ -86,7 +86,7 @@ public class MainMenuUI : MonoBehaviour {
     // Return to main menu
     public void ReturnToMainMenu()
     {
-        GameManager.Instance.ExitMatchmaking();
+        GameManager.Instance.ResetGameManager();
         joinMatchMenu.GetComponent<JoinMatchUI>().ResetMenu();
         createMatchMenu.GetComponent<CreateMatchUI>().ResetMenu();
         ShowMainMenu();
