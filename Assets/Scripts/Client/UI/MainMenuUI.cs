@@ -51,9 +51,14 @@ public class MainMenuUI : MonoBehaviour {
     public void CreateMatch()
     {
         m_isMatchCreator = true;
-        if (createMatchMenu.GetComponent<CreateMatchUI>().CreateMatch())
+        if (GameManager.Instance.MatchReady)
         {
+            GameManager.Instance.CreateMatch();
             ShowStartMatchMenu();
+        }
+        else
+        {
+            createMatchMenu.GetComponent<CreateMatchUI>().ShowCreateMatchError();
         }
     }
 
@@ -61,9 +66,14 @@ public class MainMenuUI : MonoBehaviour {
     public void JoinMatch()
     {
         m_isMatchCreator = false;
-        if (joinMatchMenu.GetComponent<JoinMatchUI>().JoinMatch())
+        if (GameManager.Instance.MatchReady)
         {
+            GameManager.Instance.JoinMatch();
             ShowStartMatchMenu();
+        }
+        else
+        {
+            joinMatchMenu.GetComponent<JoinMatchUI>().ShowJoinMatchError();
         }
     }
 

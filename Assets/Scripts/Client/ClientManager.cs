@@ -78,6 +78,7 @@ public class ClientManager : MonoBehaviour
         GameManager.createMatchEvent += createMatchHandler;
         GameManager.startMatchEvent += startMatchHandler;
         GameManager.dropMatchEvent += dropMatchHandler;
+        GameManager.joinMatchEvent += joinMatchHandler;
     }
     // Unsubscribe from createMatchEvent, startMatchEvent, dropMatchEvent
     private void OnDisable()
@@ -85,6 +86,7 @@ public class ClientManager : MonoBehaviour
         GameManager.createMatchEvent -= createMatchHandler;
         GameManager.startMatchEvent -= startMatchHandler;
         GameManager.dropMatchEvent -= dropMatchHandler;
+        GameManager.joinMatchEvent -= joinMatchHandler;
     }
 
     // Called automatically when GameManager asks to create a match
@@ -113,6 +115,12 @@ public class ClientManager : MonoBehaviour
         string msg = "DROP_PLAYER|" + playerId + "|" + matchId;
         sendMessage(msg);
         Disconnect();
+    }
+
+    // Called automatically when GameManager asks to join a match
+    private void joinMatchHandler(string playerId, string matchId)
+    {
+        Debug.Log("GameManager asked to join a match");
     }
 
     // Update is called once per frame
