@@ -19,7 +19,7 @@ public class ServerManager : MonoBehaviour
     int maxConnections = 4;
     byte m_error;
 
-    public Dictionary<int, GameObject> players = new Dictionary<int, GameObject>();
+    private Dictionary<string, List<string>> m_openMatches;
 
     // Singleton instance of the ServerManager
     private static ServerManager m_instance = null;
@@ -61,6 +61,11 @@ public class ServerManager : MonoBehaviour
     // Opens itself as a host
     void Start()
     {
+        // Initialize data
+        m_openMatches = new Dictionary<string, List<string>>();
+        GameManager.Instance.InMatch = true;
+
+        // Start up network
         NetworkTransport.Init();
         ConnectionConfig config = new ConnectionConfig();
         m_channelID = config.AddChannel(QosType.ReliableSequenced);
@@ -88,7 +93,8 @@ public class ServerManager : MonoBehaviour
         switch (recNetworkEvent)
         {
             case NetworkEventType.ConnectEvent:
-                Debug.Log("Connected");
+                string connectionMsg = "Connected " + recHostID + " " + recConnectionID + " " + recChannelID;
+                Debug.Log(connectionMsg);
                 break;
             case NetworkEventType.DataEvent:
                 string msg = Encoding.Unicode.GetString(recBuffer, 0, datasize);
@@ -96,14 +102,27 @@ public class ServerManager : MonoBehaviour
                 string[] splitData = msg.Split('|');
                 switch (splitData[0])
                 {
+                    case "CREATE_MATCH":
+                        CreateMatch(splitData[1], splitData[2]);
+                        break;
+                    case "JOIN_MATCH":
+                        JoinMatch(splitData[1], splitData[2]);
+                        break;
+                    case "LEAVE_MATCH_LOBBY":
+                        LeaveMatchLobby(splitData[1], splitData[2]);
+                        break;
                     case "START_MATCH":
-                        StartMatch(splitData[1]);
+                        StartMatch(splitData[1], splitData[2]);
                         break;
                     case "DROP_PLAYER":
-                        DropPlayer(splitData[1]);
+                        DropPlayer(splitData[1], splitData[2]);
                         break;
                     case "MOVE_PLAYER":
                         MovePlayer(splitData[1], splitData[2]);
+                        break;
+                    case "GET_OPEN_MATCHES":
+                        Debug.Log("Getting open matches");
+                        GetOpenMatches(recHostID, recConnectionID, recChannelID);
                         break;
                 }
                 break;
@@ -113,21 +132,78 @@ public class ServerManager : MonoBehaviour
         }
     }
 
-    private void StartMatch(string playerId)
+    private void CreateMatch(string playerId, string matchName)
     {
+        if(!m_openMatches.ContainsKey(matchName))
+        {
+            m_openMatches.Add(matchName, new List<string> { playerId });
+        }
+        GameManager.Instance.MatchName = matchName;
         GameManager.Instance.AddPlayer(playerId);
-        GameManager.Instance.SpawnPlayer(playerId, new Vector3(0, 1, 0));
     }
-    private void DropPlayer(string playerId)
+
+    private void JoinMatch(string playerId, string matchName)
+    {
+        if (m_openMatches.ContainsKey(matchName))
+        {
+            m_openMatches[matchName].Add(playerId);
+        }
+        GameManager.Instance.AddPlayer(playerId);
+    }
+
+    private void LeaveMatchLobby(string playerId, string matchName)
+    {
+        if(m_openMatches.ContainsKey(matchName))
+        {
+            m_openMatches[matchName].Remove(playerId);
+            if(m_openMatches[matchName].Count == 0)
+            {
+                m_openMatches.Remove(matchName);
+            }
+        }
+        GameManager.Instance.RemovePlayer(playerId);
+    }
+
+    private void StartMatch(string playerId, string matchName)
+    {
+        Vector3 spawnVector = new Vector3(0, 1, 0);
+        foreach (string player in GameManager.Instance.PlayerIds)
+        {
+            GameManager.Instance.SpawnPlayer(player, spawnVector);
+            spawnVector += new Vector3(3, 0, 0);
+        }
+    }
+
+    private void DropPlayer(string playerId, string matchName)
     {
         GameManager.Instance.RemovePlayer(playerId);
     }
+
     private void MovePlayer(string playerId, string position)
     {
         position = position.Substring(1, position.Length - 2);
         string[] splitData = position.Split(',');
         Vector3 positionVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
         GameManager.Instance.MovePlayer(playerId, positionVec);
+    }
+
+    private void GetOpenMatches(int hostId, int connectionId, int channelId)
+    {
+        string msg = "OPEN_MATCH_LIST|";
+        foreach (string matchId in m_openMatches.Keys)
+        {
+            msg += "|" + matchId;
+        }
+        sendMessage(msg, hostId, connectionId, channelId);
+    }
+
+    public void sendMessage(string message, int hostId, int connectionId, int channelId)
+    {
+        byte[] buffer = Encoding.Unicode.GetBytes(message);
+        if (m_hostID >= 0)
+        {
+            NetworkTransport.Send(hostId, connectionId, channelId, buffer, message.Length * sizeof(char), out m_error);
+        }
     }
 
 }

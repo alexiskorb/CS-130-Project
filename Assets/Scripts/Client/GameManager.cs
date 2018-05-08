@@ -11,9 +11,10 @@ public class GameManager : MonoBehaviour {
     // Events
     public delegate void MatchDelegate(string playerId, string matchId);
     public static event MatchDelegate createMatchEvent;
+    public static event MatchDelegate joinMatchEvent;
+    public static event MatchDelegate leaveMatchLobbyEvent;
     public static event MatchDelegate startMatchEvent;
     public static event MatchDelegate dropMatchEvent;
-    public static event MatchDelegate joinMatchEvent;
 
     // Public variables
     public GameObject mainPlayerPrefab;
@@ -25,8 +26,7 @@ public class GameManager : MonoBehaviour {
     private bool m_mainPlayerNameIsSet = false;
     private string m_matchName = "";
     private bool m_matchNameIsSet = false;
-    private bool m_matchReady = false;
-    private bool m_matchStarted = false; 
+    private bool m_inMatch = false; 
 	private bool m_menuOpen = false;
     private string m_gameScene = "";
     private string m_endScene = "";
@@ -77,15 +77,19 @@ public class GameManager : MonoBehaviour {
         m_players = new Dictionary<string, GameObject>();
     }
 
+    // Subscribe to sceneLoaded event
     void OnEnable()
     {
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
+
+    // Unsubscribe from sceneLoaded event
     void OnDisable()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
+    // Used to call relevant functions after the scene loads since scene loads complete in the frame after they're called
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         // Call startMatchEvent when game scene is loaded
@@ -96,9 +100,13 @@ public class GameManager : MonoBehaviour {
                 startMatchEvent(m_mainPlayerName, m_matchName);
             }
         }
-        // Reset game manager when end scene is loaded.
+        // Call dropMatchEvent and reset game manager when end scene is loaded
         if (scene.name == m_endScene)
         {
+            if (dropMatchEvent != null)
+            {
+                dropMatchEvent(m_mainPlayerName, m_matchName);
+            }
             ResetGameManager();
         }
     }
@@ -107,7 +115,7 @@ public class GameManager : MonoBehaviour {
     void Update()
     {
         // TEST CODE
-        if (m_matchStarted)
+        if (m_inMatch)
         {
             if (Input.GetKeyDown(KeyCode.Q))
             {
@@ -134,15 +142,15 @@ public class GameManager : MonoBehaviour {
 			m_menuOpen = value;
 		}
 	}
-    public bool MatchStarted
+    public bool InMatch
     {
         get
         {
-            return m_matchStarted;
+            return m_inMatch;
         }
         set
         {
-            m_matchStarted = value;
+            m_inMatch = value;
         }
     }
     public string MainPlayerName
@@ -183,13 +191,6 @@ public class GameManager : MonoBehaviour {
             }
         }
     }
-    public bool MatchReady
-    {
-        get
-        {
-            return m_mainPlayerNameIsSet && m_matchNameIsSet;
-        }
-    }
     public List<string> PlayerIds
     {
         get
@@ -209,42 +210,71 @@ public class GameManager : MonoBehaviour {
         }
     }
 
-    // Creates a new match
-    public void CreateMatch()
+    // Creates a new match. Fails if match name or player name is not set.
+    // Returns true if the match is created. Returns false otherwise
+    public bool CreateMatch()
     {
-        m_players.Clear();
-        if(!isServer)
+        if(!isServer && m_matchNameIsSet && m_mainPlayerNameIsSet)
         {
+            m_players.Clear();
             AddPlayer(m_mainPlayerName);
             if (createMatchEvent != null)
             {
                 createMatchEvent(m_mainPlayerName, m_matchName);
             }
+            return true;
         }
+        return false;
+    }
+
+    // Join a match. Fails if match name or player name is not set.
+    // Returns true if successful. Returns false otherwise
+    public bool JoinMatch()
+    {
+        if (m_mainPlayerNameIsSet && m_matchNameIsSet)
+        {
+            AddPlayer(m_mainPlayerName);
+            if (joinMatchEvent != null)
+            {
+                joinMatchEvent(m_mainPlayerName, m_matchName);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    // Leaves the match lobby
+    public void LeaveMatchLobby()
+    {
+        if (leaveMatchLobbyEvent != null)
+        {
+            leaveMatchLobbyEvent(m_mainPlayerName, m_matchName);       
+        }
+        ResetGameManager();
     }
 
     // Starts a new match in a given scene
     public void StartMatch(string scene)
     {
-        m_matchStarted = true;
+        m_inMatch = true;
         m_gameScene = scene;
         SceneManager.LoadScene(scene);
+        // startMatchEvent will be called after the scene is loaded
     }
+
 
     // Drop out of match and return to a given scene
     public void DropMatch(string scene)
     {
-        if (dropMatchEvent != null)
-        {
-            dropMatchEvent(m_mainPlayerName, m_matchName);
-        }
+        m_inMatch = false;
         m_endScene = scene;
         SceneManager.LoadScene(scene);
+        // dropMatchEvent and ResetGameManager will be called after the scene is loaded
     }
 
 
     // Resets player and match name and removes main player from player list
-    public void ResetGameManager()
+    private void ResetGameManager()
     {
         List<string> playerIds = new List<string>(m_players.Keys);
         foreach (string playerId in playerIds)
@@ -253,16 +283,6 @@ public class GameManager : MonoBehaviour {
         }
         MainPlayerName = "";
         MatchName = "";
-    }
-
-    // Join a match 
-    public void JoinMatch()
-    {
-        AddPlayer(m_mainPlayerName);
-        if (joinMatchEvent != null)
-        {
-            joinMatchEvent(m_mainPlayerName, m_matchName);
-        }
     }
 
     // Adds player to match
@@ -275,10 +295,7 @@ public class GameManager : MonoBehaviour {
             m_players.Add(playerId, null);
             return true;
         }
-        else
-        {
-            return false;
-        }
+        return false;
     }
 
     // Removes player from match
@@ -286,7 +303,7 @@ public class GameManager : MonoBehaviour {
     // Returns false if the player did not exist
     public bool RemovePlayer(string playerId)
     {
-        // If the player exists, destroy them
+        // If the player exists, destroy them and remove them from list
         if (m_players.ContainsKey(playerId))
         {
             if (m_players[playerId])

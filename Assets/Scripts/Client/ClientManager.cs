@@ -14,7 +14,7 @@ public class ClientManager : MonoBehaviour
     public string startingSceneName;
 
     public const int serverPort = 8889;
-    public const int clientPort = 8888;
+    public int clientPort;
 
     private int m_connectionID;
     private int m_channelID;
@@ -24,6 +24,7 @@ public class ClientManager : MonoBehaviour
 
     private string m_mainPlayerName;
     private Dictionary<string, GameObject> m_players;
+    private List<string> m_openMatches;
 
     // Singleton instance of the ClientManager
     private static ClientManager m_instance = null;
@@ -65,38 +66,110 @@ public class ClientManager : MonoBehaviour
     // Use this for initialization
     void Start()
     {
+        // Initialize variables
+        m_openMatches = new List<string>();
+
+        // TEMP CODE ---------------
+        // Randomize client port number so we can have multiple connections
+        Random.InitState((int)(System.DateTime.Now.Minute + System.DateTime.Now.Second));
+        clientPort = 8888 + Random.Range(1, 30);
+        string portNo = "PortNo:" + clientPort;
+        Debug.Log(portNo);
+        // END TEMP CODE ------------
+
+        // Start Network Transport
         NetworkTransport.Init();
+        Connect();
 
         // Load into main menu at start of game
         SceneManager.LoadScene(startingSceneName);
 
     }
 
-    // Subscribe to createMatchEvent, startMatchEvent, dropMatchEvent
+    // Update is called once per frame
+    void Update()
+    {
+        int recHostID;
+        int recConnectionID;
+        int recChannelID;
+        int bufferSize = 1024;
+        byte[] recBuffer = new byte[bufferSize];
+        int dataSize;
+        NetworkEventType recNetworkEvent = NetworkTransport.Receive(out recHostID, out recConnectionID, out recChannelID, recBuffer, bufferSize, out dataSize, out m_error);
+
+        switch (recNetworkEvent)
+        {
+            case NetworkEventType.ConnectEvent:
+                Debug.Log("Connected");
+                break;
+            case NetworkEventType.DataEvent:
+                string msg = Encoding.Unicode.GetString(recBuffer, 0, dataSize);
+                Debug.Log("Receiving: " + msg);
+                string[] splitData = msg.Split('|');
+                switch (splitData[0])
+                {
+                    case "OPEN_MATCH_LIST":
+                        UpdateOpenMatches(msg);
+                        break;                    
+                }
+                break;
+            case NetworkEventType.DisconnectEvent:
+                Debug.Log("Disconnected");
+                break;
+        }
+
+        m_players = GameManager.Instance.Players;
+
+        if (GameManager.Instance.InMatch)
+        {
+            SendPlayerData();
+        }
+    }
+
+    // Subscribe to GameManager events
     private void OnEnable()
     {
         GameManager.createMatchEvent += createMatchHandler;
+        GameManager.joinMatchEvent += joinMatchHandler;
+        GameManager.leaveMatchLobbyEvent += leaveMatchLobbyHandler;
         GameManager.startMatchEvent += startMatchHandler;
         GameManager.dropMatchEvent += dropMatchHandler;
-        GameManager.joinMatchEvent += joinMatchHandler;
     }
-    // Unsubscribe from createMatchEvent, startMatchEvent, dropMatchEvent
+    // Unsubscribe from GameManager events
     private void OnDisable()
     {
         GameManager.createMatchEvent -= createMatchHandler;
+        GameManager.joinMatchEvent -= joinMatchHandler;
+        GameManager.leaveMatchLobbyEvent -= leaveMatchLobbyHandler;
         GameManager.startMatchEvent -= startMatchHandler;
         GameManager.dropMatchEvent -= dropMatchHandler;
-        GameManager.joinMatchEvent -= joinMatchHandler;
     }
 
     // Called automatically when GameManager asks to create a match
     private void createMatchHandler(string playerId, string matchId)
     {
         Debug.Log("GameManager asked to create a match");
-        Connect();
+        //Connect();
         string msg = "CREATE_MATCH|" + playerId + "|" + matchId;
         sendMessage(msg);
         m_mainPlayerName = GameManager.Instance.MainPlayerName;
+    }
+
+    // Called automatically when GameManager asks to join a match
+    private void joinMatchHandler(string playerId, string matchId)
+    {
+        Debug.Log("GameManager asked to join a match");
+        string msg = "JOIN_MATCH|" + playerId + "|" + matchId;
+        sendMessage(msg);
+        m_mainPlayerName = GameManager.Instance.MainPlayerName;
+    }
+
+    // Called automatically when GameManager asks to leave a match lobby
+    private void leaveMatchLobbyHandler(string playerId, string matchId)
+    {
+        Debug.Log("GameManager asked to leave a match lobby");
+        string msg = "LEAVE_MATCH_LOBBY|" + playerId + "|" + matchId;
+        sendMessage(msg);
     }
 
     // Called automatically when GameManager asks to start a match
@@ -114,39 +187,36 @@ public class ClientManager : MonoBehaviour
         Debug.Log("GameManager asked to drop a player");
         string msg = "DROP_PLAYER|" + playerId + "|" + matchId;
         sendMessage(msg);
-        Disconnect();
+        //Disconnect();
     }
 
-    // Called automatically when GameManager asks to join a match
-    private void joinMatchHandler(string playerId, string matchId)
+    public void RequestOpenMatchList()
     {
-        Debug.Log("GameManager asked to join a match");
+        Debug.Log("Request Open Matches");
+        string msg = "GET_OPEN_MATCHES";
+        sendMessage(msg);
     }
 
-    // Update is called once per frame
-    void Update()
+    private void UpdateOpenMatches(string msg)
     {
-        int recHostID;
-        int recConnectionID;
-        int recChannelID;
-        int bufferSize = 1024;
-        byte[] recBuffer = new byte[bufferSize];
-        int dataSize;
-        NetworkEventType recNetworkEvent = NetworkTransport.Receive(out recHostID, out recConnectionID, out recChannelID, recBuffer, bufferSize, out dataSize, out m_error);
-
-        m_players = GameManager.Instance.Players;
-
-        if(GameManager.Instance.MatchStarted)
+        Debug.Log("Updating open matches");
+        m_openMatches.Clear();
+        string[] splitData = msg.Split('|');
+        for (int i = 1; i < splitData.Length; i++)
         {
-            SendPlayerData();
+            if(splitData[i] != "")
+            {
+                m_openMatches.Add(splitData[i]);
+            }
         }
     }
 
     // Returns a list of open matches
     public List<string> GetOpenMatches()
     {
+        return m_openMatches;
         // TEMP CODE = should get this information from the server
-        List<string> matchList = new List<string>();
+        /*List<string> matchList = new List<string>();
         if (GameManager.Instance.MatchName != "" && !matchList.Contains(GameManager.Instance.MatchName))
         {
             matchList.Add(GameManager.Instance.MatchName);
@@ -162,7 +232,7 @@ public class ClientManager : MonoBehaviour
         matchList.Add("temp_match9");
         matchList.Add("temp_match10");
         // END TEMP CODE
-        return matchList;
+        return matchList;*/
     }
 
     // Send player move data
