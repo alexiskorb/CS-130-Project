@@ -53,6 +53,11 @@ public class JoinMatchUI : MonoBehaviour {
         }
     }
 
+    public void RefreshOpenMatches()
+    {
+        ClientManager.Instance.RequestOpenMatchList();
+    }
+
     public void SubmitMainPlayerName()
     {
         string name = playerNameInput.GetComponent<InputField>().text;

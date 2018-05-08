@@ -51,9 +51,8 @@ public class MainMenuUI : MonoBehaviour {
     public void CreateMatch()
     {
         m_isMatchCreator = true;
-        if (GameManager.Instance.MatchReady)
+        if (GameManager.Instance.CreateMatch())
         {
-            GameManager.Instance.CreateMatch();
             ShowStartMatchMenu();
         }
         else
@@ -66,9 +65,8 @@ public class MainMenuUI : MonoBehaviour {
     public void JoinMatch()
     {
         m_isMatchCreator = false;
-        if (GameManager.Instance.MatchReady)
+        if (GameManager.Instance.JoinMatch())
         {
-            GameManager.Instance.JoinMatch();
             ShowStartMatchMenu();
         }
         else
@@ -80,7 +78,7 @@ public class MainMenuUI : MonoBehaviour {
     // Leave player lobby
     public void CancelMatch()
     {
-        GameManager.Instance.ResetGameManager();
+        GameManager.Instance.LeaveMatchLobby();
         if (m_isMatchCreator)
         {
             createMatchMenu.GetComponent<CreateMatchUI>().ResetMenu();
@@ -96,7 +94,7 @@ public class MainMenuUI : MonoBehaviour {
     // Return to main menu
     public void ReturnToMainMenu()
     {
-        GameManager.Instance.ResetGameManager();
+        GameManager.Instance.LeaveMatchLobby();
         joinMatchMenu.GetComponent<JoinMatchUI>().ResetMenu();
         createMatchMenu.GetComponent<CreateMatchUI>().ResetMenu();
         ShowMainMenu();
@@ -132,6 +130,7 @@ public class MainMenuUI : MonoBehaviour {
         createMatchMenu.enabled = false;
         startMatchMenu.enabled = false;
         joinMatchMenu.enabled = true;
+        joinMatchMenu.GetComponent<JoinMatchUI>().RefreshOpenMatches();
     }
 
 }
