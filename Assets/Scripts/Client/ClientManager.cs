@@ -10,12 +10,13 @@ using UnityEngine.SceneManagement;
 //Client code using the LLAPI. 
 public class ClientManager : MonoBehaviour
 {
-
+    // Scene to load into at start of game
     public string startingSceneName;
 
     public const int serverPort = 8889;
     public int clientPort;
 
+    // Connection Info
     private int m_connectionID;
     private int m_channelID;
     private int m_hostID;
@@ -89,6 +90,7 @@ public class ClientManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        // Receive messages from server
         int recHostID;
         int recConnectionID;
         int recChannelID;
@@ -110,7 +112,10 @@ public class ClientManager : MonoBehaviour
                 {
                     case "OPEN_MATCH_LIST":
                         UpdateOpenMatches(msg);
-                        break;                    
+                        break;
+                    case "PLAYER_LOBBY_UPDATE":
+                        UpdatePlayerLobby(msg);
+                        break;
                 }
                 break;
             case NetworkEventType.DisconnectEvent:
@@ -118,6 +123,7 @@ public class ClientManager : MonoBehaviour
                 break;
         }
 
+        // Update list of players and send player data to server
         m_players = GameManager.Instance.Players;
 
         if (GameManager.Instance.InMatch)
@@ -190,6 +196,7 @@ public class ClientManager : MonoBehaviour
         //Disconnect();
     }
 
+    // Ask for server to send a list of open matches
     public void RequestOpenMatchList()
     {
         Debug.Log("Request Open Matches");
@@ -197,6 +204,7 @@ public class ClientManager : MonoBehaviour
         sendMessage(msg);
     }
 
+    // Update list of open matches based on message msg from server
     private void UpdateOpenMatches(string msg)
     {
         Debug.Log("Updating open matches");
@@ -211,28 +219,27 @@ public class ClientManager : MonoBehaviour
         }
     }
 
+    // Update players in match lobby based on message msg from server
+    private void UpdatePlayerLobby(string msg)
+    {
+        string[] splitData = msg.Split('|');
+        if (splitData[1] == GameManager.Instance.MatchName)
+        {
+            foreach (string playerId in GameManager.Instance.PlayerIds)
+            {
+                GameManager.Instance.RemovePlayer(playerId);
+            }
+            for (int i = 2; i < splitData.Length; i++)
+            {
+                GameManager.Instance.AddPlayer(splitData[i]);
+            }
+        }
+    }
+
     // Returns a list of open matches
     public List<string> GetOpenMatches()
     {
         return m_openMatches;
-        // TEMP CODE = should get this information from the server
-        /*List<string> matchList = new List<string>();
-        if (GameManager.Instance.MatchName != "" && !matchList.Contains(GameManager.Instance.MatchName))
-        {
-            matchList.Add(GameManager.Instance.MatchName);
-        }
-        matchList.Add("temp_match");
-        matchList.Add("temp_match2");
-        matchList.Add("temp_match3");
-        matchList.Add("temp_match4");
-        matchList.Add("temp_match5");
-        matchList.Add("temp_match6");
-        matchList.Add("temp_match7");
-        matchList.Add("temp_match8");
-        matchList.Add("temp_match9");
-        matchList.Add("temp_match10");
-        // END TEMP CODE
-        return matchList;*/
     }
 
     // Send player move data
@@ -246,7 +253,7 @@ public class ClientManager : MonoBehaviour
         }
     }
 
-    //This connect function is called from the UI element.
+    // Connect to server
     public void Connect()
     {
         Debug.Log("Trying to Connect");
@@ -258,12 +265,13 @@ public class ClientManager : MonoBehaviour
         m_connectionID = NetworkTransport.Connect(m_hostID, "127.0.0.1", serverPort, 0, out m_error);
     }
 
+    // Disconnect from server
     public void Disconnect()
     {
         NetworkTransport.Disconnect(m_hostID, m_connectionID, out m_error);
     }
 
-
+    // Send message to server
     public void sendMessage(string message)
     {
         byte[] buffer = Encoding.Unicode.GetBytes(message);
