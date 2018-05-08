@@ -33,18 +33,9 @@ public class CreateMatchUI : MonoBehaviour {
         GameManager.Instance.MatchName = name;
     }
 
-    public bool CreateMatch()
+    public void ShowCreateMatchError()
     {
-        if (GameManager.Instance.MatchReady)
-        {
-            GameManager.Instance.CreateMatch();
-            return true;
-        }
-        else
-        {
-            createMatchError.SetActive(true);
-            return false;
-        }
+        createMatchError.SetActive(true);
     }
 
     public void ResetMenu()

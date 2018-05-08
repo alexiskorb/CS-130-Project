@@ -64,18 +64,9 @@ public class JoinMatchUI : MonoBehaviour {
         GameManager.Instance.MatchName = name;
     }
 
-    public bool JoinMatch()
+    public void ShowJoinMatchError()
     {
-        if (GameManager.Instance.MatchReady)
-        {
-            GameManager.Instance.AddPlayer(GameManager.Instance.MainPlayerName);
-            return true;
-        }
-        else
-        {
-            joinMatchError.SetActive(true);
-            return false;
-        }
+        joinMatchError.SetActive(true);
     }
 
     public void ResetMenu()
