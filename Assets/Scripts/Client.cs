@@ -49,7 +49,7 @@ namespace FpsClient {
 			Netcode.PlayerSnapshot snapshot = new Netcode.PlayerSnapshot(m_seqno++, m_game.GetServerId(), position);
 			m_clientHistory.PutSnapshot(snapshot);
 
-			SendPacket(Netcode.PlayerSnapshot.Serialize(snapshot));
+			SendPacket(snapshot.Serialize());
 			// @endtest 
 		}
 
@@ -89,7 +89,6 @@ namespace FpsClient {
 		void ProcessPacket(byte[] buf, IPEndPoint endPoint)
 		{
 			Netcode.PacketHeader header = Netcode.PacketHeader.Deserialize(buf);
-			Netcode.ClientAddress serverAddr = new Netcode.ClientAddress(endPoint.Address.ToString(), endPoint.Port);
 
 			switch (header.m_type) {
 				case Netcode.PacketType.CONNECT:
@@ -109,7 +108,7 @@ namespace FpsClient {
 
 		void ProcessConnect(byte[] buf)
 		{
-			Netcode.Connect connect = Netcode.Connect.Deserialize(buf);
+			Netcode.Connect connect = new Netcode.Connect(buf);
 			m_game.NetEvent(connect);
 			m_sendTick = new PeriodicFunction(Tick, TICK_RATE);
 			ClientLog("Server connection request received! My Server ID is " + m_game.GetServerId());
@@ -117,7 +116,7 @@ namespace FpsClient {
 
 		void ProcessDisconnect(byte[] buf)
 		{
-			Netcode.Disconnect disconnect = Netcode.Disconnect.Deserialize(buf);
+			Netcode.Disconnect disconnect = new Netcode.Disconnect(buf);
 			if (disconnect.m_serverId == m_game.GetServerId()) {
 				// @TODO: Admittedly, this is a little harsh. Network events like these should be passed 
 				// to the game logic for it to decide what to do. 
@@ -129,7 +128,7 @@ namespace FpsClient {
 
 		void ProcessSnapshot(byte[] buf)
 		{
-			Netcode.PlayerSnapshot snapshot = Netcode.PlayerSnapshot.Deserialize(buf);
+			Netcode.PlayerSnapshot snapshot = new Netcode.PlayerSnapshot(buf);
 			if (snapshot.m_serverId == m_game.GetServerId()) {
 				// Check if the client's player state and server state are out of sync.
 				if (!m_clientHistory.Reconcile(snapshot)) {
@@ -147,7 +146,7 @@ namespace FpsClient {
 		void ConnectToServer()
 		{
 			Netcode.Connect connectPacket = new Netcode.Connect(m_seqno, m_game.GetServerId());
-			byte[] buf = Netcode.Connect.Serialize(connectPacket);
+			byte[] buf = connectPacket.Serialize();
 			SendPacket(buf);
 		}
 
@@ -159,7 +158,7 @@ namespace FpsClient {
 		void OnDestroy()
 		{
 			Netcode.Disconnect disconnect = new Netcode.Disconnect(m_seqno, m_game.GetServerId());
-			SendPacket(Netcode.Disconnect.Serialize(disconnect));
+			SendPacket(disconnect.Serialize());
 			m_client.Close();
 		}
 

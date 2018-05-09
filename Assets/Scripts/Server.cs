@@ -56,7 +56,7 @@ namespace FpsServer {
 				}
 
 				Netcode.PlayerSnapshot snapshot = history.GetMostRecentSnapshot();
-				BroadcastPacket(Netcode.PlayerSnapshot.Serialize(snapshot));
+				BroadcastPacket(snapshot.Serialize());
 			}
 		}
 
@@ -132,20 +132,22 @@ namespace FpsServer {
 				m_clients.Add(clientAddr, clientHistory);
 				m_serverIds.Add(clientAddr, initialSnapshot.m_serverId);
 				// Send CONNECT ack. 
-				SendPacket(clientAddr, Netcode.Connect.Serialize(new Netcode.Connect(0, initialSnapshot.m_serverId)));
+				Netcode.Connect connect = new Netcode.Connect(0, initialSnapshot.m_serverId);
+				SendPacket(clientAddr, connect.Serialize());
 			} else
 				ServerLog(clientAddr.ipAddress + " " + clientAddr.port + " is already connected.");
 		}
 
 		public void ProcessDisconnect(Netcode.ClientAddress clientAddr, byte[] buf)
 		{
-			Netcode.Disconnect disconnect = Netcode.Disconnect.Deserialize(buf);
+			Netcode.Disconnect disconnect = new Netcode.Disconnect(buf);
 			DisconnectClient(clientAddr);
 		}
 
 		public void ProcessSnapshot(Netcode.ClientAddress addr, byte[] buf)
 		{
-			Netcode.PlayerSnapshot snapshot = Netcode.PlayerSnapshot.Deserialize(buf);
+			Netcode.PlayerSnapshot snapshot = new Netcode.PlayerSnapshot(buf);
+
 			try {
 				m_game.PutSnapshot(snapshot);
 				m_clients[addr].PutSnapshot(snapshot);
@@ -183,7 +185,7 @@ namespace FpsServer {
 			m_game.KillEntity(serverId);
 
 			Netcode.Disconnect disconnect = new Netcode.Disconnect(0, serverId);
-			BroadcastPacket(Netcode.Disconnect.Serialize(disconnect));
+			BroadcastPacket(disconnect.Serialize());
 		}
 
 		public void ServerLog(string message)
