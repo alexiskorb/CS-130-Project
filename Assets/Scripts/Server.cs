@@ -5,131 +5,163 @@ using System.Net.Sockets;
 using System.Collections.Generic;
 using FpsNetcode;
 
-public struct ClientAddress {
-	public string ipAddress;
-	public int port;
-	// TODO: A unique, server-assigned client ID field would be useful for when 
-	// a client's connection moves. (Salted GetHashCode?)
-	public ClientAddress(string ipAddress, int port)
-	{
-		this.ipAddress = ipAddress;
-		this.port = port;
-	}
-}
+namespace FpsServer {
+	// @class Server
+	// @desc The authoritative server.
+	public class Server : MonoBehaviour {
+		// The server-side game manager.
+		public GameServer m_game;
+		// Server port.
+		private const int SERVER_PORT = 9000;
+		// The server 
+		private UdpClient m_server;
+		private Queue<Netcode.MainThreadWork> m_mainWork = new Queue<Netcode.MainThreadWork>();
+		private Dictionary<Netcode.ClientAddress, Netcode.ClientHistory> m_clients = new Dictionary<Netcode.ClientAddress, Netcode.ClientHistory>();
 
-public struct ConnectionInfo {
-	public uint seqno;
-	public float timeSinceLastAck;
-	public ConnectionInfo(uint seqno, float timeSinceLastAck)
-	{
-		this.seqno = seqno;
-		this.timeSinceLastAck = timeSinceLastAck;
-	}
-}
-
-public struct PlayerInfo {
-
-}
-
-public struct ClientState {
-	public ConnectionInfo connection;
-	public PlayerInfo player;
-	public ClientState(ConnectionInfo connection, PlayerInfo player)
-	{
-		this.connection = connection;
-		this.player = player;
-	}
-}
-
-// The authoritative server. 
-public class Server : MonoBehaviour {
-	private const int SERVER_PORT = 9000;
-	private UdpClient m_server;
-	private Dictionary<ClientAddress, ClientState> m_connections;	// <ClientAddress, ConnectionInfo>
-
-	public void ReceiveCallback(IAsyncResult asyncResult)
-	{
-		IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
-		byte[] buf = m_server.EndReceive(asyncResult, ref remoteEndPoint);
-		m_server.BeginReceive(ReceiveCallback, m_server);
-
-		ServerLog("Message from " + remoteEndPoint.Address.ToString() + 
-			" on port " + remoteEndPoint.Port.ToString());
-
-		ProcessMessage(buf, remoteEndPoint);
-	}
-
-	public void ServerLog(string message)
-	{
-		Debug.Log("<Server> " + message);
-	}
-
-	public void ProcessMessage(byte[] buf, IPEndPoint endpoint)
-	{
-		Netcode.PacketHeader header = Netcode.GetHeader(buf);
-		ClientAddress clientInfo = new ClientAddress(endpoint.Address.ToString(), endpoint.Port);
-
-		// If it's a new client, make sure it's a CONNECT packet.
-		if (!m_connections.ContainsKey(clientInfo) && header.type != Netcode.PacketType.CONNECT) {
-			ServerLog("Client must establish a connection before sending.\nIP: " + clientInfo.ipAddress + " Port: " + clientInfo.port);
-			return;
+		void Start()
+		{
+			// Initialize server.
+			m_server = new UdpClient(SERVER_PORT);
+			// Begin listening for packets.
+			m_server.BeginReceive(ReceiveCallback, m_server);
 		}
 
-		if (header.type == Netcode.PacketType.CONNECT) {
-			ServerLog("Client connected! Seqno " + header.seqno);
-			ProcessConnect(clientInfo);
-			return;
+		// @func Update
+		// @desc Every update we do all the work in the work queue, then propagate updates to all connected clients.
+		void Update()
+		{
+			while (m_mainWork.Count > 0) {
+				Netcode.MainThreadWork work = m_mainWork.Dequeue();
+				work.Invoke();
+			}
+
+			foreach (var client in m_clients) {
+				Netcode.ClientHistory history = client.Value;
+				Netcode.ClientAddress addr = client.Key;
+				
+				history.IncrTimeSinceLastAck(Time.deltaTime);
+
+				if (history.GetTimeSinceLastAck() >= Netcode.ClientHistory.CLIENT_TIMEOUT) {
+					ServerLog("Disconnecting client: <" + addr.ipAddress + ", " + addr.port + ">");
+					Netcode.PacketHeader disconnectPacket = new Netcode.PacketHeader(Netcode.PacketType.DISCONNECT, history.GetSeqno());
+					SendPacket(addr, Netcode.PacketHeader.Serialize(disconnectPacket));
+					m_clients.Remove(addr);
+					break;
+				}
+
+				Netcode.PlayerSnapshot snapshot = history.GetMostRecentSnapshot();
+				foreach (var clientAddr in m_clients.Keys) {
+					SendPacket(clientAddr, Netcode.PlayerSnapshot.Serialize(snapshot));
+				}
+			}
 		}
 
-		// Check the seqno.
-		ClientState state = m_connections[clientInfo];
-		if (header.seqno < state.connection.seqno) {
-			ServerLog("Packet received out of order.");
-			return;
+		// @func ReceiveCallback
+		// @desc The asynchronous callback used to receive datagrams.
+		public void ReceiveCallback(IAsyncResult asyncResult)
+		{
+			IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
+			byte[] buf = m_server.EndReceive(asyncResult, ref remoteEndPoint);
+			m_server.BeginReceive(ReceiveCallback, m_server);
+
+			// @doc Unity is not a thread-safe game engine: Calls to the Unity API have to be from the
+			// main thread or else the engine will spit out an error. Most of packet processing is therefore done from the main thread. 
+			Netcode.MainThreadWork work = () => {
+				ProcessPacket(buf, remoteEndPoint);
+			};
+
+			m_mainWork.Enqueue(work);
 		}
 
-		switch (header.type) {
-			case Netcode.PacketType.CLIENT_SNAPSHOT:
-				ServerLog("Client snapshot received! Seqno " + header.seqno);
-				break;
-			case Netcode.PacketType.CLIENT_CMD:
-				ServerLog("Client sent a command! Seqno " + header.seqno);
-				break;
-			default:
-				ServerLog("Dunno.");
-				break;
+		public void ProcessPacket(byte[] buf, IPEndPoint endPoint)
+		{
+			Netcode.PacketHeader header = Netcode.PacketHeader.Deserialize(buf);
+			Netcode.ClientAddress clientAddr = new Netcode.ClientAddress(endPoint.Address.ToString(), endPoint.Port);
+
+			if (header.m_type == Netcode.PacketType.CONNECT) {
+				ProcessConnect(clientAddr);
+				return;
+			}
+
+			// If there is a new client, it should have sent a connect packet already.
+			if (!m_clients.ContainsKey(clientAddr)) {
+				ServerLog("Client must establish a connection before sending.\nIP: " + clientAddr.ipAddress + " Port: " + clientAddr.port);
+				return;
+			}
+
+			Netcode.ClientHistory history = m_clients[clientAddr];
+
+			// Check the seqno, discarding old packets.
+			if (header.m_seqno < history.GetSeqno()) {
+				ServerLog("Packet with seqno " + header.m_seqno + " was received out of order.");
+				return;
+			}
+
+			switch (header.m_type) {
+				case Netcode.PacketType.CLIENT_SNAPSHOT:
+					ProcessSnapshot(clientAddr, buf);
+					break;
+				case Netcode.PacketType.CLIENT_CMD:
+					ServerLog("Client sent a command! Seqno " + header.m_seqno);
+					break;
+				case Netcode.PacketType.DISCONNECT:
+					ProcessDisconnect(clientAddr, buf);
+					break;
+				default:
+					ServerLog("Packet type unknown.");
+					break;
+			}
+		}
+
+		// @TODO
+		public void ProcessClientCmd()
+		{
+		}
+
+		public void ProcessConnect(Netcode.ClientAddress clientAddr)
+		{
+			// If this is a new client, add it to the client connection table, otherwise discard the packet. 
+			if (!m_clients.ContainsKey(clientAddr)) {
+				Netcode.PlayerSnapshot initialSnapshot = m_game.SpawnPlayer();
+				ServerLog("Creating player with Server ID " + initialSnapshot.m_serverId);
+				Netcode.ClientHistory clientHistory = new Netcode.ClientHistory(initialSnapshot);
+				m_clients.Add(clientAddr, clientHistory);
+				// Send CONNECT ack. 
+				SendPacket(clientAddr, Netcode.ConnectPacket.Serialize(new Netcode.ConnectPacket(0, initialSnapshot.m_serverId)));
+			} else
+				ServerLog(clientAddr.ipAddress + " " + clientAddr.port + " is already connected.");
+		}
+
+		// @TODO
+		public void ProcessDisconnect(Netcode.ClientAddress clientAddr, byte[] buf)
+		{
+		}
+
+		public void ProcessSnapshot(Netcode.ClientAddress addr, byte[] buf)
+		{
+			Netcode.PlayerSnapshot snapshot = Netcode.PlayerSnapshot.Deserialize(buf);
+			try {
+				m_game.PutSnapshot(snapshot);
+				m_clients[addr].PutSnapshot(snapshot);
+			} catch (Exception) {
+				ServerLog("Invalid Server ID: " + snapshot.m_serverId);
+			}
+		}
+
+		void SendPacket(Netcode.ClientAddress addr, byte[] buf)
+		{
+			m_server.Send(buf, buf.Length, addr.ipAddress, addr.port);
+		}
+
+		void OnDestroy()
+		{
+			m_server.Close();
+		}
+
+		public void ServerLog(string message)
+		{
+			Debug.Log("<Server> " + message);
 		}
 	}
 
-	public void ProcessConnect(ClientAddress clientInfo)
-	{
-		// If this is a new client, add it to the client connection table. 
-		if (!m_connections.ContainsKey(clientInfo)) {
-			ConnectionInfo connection = new ConnectionInfo(0, 0f);
-			PlayerInfo player = new PlayerInfo();
-			ClientState state = new ClientState(connection, player);
-			m_connections.Add(clientInfo, state);
-		}
-		// Else, discard the packet. 
-	}
-
-	void Start()
-	{
-		m_server = new UdpClient(SERVER_PORT);
-		m_server.BeginReceive(ReceiveCallback, m_server);
-		m_connections = new Dictionary<ClientAddress, ClientState>();
-	}
-
-	// For each client: 
-	// - If timeSinceLastAck >= clientTimeoutPeriod, disconnect client. 
-	// - Send client update, incrementing seqnos. 
-	// - Update timeSinceLastAck
-	void Update()
-	{
-	}
-
-	void OnDestroy()
-	{
-		m_server.Close();
-	}
 }
