@@ -14,6 +14,7 @@ public class GameManager : MonoBehaviour {
     public static event MatchDelegate joinMatchEvent;
     public static event MatchDelegate leaveMatchLobbyEvent;
     public static event MatchDelegate startMatchEvent;
+    public static event MatchDelegate gameLoadedEvent;
     public static event MatchDelegate dropMatchEvent;
 
     // Public variables
@@ -93,13 +94,24 @@ public class GameManager : MonoBehaviour {
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         // Call startMatchEvent when game scene is loaded
+        /*
         if (scene.name == m_gameScene)
         {
             if (startMatchEvent != null)
             {
                 startMatchEvent(m_mainPlayerName, m_matchName);
             }
+        }*/
+
+        // Call gameLoadedEvent when game scene is loaded
+        if (scene.name == m_gameScene)
+        {
+            if (gameLoadedEvent != null)
+            {
+                gameLoadedEvent(m_mainPlayerName, m_matchName);
+            }
         }
+
         // Call dropMatchEvent and reset game manager when end scene is loaded
         if (scene.name == m_endScene)
         {
@@ -345,6 +357,16 @@ public class GameManager : MonoBehaviour {
         if (m_players.ContainsKey(playerId))
         {
             m_players[playerId].transform.position = newPosition;
+        }
+    }
+
+    // Rotates a player with the given ID to the given new rotation
+    // Only rotates along y-axis
+    public void RotatePlayer(string playerId, Vector3 newRotation)
+    {
+        if (m_players.ContainsKey(playerId))
+        {
+            m_players[playerId].transform.eulerAngles = new Vector3(0, newRotation[1], 0);
         }
     }
 

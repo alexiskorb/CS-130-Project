@@ -139,7 +139,7 @@ public class ServerManager : MonoBehaviour
                         DropPlayer(splitData[1], splitData[2]);
                         break;
                     case "MOVE_PLAYER":
-                        MovePlayer(splitData[1], splitData[2]);
+                        MovePlayer(splitData[1], splitData[2], splitData[3], splitData[4]);
                         break;
                     case "GET_OPEN_MATCHES":
                         GetOpenMatches(recHostID, recConnectionID, recChannelID);
@@ -180,6 +180,7 @@ public class ServerManager : MonoBehaviour
     }
     
     // Create a match for a player
+    // Currently, the most recently created match is the one the server is running.
     private void CreateMatch(string playerId, string matchName)
     {
         if(!m_openMatches.ContainsKey(matchName))
@@ -187,6 +188,7 @@ public class ServerManager : MonoBehaviour
             m_openMatches.Add(matchName, new List<string> { playerId });
         }
         GameManager.Instance.MatchName = matchName;
+        GameManager.Instance.Players.Clear();
         GameManager.Instance.AddPlayer(playerId);
     }
 
@@ -197,7 +199,10 @@ public class ServerManager : MonoBehaviour
         {
             m_openMatches[matchName].Add(playerId);
         }
-        GameManager.Instance.AddPlayer(playerId);
+        if (matchName == GameManager.Instance.MatchName)
+        {
+            GameManager.Instance.AddPlayer(playerId);
+        }
         UpdatePlayerLobby(matchName);
     }
 
@@ -216,32 +221,53 @@ public class ServerManager : MonoBehaviour
                 UpdatePlayerLobby(matchName);
             }
         }
-        GameManager.Instance.RemovePlayer(playerId);
+        if (matchName == GameManager.Instance.MatchName)
+        {
+            GameManager.Instance.RemovePlayer(playerId);
+        }
     }
 
     // Start a match
     private void StartMatch(string playerId, string matchName)
     {
-        Vector3 spawnVector = new Vector3(0, 1, 0);
-        foreach (string player in GameManager.Instance.PlayerIds)
+        if (matchName == GameManager.Instance.MatchName)
         {
-            GameManager.Instance.SpawnPlayer(player, spawnVector);
-            spawnVector += new Vector3(3, 0, 0);
+            Vector3 spawnVector = new Vector3(0, 1, 0);
+            foreach (string player in GameManager.Instance.PlayerIds)
+            {
+                GameManager.Instance.SpawnPlayer(player, spawnVector);
+                spawnVector += new Vector3(3, 0, 0);
+            }
+            string startMsg = "START_MATCH|" + GameManager.Instance.MatchName;
+            SendMessageToAll(startMsg);
         }
     }
 
     // Drop a player from a match
     private void DropPlayer(string playerId, string matchName)
     {
-        GameManager.Instance.RemovePlayer(playerId);
+        if (matchName == GameManager.Instance.MatchName)
+        {
+            GameManager.Instance.RemovePlayer(playerId);
+        }
     }
 
-    private void MovePlayer(string playerId, string position)
+    private void MovePlayer(string playerId, string matchName, string position, string rotation)
     {
-        position = position.Substring(1, position.Length - 2);
-        string[] splitData = position.Split(',');
-        Vector3 positionVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
-        GameManager.Instance.MovePlayer(playerId, positionVec);
+        if (matchName == GameManager.Instance.MatchName)
+        {
+            // Move Player
+            position = position.Substring(1, position.Length - 2);
+            string[] splitData = position.Split(',');
+            Vector3 positionVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
+            GameManager.Instance.MovePlayer(playerId, positionVec);
+
+            // Rotate player
+            rotation = rotation.Substring(1, rotation.Length - 2);
+            splitData = rotation.Split(',');
+            Vector3 rotationVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
+            GameManager.Instance.RotatePlayer(playerId, rotationVec);
+        }
     }
 
     // Send a list of open matches to the connection specified

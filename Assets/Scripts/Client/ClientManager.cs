@@ -12,6 +12,7 @@ public class ClientManager : MonoBehaviour
 {
     // Scene to load into at start of game
     public string startingSceneName;
+    public string gameSceneName;
 
     public const int serverPort = 8889;
     public int clientPort;
@@ -116,6 +117,9 @@ public class ClientManager : MonoBehaviour
                     case "PLAYER_LOBBY_UPDATE":
                         UpdatePlayerLobby(msg);
                         break;
+                    case "START_MATCH":
+                        StartMatch(splitData[1]);
+                        break;
                 }
                 break;
             case NetworkEventType.DisconnectEvent:
@@ -139,6 +143,7 @@ public class ClientManager : MonoBehaviour
         GameManager.joinMatchEvent += joinMatchHandler;
         GameManager.leaveMatchLobbyEvent += leaveMatchLobbyHandler;
         GameManager.startMatchEvent += startMatchHandler;
+        GameManager.gameLoadedEvent += gameLoadedHandler;
         GameManager.dropMatchEvent += dropMatchHandler;
     }
     // Unsubscribe from GameManager events
@@ -148,6 +153,7 @@ public class ClientManager : MonoBehaviour
         GameManager.joinMatchEvent -= joinMatchHandler;
         GameManager.leaveMatchLobbyEvent -= leaveMatchLobbyHandler;
         GameManager.startMatchEvent -= startMatchHandler;
+        GameManager.gameLoadedEvent += gameLoadedHandler;
         GameManager.dropMatchEvent -= dropMatchHandler;
     }
 
@@ -170,7 +176,7 @@ public class ClientManager : MonoBehaviour
         m_mainPlayerName = GameManager.Instance.MainPlayerName;
     }
 
-    // Called automatically when GameManager asks to leave a match lobby
+    // Called automatically when GameManager leaves a match lobby
     private void leaveMatchLobbyHandler(string playerId, string matchId)
     {
         Debug.Log("GameManager asked to leave a match lobby");
@@ -178,6 +184,7 @@ public class ClientManager : MonoBehaviour
         sendMessage(msg);
     }
 
+    // FUNCTION NOT CURRENTLY IN USE
     // Called automatically when GameManager asks to start a match
     private void startMatchHandler(string playerId, string matchId)
     {
@@ -187,7 +194,19 @@ public class ClientManager : MonoBehaviour
         sendMessage(msg);
     }
 
-    // Called automatically when GameManager asks to end a match
+    // Called automatically when GameManager loads the match
+    private void gameLoadedHandler(string playerId, string matchId)
+    {
+        Debug.Log("Game loaded");
+        Vector3 spawnVector = new Vector3(0, 1, 0);
+        foreach (string player in GameManager.Instance.PlayerIds)
+        {
+            GameManager.Instance.SpawnPlayer(player, spawnVector);
+            spawnVector += new Vector3(3, 0, 0);
+        }
+    }
+
+    // Called automatically when GameManager drops from a match
     private void dropMatchHandler(string playerId, string matchId)
     {
         Debug.Log("GameManager asked to drop a player");
@@ -236,6 +255,23 @@ public class ClientManager : MonoBehaviour
         }
     }
 
+    // Send a request to start the match
+    public void SendStartMatchRequest()
+    {
+        string msg = "START_MATCH|" + GameManager.Instance.MainPlayerName + "|" + GameManager.Instance.MatchName;
+        sendMessage(msg);
+    }
+
+    // Start the match
+    private void StartMatch(string matchName)
+    {
+        Debug.Log("Starting Match");
+        if ((matchName == GameManager.Instance.MatchName) && !GameManager.Instance.InMatch)
+        {
+            GameManager.Instance.StartMatch(gameSceneName);
+        }
+    }
+
     // Returns a list of open matches
     public List<string> GetOpenMatches()
     {
@@ -247,7 +283,7 @@ public class ClientManager : MonoBehaviour
     {
         if (m_players[m_mainPlayerName] != null)
         {
-            string msg = "MOVE_PLAYER|" + m_mainPlayerName + "|" + m_players[m_mainPlayerName].transform.position.ToString() + "|" + GameManager.Instance.MatchName;
+            string msg = "MOVE_PLAYER|" + m_mainPlayerName + "|" + GameManager.Instance.MatchName + "|" + m_players[m_mainPlayerName].transform.position.ToString() + "|" + m_players[m_mainPlayerName].transform.eulerAngles.ToString();
             sendMessage(msg);
             Debug.Log(msg);
         }

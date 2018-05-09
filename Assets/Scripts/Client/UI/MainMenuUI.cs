@@ -44,7 +44,7 @@ public class MainMenuUI : MonoBehaviour {
     // Start a match
     public void StartMatch()
     {
-        GameManager.Instance.StartMatch(gameScenePath);
+        ClientManager.Instance.SendStartMatchRequest();
     }
 
     // Create a match
