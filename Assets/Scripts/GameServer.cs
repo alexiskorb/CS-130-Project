@@ -2,16 +2,49 @@
 using UnityEngine;
 using FpsNetcode;
 
+public class Game : MonoBehaviour {
+	protected Dictionary<int, GameObject> m_objects;
+
+	public void Start()
+	{
+		m_objects = new Dictionary<int, GameObject>();
+	}
+
+	// @func GetEntity
+	// @desc Gets the entity from the server ID. 
+	public GameObject GetEntity(int serverId)
+	{
+		return m_objects[serverId];
+	}
+
+	// @func PutEntity
+	// @desc Inserts the entity into the dictionary. If an entity with this server ID
+	// already exists, kill it. 
+	public void PutEntity(int serverId, GameObject gameObject)
+	{
+		if (m_objects.ContainsKey(serverId))
+			KillEntity(serverId);
+		m_objects[serverId] = gameObject;
+	}
+
+	// @func KillEntity
+	// @desc Removes the game object with server ID from the game. 
+	public void KillEntity(int serverId)
+	{
+		if (m_objects.ContainsKey(serverId)) {
+			GameObject killedEntity = m_objects[serverId];
+			Destroy(killedEntity);
+			m_objects.Remove(serverId);
+		}
+	}
+}
+
 namespace FpsServer {
 	// @class Game
 	// @desc Simulates the game state on the server side.
-	public class GameServer : MonoBehaviour {
-		public GameObject spawnPlayerPrefab;
-
+	public class GameServer : Game {
 		// @doc The game objects on the server side are hashed by their instance IDs. 
-		private Dictionary<int, GameObject> m_objects = new Dictionary<int, GameObject>();
-
-		public GameServer() {}
+		public GameObject spawnPlayerPrefab;
 
 		// @func SpawnPlayer
 		// @desc Spawns a new player and returns its initial snapshot.
@@ -31,22 +64,6 @@ namespace FpsServer {
 			GameObject gameObject = GetEntity(snapshot.m_serverId);
 			Netcode.ApplySnapshot(ref gameObject, snapshot);
 			return gameObject;
-		}
-
-		// @func GetEntity
-		// @desc Gets the entity from the server ID. 
-		public GameObject GetEntity(int serverId)
-		{
-			return m_objects[serverId];
-		}
-
-		// @func KillEntity
-		// @desc Removes the game object with server ID from the game. 
-		public void KillEntity(int serverId)
-		{
-			GameObject killedEntity = m_objects[serverId];
-			m_objects.Remove(serverId);
-			Destroy(killedEntity);
 		}
 
 		// @func GetSnapshot

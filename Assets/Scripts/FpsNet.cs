@@ -62,21 +62,54 @@ namespace FpsNetcode {
 		}
 
 		[StructLayout(LayoutKind.Sequential, Pack = 1)]
+		public class Disconnect {
+			public PacketHeader m_header;
+			public int m_serverId;
+
+			public Disconnect(uint seqno, int serverId)
+			{
+				m_header = new PacketHeader(PacketType.DISCONNECT, seqno);
+				m_serverId = serverId;
+			}
+
+			private Disconnect(PacketHeader header, int serverId)
+			{
+				m_header = header;
+				m_serverId = serverId;
+			}
+
+			public static byte[] Serialize(Disconnect disconnect)
+			{
+				byte[] buf = Malloc(disconnect);
+				PacketHeader.Serialize(disconnect.m_header, ref buf);
+				MemCpy(disconnect.m_serverId, buf, Marshal.SizeOf(disconnect.m_header));
+				return buf;
+			}
+
+			public static Disconnect Deserialize(byte[] buf)
+			{
+				PacketHeader header = PacketHeader.Deserialize(buf);
+				int serverId = BitConverter.ToInt32(buf, Marshal.SizeOf(header));
+				return new Disconnect(header, serverId);
+			}
+		}
+
+		[StructLayout(LayoutKind.Sequential, Pack = 1)]
 		public class PlayerSnapshot {
 			public PacketHeader m_header;
 			public int m_serverId;
 			public Vector3 m_position;
 
-			private PlayerSnapshot(PacketHeader header, int serverId, Vector3 position)
+			public PlayerSnapshot(uint seqno, int serverId, Vector3 position)
 			{
-				m_header = header;
+				m_header = new PacketHeader(PacketType.CLIENT_SNAPSHOT, seqno);
 				m_serverId = serverId;
 				m_position = position;
 			}
 
-			public PlayerSnapshot(uint seqno, int serverId, Vector3 position)
+			private PlayerSnapshot(PacketHeader header, int serverId, Vector3 position)
 			{
-				m_header = new PacketHeader(PacketType.CLIENT_SNAPSHOT, seqno);
+				m_header = header;
 				m_serverId = serverId;
 				m_position = position;
 			}
@@ -103,23 +136,23 @@ namespace FpsNetcode {
 		// @doc Everything after this is game-independent and shouldn't really be touched. 
 
 		[StructLayout(LayoutKind.Sequential, Pack = 1)]
-		public class ConnectPacket {
+		public class Connect {
 			public PacketHeader m_header;
 			public int m_serverId;
 
-			public ConnectPacket(uint seqno, int serverId)
+			public Connect(uint seqno, int serverId)
 			{
 				m_header = new PacketHeader(PacketType.CONNECT, seqno);
 				m_serverId = serverId;
 			}
 
-			private ConnectPacket(PacketHeader header, int serverId)
+			private Connect(PacketHeader header, int serverId)
 			{
 				m_header = header;
 				m_serverId = serverId;
 			}
 
-			public static byte[] Serialize(ConnectPacket connect)
+			public static byte[] Serialize(Connect connect)
 			{
 				byte[] buf = Malloc(connect);
 				PacketHeader.Serialize(connect.m_header, ref buf);
@@ -127,11 +160,11 @@ namespace FpsNetcode {
 				return buf;
 			}
 
-			public static ConnectPacket Deserialize(byte[] buf)
+			public static Connect Deserialize(byte[] buf)
 			{
 				PacketHeader header = PacketHeader.Deserialize(buf);
 				int serverId = BitConverter.ToInt32(buf, Marshal.SizeOf(header));
-				return new ConnectPacket(header, serverId);
+				return new Connect(header, serverId);
 			}
 		}
 
@@ -172,20 +205,17 @@ namespace FpsNetcode {
 
 		// @class ClientHistory
 		// @desc Maintains the client's history of snapshots for client-side prediction and delta compression. 
-		// TODO: ClientHistory doesn't have to have any knowledge of the game itself -- only the type that's been defined
-		// as the player snapshot -- so the snapshot should be a "template" argument. 
 		public class ClientHistory {
 			public static uint CLIENT_TIMEOUT = 5;
 			private static uint MAX_SNAPSHOTS = 10;
 
 			private PlayerSnapshot[] m_snapshots = new PlayerSnapshot[MAX_SNAPSHOTS];
-			private uint m_seqno;
-			private float m_timeSinceLastAck;
+			private uint m_seqno = 0;
+			private float m_timeSinceLastAck = 0f;
 
 			public ClientHistory(PlayerSnapshot initialPlayerState)
 			{
 				m_seqno = initialPlayerState.m_header.m_seqno;
-				m_timeSinceLastAck = 0f;
 				PutSnapshot(initialPlayerState);
 			}
 
