@@ -141,6 +141,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   startingSceneName: MainMenu
+  gameSceneName: MainScene
+  clientPort: 0
 --- !u!4 &970545278
 Transform:
   m_ObjectHideFlags: 0
