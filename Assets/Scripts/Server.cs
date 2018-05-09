@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using FpsNetcode;
 
 namespace FpsServer {
+	using ServerId = Int32;
+
 	// @class Server
 	// @desc The authoritative server.
 	public class Server : MonoBehaviour {
@@ -13,10 +15,14 @@ namespace FpsServer {
 		public GameServer m_game;
 		// Server port.
 		private const int SERVER_PORT = 9000;
-		// The server 
+		// The UDP server. 
 		private UdpClient m_server;
+		// Work queue.
 		private Queue<Netcode.MainThreadWork> m_mainWork = new Queue<Netcode.MainThreadWork>();
+		// Snapshots sent by all clients. 
 		private Dictionary<Netcode.ClientAddress, Netcode.ClientHistory> m_clients = new Dictionary<Netcode.ClientAddress, Netcode.ClientHistory>();
+		// Mapping from address to server ID. 
+		private Dictionary<Netcode.ClientAddress, ServerId> m_serverIds = new Dictionary<Netcode.ClientAddress, ServerId>();
 
 		void Start()
 		{
@@ -37,22 +43,20 @@ namespace FpsServer {
 
 			foreach (var client in m_clients) {
 				Netcode.ClientHistory history = client.Value;
-				Netcode.ClientAddress addr = client.Key;
+				Netcode.ClientAddress clientAddr = client.Key;
 				
 				history.IncrTimeSinceLastAck(Time.deltaTime);
 
 				if (history.GetTimeSinceLastAck() >= Netcode.ClientHistory.CLIENT_TIMEOUT) {
-					ServerLog("Disconnecting client: <" + addr.ipAddress + ", " + addr.port + ">");
+					ServerLog("Disconnecting Client: <" + clientAddr.ipAddress + ", " + clientAddr.port + ">");
 					Netcode.PacketHeader disconnectPacket = new Netcode.PacketHeader(Netcode.PacketType.DISCONNECT, history.GetSeqno());
-					SendPacket(addr, Netcode.PacketHeader.Serialize(disconnectPacket));
-					m_clients.Remove(addr);
+					SendPacket(clientAddr, Netcode.PacketHeader.Serialize(disconnectPacket));
+					DisconnectClient(clientAddr);
 					break;
 				}
 
 				Netcode.PlayerSnapshot snapshot = history.GetMostRecentSnapshot();
-				foreach (var clientAddr in m_clients.Keys) {
-					SendPacket(clientAddr, Netcode.PlayerSnapshot.Serialize(snapshot));
-				}
+				BroadcastPacket(Netcode.PlayerSnapshot.Serialize(snapshot));
 			}
 		}
 
@@ -126,15 +130,17 @@ namespace FpsServer {
 				ServerLog("Creating player with Server ID " + initialSnapshot.m_serverId);
 				Netcode.ClientHistory clientHistory = new Netcode.ClientHistory(initialSnapshot);
 				m_clients.Add(clientAddr, clientHistory);
+				m_serverIds.Add(clientAddr, initialSnapshot.m_serverId);
 				// Send CONNECT ack. 
-				SendPacket(clientAddr, Netcode.ConnectPacket.Serialize(new Netcode.ConnectPacket(0, initialSnapshot.m_serverId)));
+				SendPacket(clientAddr, Netcode.Connect.Serialize(new Netcode.Connect(0, initialSnapshot.m_serverId)));
 			} else
 				ServerLog(clientAddr.ipAddress + " " + clientAddr.port + " is already connected.");
 		}
 
-		// @TODO
 		public void ProcessDisconnect(Netcode.ClientAddress clientAddr, byte[] buf)
 		{
+			Netcode.Disconnect disconnect = Netcode.Disconnect.Deserialize(buf);
+			DisconnectClient(clientAddr);
 		}
 
 		public void ProcessSnapshot(Netcode.ClientAddress addr, byte[] buf)
@@ -148,6 +154,15 @@ namespace FpsServer {
 			}
 		}
 
+		// @func BroadcastPacket
+		// @desc Broadcasts the packet to all connected clients.
+		void BroadcastPacket(byte[] buf)
+		{
+			foreach (var clientAddr in m_clients.Keys) {
+				SendPacket(clientAddr, buf);
+			}
+		}
+
 		void SendPacket(Netcode.ClientAddress addr, byte[] buf)
 		{
 			m_server.Send(buf, buf.Length, addr.ipAddress, addr.port);
@@ -156,6 +171,19 @@ namespace FpsServer {
 		void OnDestroy()
 		{
 			m_server.Close();
+		}
+
+		// @func DisconnectClient
+		// @desc Disconnects the client, deleting all player history.
+		public void DisconnectClient(Netcode.ClientAddress clientAddr)
+		{
+			int serverId = m_serverIds[clientAddr];
+			m_serverIds.Remove(clientAddr);
+			m_clients.Remove(clientAddr);
+			m_game.KillEntity(serverId);
+
+			Netcode.Disconnect disconnect = new Netcode.Disconnect(0, serverId);
+			BroadcastPacket(Netcode.Disconnect.Serialize(disconnect));
 		}
 
 		public void ServerLog(string message)

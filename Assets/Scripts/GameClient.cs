@@ -1,18 +1,15 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using FpsNetcode;
 
 namespace FpsClient {
 	// @class Game
 	// @desc Simulates the game state on the client side. 
-	public class GameClient : MonoBehaviour {
+	public class GameClient : Game {
 		public GameObject playerPrefab;
-		public GameObject mainPlayerPrefab;
+		public GameObject m_mainPlayer;
 
-		// @doc The game objects on the client side are hashed by the server ID. 
-		private Dictionary<int, GameObject> m_objects = new Dictionary<int, GameObject>();
-
-		public GameClient() {}
+		// The server ID of the main player.
+		public int m_serverId = 0;
 
 		// @func SpawnPlayer
 		// @desc Spawns a new player with the given snapshot. 
@@ -37,27 +34,39 @@ namespace FpsClient {
 			}
 		}
 
-		// @func GetEntity
-		// @desc Gets the entity from the server ID. 
-		public GameObject GetEntity(int serverId)
-		{
-			return m_objects[serverId];
-		}
-
 		// @func GetMainPlayer
 		// @desc Gets the game object associated with the main player. 
 		public GameObject GetMainPlayer()
 		{
-			return mainPlayerPrefab;
+			return m_mainPlayer;
 		}
 
-		// @func KillEntity
-		// @desc Removes the game object with server ID from the game. 
-		public void KillEntity(int serverId)
+		// @func GetServerId
+		// @desc Gets the main player's server ID.
+		public int GetServerId()
 		{
-			GameObject killedEntity = GetEntity(serverId);
-			m_objects.Remove(serverId);
-			Destroy(killedEntity);
+			return m_serverId;
 		}
+
+		// @func SetServerId
+		// @desc Set the server ID to the new one.
+		public void SetServerId(int serverId)
+		{
+			m_serverId = serverId;
+		}
+
+		// @doc NetEvents 
+
+		// @func NetEvent (Connect)
+		// @desc 
+		public void NetEvent(Netcode.Connect connect)
+		{
+			SetServerId(connect.m_serverId);
+			PutEntity(GetServerId(), m_mainPlayer);
+		}
+
+		//public Netcode.PlayerSnapshot GetMainPlayerSnapshot()
+		//{
+		//}
 	}
 }
