@@ -2,18 +2,13 @@
 using System;
 using System.Runtime.InteropServices;
 
+// @TODO: The way offsets are being computed is disgustingly error prone.
+// A better way would be for MemCpy to return the number of bytes that were copied. 
+// An even better TODO would be to find a b
 namespace FpsNetcode {
+	// @class Netcode
+	// @desc Netcode contains the packet data structures used by the client and server. 
 	public static class Netcode {
-		// @TODO This part of Netcode is heavily game-specific, so we'll probably want to move
-		// this code to the Game class. 
-
-		// @func ApplySnapshot
-		// @desc Applies the given snapshot to the game object. 
-		public static void ApplySnapshot(ref GameObject gameObject, PlayerSnapshot snapshot)
-		{
-			gameObject.transform.position = snapshot.m_position;
-		}
-
 		public enum PacketType : int {
 			CONNECT,
 			CLIENT_SNAPSHOT,
@@ -27,6 +22,63 @@ namespace FpsNetcode {
 			FORWARD, BACKWARD, LEFT, RIGHT,
 			PRIMARY_WEAPON, 
 		}
+
+		// @doc A Snapshot is the state that is synchronized among clients and server.
+		// Let's say you want to add new client state, such as weapon type and ammo. This is the only structure that has to be changed 
+		// in the entire source code for that new state to be reflected in the game. You'd add the new field to the Snapshot class, 
+		// update the constructor, Serialize, Deserialize, Apply, and FromPlayer.
+		[StructLayout(LayoutKind.Sequential, Pack = 1)]
+		public class Snapshot : Packet {
+			public int m_serverId;
+			public Vector3 m_position;
+			public Vector3 m_eulerAngles;
+
+			public Snapshot(byte[] buf)
+			{
+				Deserialize(buf);
+			}
+
+			public Snapshot(uint seqno, int serverId, Vector3 position, Vector3 eulerAngles)
+			{
+				m_header = new PacketHeader(PacketType.CLIENT_SNAPSHOT, seqno);
+				m_serverId = serverId;
+				m_position = position;
+				m_eulerAngles = eulerAngles;
+			}
+
+			public override byte[] Serialize()
+			{
+				byte[] buf = Malloc(this);
+				PacketHeader.Serialize(m_header, ref buf);
+				MemCpy(m_serverId, buf, Marshal.SizeOf(m_header));
+				MemCpy(m_position, buf, Marshal.SizeOf(m_header) + sizeof(int));
+				MemCpy(m_eulerAngles, buf, Marshal.SizeOf(m_header) + sizeof(int) + Marshal.SizeOf(m_position));
+				return buf;
+			}
+
+			public override void Deserialize(byte[] buf)
+			{
+				m_header = PacketHeader.Deserialize(buf);
+				m_serverId = BitConverter.ToInt32(buf, Marshal.SizeOf(m_header));
+				DeserializeVec3(ref m_position, buf, Marshal.SizeOf(m_header) + sizeof(int));
+				DeserializeVec3(ref m_eulerAngles, buf, Marshal.SizeOf(m_header) + sizeof(int) + Marshal.SizeOf(m_position));
+			}
+
+			public static void Apply(ref GameObject gameObject, Snapshot snapshot)
+			{
+				gameObject.transform.position = snapshot.m_position;
+				gameObject.transform.eulerAngles = snapshot.m_eulerAngles;
+			}
+
+			public static Snapshot FromPlayer(uint seqno, int serverId, GameObject gameObject)
+			{
+				Vector3 position = gameObject.transform.position;
+				Vector3 eulerAngles = gameObject.transform.eulerAngles;
+				return new Snapshot(seqno, serverId, position, eulerAngles);
+			}
+		}
+
+		// ==== @doc Everything after this is game-independent and shouldn't really be touched. ====
 
 		[StructLayout(LayoutKind.Sequential, Pack = 1)]
 		public abstract class Packet {
@@ -95,43 +147,6 @@ namespace FpsNetcode {
 				m_serverId = BitConverter.ToInt32(buf, Marshal.SizeOf(m_header));
 			}
 		}
-
-		[StructLayout(LayoutKind.Sequential, Pack = 1)]
-		public class PlayerSnapshot : Packet {
-			public int m_serverId;
-			public Vector3 m_position;
-
-			public PlayerSnapshot(byte[] buf)
-			{
-				Deserialize(buf);
-			}
-
-			public PlayerSnapshot(uint seqno, int serverId, Vector3 position)
-			{
-				m_header = new PacketHeader(PacketType.CLIENT_SNAPSHOT, seqno);
-				m_serverId = serverId;
-				m_position = position;
-			}
-
-			public override byte[] Serialize()
-			{
-				byte[] buf = Malloc(this);
-				PacketHeader.Serialize(m_header, ref buf);
-				MemCpy(m_serverId, buf, Marshal.SizeOf(m_header));
-				MemCpy(m_position, buf, Marshal.SizeOf(m_header) + sizeof(int));
-				return buf;
-			}
-
-			public override void Deserialize(byte[] buf)
-			{
-				m_header = PacketHeader.Deserialize(buf);
-				m_serverId = BitConverter.ToInt32(buf, Marshal.SizeOf(m_header));
-				m_position = new Vector3();
-				DeserializeVec3(ref m_position, buf, Marshal.SizeOf(m_header) + sizeof(int));
-			}
-		}
-
-		// @doc Everything after this is game-independent and shouldn't really be touched. 
 
 		[StructLayout(LayoutKind.Sequential, Pack = 1)]
 		public class Connect : Packet {
@@ -204,11 +219,11 @@ namespace FpsNetcode {
 			public static uint CLIENT_TIMEOUT = 5;
 			private static uint MAX_SNAPSHOTS = 10;
 
-			private PlayerSnapshot[] m_snapshots = new PlayerSnapshot[MAX_SNAPSHOTS];
+			private Snapshot[] m_snapshots = new Snapshot[MAX_SNAPSHOTS];
 			private uint m_seqno = 0;
 			private float m_timeSinceLastAck = 0f;
 
-			public ClientHistory(PlayerSnapshot initialPlayerState)
+			public ClientHistory(Snapshot initialPlayerState)
 			{
 				m_seqno = initialPlayerState.m_header.m_seqno;
 				PutSnapshot(initialPlayerState);
@@ -217,9 +232,9 @@ namespace FpsNetcode {
 			// @func Reconcile
 			// @desc Reconciles the client state with the server state. If this returns false,
 			// the client player needs to be rolled back to the server's snapshot.
-			public bool Reconcile(PlayerSnapshot snapshot)
+			public bool Reconcile(Snapshot snapshot)
 			{
-				PlayerSnapshot predicted = GetSnapshot(snapshot.m_header.m_seqno);
+				Snapshot predicted = GetSnapshot(snapshot.m_header.m_seqno);
 				if (predicted.m_position != snapshot.m_position) {
 					PutSnapshot(snapshot);
 					return false;
@@ -227,23 +242,30 @@ namespace FpsNetcode {
 					return true;
 			}
 
-			public void PutSnapshot(PlayerSnapshot playerSnapshot)
+			// @func PutSnapshot
+			// @desc Reset the ack timer, update the seqno, and record the snapshot. 
+			public void PutSnapshot(Snapshot snapshot)
 			{
 				m_timeSinceLastAck = 0f;
-				if (playerSnapshot.m_header.m_seqno > m_seqno)
-					m_seqno = playerSnapshot.m_header.m_seqno;
-				m_snapshots[playerSnapshot.m_header.m_seqno % MAX_SNAPSHOTS] = playerSnapshot;
+				if (snapshot.m_header.m_seqno > m_seqno)
+					m_seqno = snapshot.m_header.m_seqno;
+				m_snapshots[snapshot.m_header.m_seqno % MAX_SNAPSHOTS] = snapshot;
 			}
 
-			public PlayerSnapshot GetSnapshot(uint seqno)
+			// @func GetSnapshot
+			// @desc Returns the snapshot with the given seqno. 
+			// Unless the client is way ahead of the server - in which case
+			// the client would most likely already be disconnected - the seqnos should
+			// always match. 
+			private Snapshot GetSnapshot(uint seqno)
 			{
-				PlayerSnapshot snapshot = m_snapshots[seqno % MAX_SNAPSHOTS];
+				Snapshot snapshot = m_snapshots[seqno % MAX_SNAPSHOTS];
 				if (snapshot.m_header.m_seqno != seqno)
-					Debug.Log("ClientHistory: Seqnos don't match.");
+					Debug.Log("<ClientHistory> Seqnos don't match.");
 				return snapshot;
 			}
 
-			public PlayerSnapshot GetMostRecentSnapshot()
+			public Snapshot GetMostRecentSnapshot()
 			{
 				return m_snapshots[GetSnapshotIndex()];
 			}
@@ -258,6 +280,8 @@ namespace FpsNetcode {
 				return m_seqno;
 			}
 
+			// @func IncrTimeSinceLastAck
+			// @desc Call this every frame in the server's update function. 
 			public void IncrTimeSinceLastAck(float dt)
 			{
 				m_timeSinceLastAck += dt;
@@ -274,13 +298,18 @@ namespace FpsNetcode {
 		public delegate void MainThreadWork();
 
 		public struct ClientAddress {
-			public string ipAddress;
-			public int port;
+			public string m_ipAddress;
+			public int m_port;
 
 			public ClientAddress(string ipAddress, int port)
 			{
-				this.ipAddress = ipAddress;
-				this.port = port;
+				m_ipAddress = ipAddress;
+				m_port = port;
+			}
+
+			public String Print()
+			{
+				return "IP: " + m_ipAddress + " Port: " + m_port;
 			}
 		}
 
@@ -288,9 +317,11 @@ namespace FpsNetcode {
 
 		public static void DeserializeVec3(ref Vector3 src, byte[] dst, int offset)
 		{
-			src.x = BitConverter.ToSingle(dst, offset + 0 * sizeof(float));
-			src.y = BitConverter.ToSingle(dst, offset + 1 * sizeof(float));
-			src.z = BitConverter.ToSingle(dst, offset + 2 * sizeof(float));
+			src = new Vector3 {
+				x = BitConverter.ToSingle(dst, offset + 0 * sizeof(float)),
+				y = BitConverter.ToSingle(dst, offset + 1 * sizeof(float)),
+				z = BitConverter.ToSingle(dst, offset + 2 * sizeof(float))
+			};
 		}
 
 		// @func Malloc
