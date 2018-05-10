@@ -9,29 +9,18 @@ namespace FpsClient {
 		public GameObject m_mainPlayer;
 
 		// The server ID of the main player.
-		public int m_serverId = 0;
+		private int m_serverId = 0;
+
+		public void Update() {}
 
 		// @func SpawnPlayer
 		// @desc Spawns a new player with the given snapshot. 
-		private GameObject SpawnPlayer(Netcode.PlayerSnapshot snapshot)
+		private GameObject SpawnPlayer(Netcode.Snapshot snapshot)
 		{
 			GameObject gameObject = Instantiate(playerPrefab);
-			Netcode.ApplySnapshot(ref gameObject, snapshot);
+			Netcode.Snapshot.Apply(ref gameObject, snapshot);
 			m_objects[snapshot.m_serverId] = gameObject;
 			return gameObject;
-		}
-
-		// @func PutSnapshot
-		// @desc Inserts the given snapshot. If the Entity Manager doesn't already have 
-		// snapshots recorded for the given server ID, spawn a new entity.
-		public void PutSnapshot(Netcode.PlayerSnapshot snapshot)
-		{
-			if (!m_objects.ContainsKey(snapshot.m_serverId)) {
-				SpawnPlayer(snapshot);
-			} else {
-				GameObject entity = GetEntity(snapshot.m_serverId);
-				Netcode.ApplySnapshot(ref entity, snapshot);
-			}
 		}
 
 		// @func GetMainPlayer
@@ -55,18 +44,41 @@ namespace FpsClient {
 			m_serverId = serverId;
 		}
 
-		// @doc NetEvents 
+		// @func NetEvent.Snapshot
+		// @desc If this is called, the game has received a snapshot. 
+		public override GameObject NetEvent(Netcode.Snapshot snapshot)
+		{
+			GameObject gameObject;
 
-		// @func NetEvent (Connect)
-		// @desc 
-		public void NetEvent(Netcode.Connect connect)
+			if (!m_objects.ContainsKey(snapshot.m_serverId)) {
+				gameObject = SpawnPlayer(snapshot);
+			} else {
+				gameObject = GetEntity(snapshot.m_serverId);
+				Netcode.Snapshot.Apply(ref gameObject, snapshot);
+			}
+
+			return gameObject;
+		}
+
+		// @func NetEvent.Connect
+		// @desc Do something when we get a connect ack... Say, play some music, show a load screen, or join a chat room. 
+		// Here, we just jump right into the game.
+		public override void NetEvent(Netcode.Connect connect)
 		{
 			SetServerId(connect.m_serverId);
 			PutEntity(GetServerId(), m_mainPlayer);
 		}
 
-		//public Netcode.PlayerSnapshot GetMainPlayerSnapshot()
-		//{
-		//}
+		// @func NetEvent.Disconnect
+		// @desc When we get a disconnect packet, the game should probably go to the main menu
+		// scene, or send your mom an email, or whatever -- again, it's up to the game!. 
+		public override void NetEvent(Netcode.Disconnect disconnect)
+		{
+			if (m_serverId == disconnect.m_serverId) {
+				// End game, return to lobby, whatever
+			} else {
+				KillEntity(disconnect.m_serverId);
+			}
+		}
 	}
 }
