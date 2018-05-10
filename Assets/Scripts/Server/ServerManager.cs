@@ -252,21 +252,24 @@ public class ServerManager : MonoBehaviour
         }
     }
 
-    private void MovePlayer(string playerId, string matchName, string position, string rotation)
+    private void MovePlayer(string playerId, string matchName, string velocity, string rotation)
     {
         if (matchName == GameManager.Instance.MatchName)
         {
             // Move Player
-            position = position.Substring(1, position.Length - 2);
-            string[] splitData = position.Split(',');
-            Vector3 positionVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
-            GameManager.Instance.MovePlayer(playerId, positionVec);
-
+            velocity = velocity.Substring(1, velocity.Length - 2);
+            string[] splitData = velocity.Split(',');
+            Vector3 velocityVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
+            GameManager.Instance.SetPlayerVelocity(playerId, velocityVec);
+          
             // Rotate player
             rotation = rotation.Substring(1, rotation.Length - 2);
             splitData = rotation.Split(',');
             Vector3 rotationVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
-            GameManager.Instance.RotatePlayer(playerId, rotationVec);
+            //GameManager.Instance.RotatePlayer(playerId, rotationVec);
+
+            string msg = "MOVE_PLAYER|" + playerId + "|" + GameManager.Instance.MatchName + "|" + velocityVec.ToString() + "|" + rotationVec.ToString();
+            SendMessageToAll(msg);
         }
     }
 
