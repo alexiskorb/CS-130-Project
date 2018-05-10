@@ -21,7 +21,14 @@ public class GameManager : MonoBehaviour {
     public GameObject mainPlayerPrefab;
     public GameObject playerPrefab;
     public bool isServer = false;
- 
+	public Vector3 forwardBackMovement = new Vector3();
+	public Vector3 leftRightMovement = new Vector3 ();
+	public Vector3 rotation = new Vector3();
+	public Transform m_cameraTransform;
+	public float horizontalCameraSensitivity = 15f;
+	public float verticalCameraSensitivity = 5f;
+	public float moveSpeed = 5;
+
     // Private variables
     private string m_mainPlayerName = "";
     private bool m_mainPlayerNameIsSet = false;
@@ -31,6 +38,8 @@ public class GameManager : MonoBehaviour {
 	private bool m_menuOpen = false;
     private string m_gameScene = "";
     private string m_endScene = "";
+	private float m_yRotation = 0f;
+
 
     // Dictionary mapping player names to player objects
     private Dictionary<string, GameObject> m_players;
@@ -76,6 +85,9 @@ public class GameManager : MonoBehaviour {
     {
         // Setup variables
         m_players = new Dictionary<string, GameObject>();
+		forwardBackMovement = new Vector3(0,0,0);
+		leftRightMovement = new Vector3(0,0,0);
+		m_cameraTransform = transform.Find("Main Camera");
     }
 
     // Subscribe to sceneLoaded event
@@ -126,6 +138,15 @@ public class GameManager : MonoBehaviour {
 
     void Update()
     {
+		// Move player
+		m_yRotation -= horizontalCameraSensitivity * Input.GetAxis("Mouse X");
+		rotation = new Vector3 (0, m_yRotation, 0);
+
+		forwardBackMovement = new Vector3(Mathf.Sin(m_yRotation * Mathf.PI / 180), 0, Mathf.Cos(m_yRotation * Mathf.PI / 180));
+		forwardBackMovement *= Input.GetAxis ("Vertical");
+		leftRightMovement = new Vector3(Mathf.Sin((m_yRotation + 90) * Mathf.PI / 180), 0, Mathf.Cos((m_yRotation + 90) * Mathf.PI / 180));
+		leftRightMovement *= Input.GetAxis ("Horizontal");
+
         // TEST CODE
         if (m_inMatch)
         {
@@ -352,11 +373,12 @@ public class GameManager : MonoBehaviour {
     }
 
     // Moves a player with the given ID to the given new position
-    public void MovePlayer(string playerId, Vector3 newPosition)
+	public void MovePlayer(string playerId, Vector3 newFB, Vector3 newLR)
     {
+		Debug.Log ("About to move: " + playerId);
         if (m_players.ContainsKey(playerId))
         {
-            m_players[playerId].transform.position = newPosition;
+			m_players[playerId].GetComponent<Rigidbody>().velocity = moveSpeed * (newFB + newLR);   
         }
     }
 
