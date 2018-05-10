@@ -13,11 +13,9 @@ namespace FpsClient {
 		// Server port.
 		public const int SERVER_PORT = 9000;
 		// The rate at which updates are sent to the server. 
-		public const float TICK_RATE = 1 / 30;
+		public const float TICK_RATE = 0f;
 
-		// The client's unique Server ID. 
-		public int m_serverId = -1;
-		// Tracks the game state. 
+		// Tracks the game state.
 		public GameClient m_game;
 		// Queue of client commands. 
 		private Queue<Netcode.CmdType> m_cmdQueue = new Queue<Netcode.CmdType>();
@@ -25,55 +23,49 @@ namespace FpsClient {
 		private Netcode.ClientHistory m_clientHistory;
 		// The UDP Client. 
 		private UdpClient m_client = new UdpClient();
-		// Flag for whether the client is connected to the server.
-		private bool m_isConnected = false;
 		// The tick function sends client commands at the specified tick rate.
 		private PeriodicFunction m_sendTick;
 		// The main thread work queue.
 		private Queue<Netcode.MainThreadWork> m_mainWork = new Queue<Netcode.MainThreadWork>();
-		// Client's current seqno. 
+		// Client's current seqno.
 		private uint m_seqno = 0;
-		// Current snapshot of the client's main player state. 
-		private Netcode.PlayerSnapshot m_snapshot;
 
 		void Start()
 		{
 			// Begin listening for packets.
 			m_client.BeginReceive(ReceiveCallback, m_client);
 
-			Netcode.PlayerSnapshot initialState = new Netcode.PlayerSnapshot(0, m_serverId, m_game.GetMainPlayer().GetComponent<Transform>().position);
-			m_clientHistory = new Netcode.ClientHistory(initialState);
-
 			// Initialize tick function.
-			m_sendTick = new PeriodicFunction(Tick, TICK_RATE);
+			m_sendTick = new PeriodicFunction(ConnectToServer, TICK_RATE);
+
+			// @doc Client history must be initialized with a snapshot! 
+			m_clientHistory = new Netcode.ClientHistory(new Netcode.PlayerSnapshot(m_seqno, 0, m_game.GetMainPlayer().GetComponent<Transform>().position));
 		}
 
 		void Tick()
 		{
 			// @test Send snapshots to the server. 
-			SendPacket(Netcode.PlayerSnapshot.Serialize(m_snapshot));
+			Vector3 position = m_game.GetMainPlayer().GetComponent<Transform>().position;
+			Netcode.PlayerSnapshot snapshot = new Netcode.PlayerSnapshot(m_seqno++, m_game.GetServerId(), position);
+			m_clientHistory.PutSnapshot(snapshot);
+
+			SendPacket(snapshot.Serialize());
 			// @endtest 
 		}
 
 		void Update()
 		{
-			Vector3 position = m_game.GetMainPlayer().GetComponent<Transform>().position;
-			Netcode.PlayerSnapshot snapshot = new Netcode.PlayerSnapshot(m_seqno++, m_serverId, position);
-			m_snapshot = snapshot;
-			m_clientHistory.PutSnapshot(snapshot);
-
 			while (m_mainWork.Count > 0) {
 				Netcode.MainThreadWork work = m_mainWork.Dequeue();
 				work.Invoke();
 			}
 
 			// TODO: Add commands to the command queue and send them to the server.
-			if (!m_isConnected)
-				ConnectToServer();
-			else
-				m_sendTick.Run();
+			m_sendTick.Run();
 		}
 
+		// @func ReceiveCallback
+		// @desc Asynchronous callback for receiving packets. Discards packets not from the server.
 		void ReceiveCallback(IAsyncResult asyncResult)
 		{
 			IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
@@ -97,7 +89,6 @@ namespace FpsClient {
 		void ProcessPacket(byte[] buf, IPEndPoint endPoint)
 		{
 			Netcode.PacketHeader header = Netcode.PacketHeader.Deserialize(buf);
-			Netcode.ClientAddress serverAddr = new Netcode.ClientAddress(endPoint.Address.ToString(), endPoint.Port);
 
 			switch (header.m_type) {
 				case Netcode.PacketType.CONNECT:
@@ -117,38 +108,45 @@ namespace FpsClient {
 
 		void ProcessConnect(byte[] buf)
 		{
-			Netcode.ConnectPacket connect = Netcode.ConnectPacket.Deserialize(buf);
-			m_serverId = connect.m_serverId;
-			m_isConnected = true;
-			ClientLog("Server connection request received! My Server ID is " + m_serverId);
+			Netcode.Connect connect = new Netcode.Connect(buf);
+			m_game.NetEvent(connect);
+			m_sendTick = new PeriodicFunction(Tick, TICK_RATE);
+			ClientLog("Server connection request received! My Server ID is " + m_game.GetServerId());
 		}
 
 		void ProcessDisconnect(byte[] buf)
 		{
+			Netcode.Disconnect disconnect = new Netcode.Disconnect(buf);
+			if (disconnect.m_serverId == m_game.GetServerId()) {
+				// @TODO: Admittedly, this is a little harsh. Network events like these should be passed 
+				// to the game logic for it to decide what to do. 
+				OnDestroy();
+			} else {
+				m_game.KillEntity(disconnect.m_serverId);
+			}
 		}
 
 		void ProcessSnapshot(byte[] buf)
 		{
-			Netcode.PlayerSnapshot snapshot = Netcode.PlayerSnapshot.Deserialize(buf);
-			if (snapshot.m_serverId == m_serverId) {
-				// Check if the client's main player and server state are out of sync.
+			Netcode.PlayerSnapshot snapshot = new Netcode.PlayerSnapshot(buf);
+			if (snapshot.m_serverId == m_game.GetServerId()) {
+				// Check if the client's player state and server state are out of sync.
 				if (!m_clientHistory.Reconcile(snapshot)) {
 					ClientLog("OUT OF SYNC.");
-					// TODO: To generalize more, the main player should be able to
-					// be updated from m_game.PutSnapshot(). When Connect is called, store the main
-					GameObject mainPlayer = m_game.GetMainPlayer();
-					Netcode.ApplySnapshot(ref mainPlayer, snapshot);
-				} else
-					ClientLog("GOOD.");
+					m_clientHistory.PutSnapshot(snapshot);
+					m_game.PutSnapshot(snapshot);
+				}
 			} else {
 				m_game.PutSnapshot(snapshot);
 			}
 		}
 
+		// @func ConnectToServer
+		// @desc Sends a connect packet to the server. 
 		void ConnectToServer()
 		{
-			Netcode.ConnectPacket connectPacket = new Netcode.ConnectPacket(0, 0);
-			byte[] buf = Netcode.ConnectPacket.Serialize(connectPacket);
+			Netcode.Connect connectPacket = new Netcode.Connect(m_seqno, m_game.GetServerId());
+			byte[] buf = connectPacket.Serialize();
 			SendPacket(buf);
 		}
 
@@ -159,6 +157,8 @@ namespace FpsClient {
 
 		void OnDestroy()
 		{
+			Netcode.Disconnect disconnect = new Netcode.Disconnect(m_seqno, m_game.GetServerId());
+			SendPacket(disconnect.Serialize());
 			m_client.Close();
 		}
 
