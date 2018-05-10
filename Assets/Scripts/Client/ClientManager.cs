@@ -120,6 +120,9 @@ public class ClientManager : MonoBehaviour
                     case "START_MATCH":
                         StartMatch(splitData[1]);
                         break;
+					case "MOVE_PLAYER":
+						MovePlayer (splitData [1], splitData[2], splitData[3], splitData[4]);
+						break;
                 }
                 break;
             case NetworkEventType.DisconnectEvent:
@@ -132,7 +135,7 @@ public class ClientManager : MonoBehaviour
 
         if (GameManager.Instance.InMatch)
         {
-            SendPlayerData();
+			SendPlayerData ();
         }
     }
 
@@ -281,13 +284,31 @@ public class ClientManager : MonoBehaviour
     // Send player move data
     public void SendPlayerData()
     {
-        if (m_players[m_mainPlayerName] != null)
+		if (m_players[GameManager.Instance.MainPlayerName] != null && GameManager.Instance.forwardBackMovement != null && GameManager.Instance.leftRightMovement != null)
         {
-            string msg = "MOVE_PLAYER|" + m_mainPlayerName + "|" + GameManager.Instance.MatchName + "|" + m_players[m_mainPlayerName].transform.position.ToString() + "|" + m_players[m_mainPlayerName].transform.eulerAngles.ToString();
+			string msg = "MOVE_PLAYER|" + GameManager.Instance.MainPlayerName + "|" + GameManager.Instance.MatchName + "|" + GameManager.Instance.forwardBackMovement + "|" + GameManager.Instance.leftRightMovement + "|" + m_players[m_mainPlayerName].transform.eulerAngles.ToString();
             sendMessage(msg);
-            Debug.Log(msg);
+            Debug.Log("SENT: " + msg);
         }
     }
+
+	private void MovePlayer(string playerId, string forBack, string leftRight, string rotation){
+		// Move Player
+		forBack = forBack.Substring(1, forBack.Length - 2);
+		string[] splitData = forBack.Split(',');
+		Vector3 FBVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
+
+		leftRight = leftRight.Substring(1, leftRight.Length - 2);
+		splitData = leftRight.Split (',');
+		Vector3 LRVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
+
+		GameManager.Instance.MovePlayer (playerId, FBVec, LRVec);
+
+		// Rotate player
+		splitData = rotation.Split(',');
+		Vector3 rotationVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
+		GameManager.Instance.RotatePlayer(playerId, rotationVec);
+	}
 
     // Connect to server
     public void Connect()
