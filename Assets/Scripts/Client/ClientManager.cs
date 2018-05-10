@@ -120,6 +120,9 @@ public class ClientManager : MonoBehaviour
                     case "START_MATCH":
                         StartMatch(splitData[1]);
                         break;
+                    case "MOVE_PLAYER":
+                        MovePlayer(splitData[1], splitData[2], splitData[3], splitData[4]);
+                        break;
                 }
                 break;
             case NetworkEventType.DisconnectEvent:
@@ -278,14 +281,39 @@ public class ClientManager : MonoBehaviour
         return m_openMatches;
     }
 
+    // Move player
+    private void MovePlayer(string playerId, string matchName, string velocity, string rotation)
+    {
+        if (matchName == GameManager.Instance.MatchName)
+        {
+            // Move Player
+            velocity = velocity.Substring(1, velocity.Length - 2);
+            string[] splitData = velocity.Split(',');
+            Vector3 velocityVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
+            GameManager.Instance.SetPlayerVelocity(playerId, velocityVec);
+
+            /*
+            // Rotate player
+            rotation = rotation.Substring(1, rotation.Length - 2);
+            splitData = rotation.Split(',');
+            Vector3 rotationVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
+            GameManager.Instance.RotatePlayer(playerId, rotationVec);
+            */
+        }
+    }
+
     // Send player move data
     public void SendPlayerData()
     {
         if (m_players[m_mainPlayerName] != null)
         {
-            string msg = "MOVE_PLAYER|" + m_mainPlayerName + "|" + GameManager.Instance.MatchName + "|" + m_players[m_mainPlayerName].transform.position.ToString() + "|" + m_players[m_mainPlayerName].transform.eulerAngles.ToString();
+            PlayerMovement mainPlayerMovement = m_players[m_mainPlayerName].GetComponent<PlayerMovement>();
+            Vector3 velocity = mainPlayerMovement.CalculateVelocity(Input.GetAxis("Vertical"), Input.GetAxis("Horizontal"));
+            Vector3 rotation = mainPlayerMovement.CalculateHorizontalRotation(Input.GetAxis("Mouse X"));
+            //GameManager.Instance.SetPlayerVelocity(m_mainPlayerName, velocity);
+            GameManager.Instance.RotatePlayer(m_mainPlayerName, rotation);
+            string msg = "MOVE_PLAYER|" + m_mainPlayerName + "|" + GameManager.Instance.MatchName + "|" + velocity.ToString() + "|" + rotation.ToString();
             sendMessage(msg);
-            Debug.Log(msg);
         }
     }
 

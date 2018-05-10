@@ -341,6 +341,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 83d6ca1ece2ae3044834e480bf7e6374, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isMainPlayer: 1
   moveSpeed: 5
   horizontalCameraSensitivity: 15
   verticalCameraSensitivity: 5

@@ -126,20 +126,7 @@ public class GameManager : MonoBehaviour {
 
     void Update()
     {
-        // TEST CODE
-        if (m_inMatch)
-        {
-            if (Input.GetKeyDown(KeyCode.Q))
-            {
-                AddPlayer("noob");
-                SpawnPlayer("noob", new Vector3(10, 1, 10));
-            }
-            if (Input.GetKeyDown(KeyCode.E))
-            {
-                RemovePlayer("noob");
-            }
-        }
-        // END TEST CODE
+
     }
 
     // Getters and setters
@@ -360,13 +347,21 @@ public class GameManager : MonoBehaviour {
         }
     }
 
+    // Sets the velocity of the player with the given ID
+    public void SetPlayerVelocity(string playerId, Vector3 velocity)
+    {
+        if (m_players.ContainsKey(playerId))
+        {
+            m_players[playerId].GetComponent<PlayerMovement>().SetVelocity(velocity);
+        }
+    }
+
     // Rotates a player with the given ID to the given new rotation
-    // Only rotates along y-axis
     public void RotatePlayer(string playerId, Vector3 newRotation)
     {
         if (m_players.ContainsKey(playerId))
         {
-            m_players[playerId].transform.eulerAngles = new Vector3(0, newRotation[1], 0);
+            m_players[playerId].GetComponent<PlayerMovement>().RotatePlayer(newRotation);
         }
     }
 
