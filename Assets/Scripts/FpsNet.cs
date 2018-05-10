@@ -29,9 +29,21 @@ namespace FpsNetcode {
 		}
 
 		[StructLayout(LayoutKind.Sequential, Pack = 1)]
-		public class CmdPacket {
-			public PacketHeader m_header;	
+		public abstract class Packet {
+			public PacketHeader m_header;
+
+			public abstract byte[] Serialize();
+			public abstract void Deserialize(byte[] buf);
+		}
+
+		[StructLayout(LayoutKind.Sequential, Pack = 1)]
+		public class CmdPacket : Packet {
 			public CmdType m_cmd;
+
+			public CmdPacket(byte [] buf)
+			{
+				Deserialize(buf);
+			}
 
 			public CmdPacket(uint seqno, CmdType cmd)
 			{
@@ -39,39 +51,59 @@ namespace FpsNetcode {
 				m_cmd = cmd;
 			}
 
-			private CmdPacket(PacketHeader header, CmdType cmd)
+			public override byte[] Serialize()
 			{
-				m_header = header;
-				m_cmd = cmd;
-			}
-
-			public static byte[] Serialize(CmdPacket cmdPacket)
-			{
-				byte[] buf = Malloc(cmdPacket);
-				PacketHeader.Serialize(cmdPacket.m_header, ref buf);
-				MemCpy((int)cmdPacket.m_cmd, buf, Marshal.SizeOf(cmdPacket.m_header));
+				byte[] buf = Malloc(this);
+				PacketHeader.Serialize(m_header, ref buf);
+				MemCpy((int)m_cmd, buf, Marshal.SizeOf(m_header));
 				return buf;
 			}
 
-			public static CmdPacket Deserialize(byte[] buf)
+			public override void Deserialize(byte[] buf)
 			{
-				PacketHeader header = PacketHeader.Deserialize(buf);
-				CmdType cmd = (CmdType)BitConverter.ToInt32(buf, Marshal.SizeOf(header));
-				return new CmdPacket(header, cmd);
+				m_header = PacketHeader.Deserialize(buf);
+				m_cmd = (CmdType)BitConverter.ToInt32(buf, Marshal.SizeOf(m_header));
 			}
 		}
 
 		[StructLayout(LayoutKind.Sequential, Pack = 1)]
-		public class PlayerSnapshot {
-			public PacketHeader m_header;
+		public class Disconnect : Packet {
+			public int m_serverId;
+
+			public Disconnect(byte[] buf)
+			{
+				Deserialize(buf);
+			}
+
+			public Disconnect(uint seqno, int serverId)
+			{
+				m_header = new PacketHeader(PacketType.DISCONNECT, seqno);
+				m_serverId = serverId;
+			}
+
+			public override byte[] Serialize()
+			{
+				byte[] buf = Malloc(this);
+				PacketHeader.Serialize(m_header, ref buf);
+				MemCpy(m_serverId, buf, Marshal.SizeOf(m_header));
+				return buf;
+			}
+
+			public override void Deserialize(byte[] buf)
+			{
+				m_header = PacketHeader.Deserialize(buf);
+				m_serverId = BitConverter.ToInt32(buf, Marshal.SizeOf(m_header));
+			}
+		}
+
+		[StructLayout(LayoutKind.Sequential, Pack = 1)]
+		public class PlayerSnapshot : Packet {
 			public int m_serverId;
 			public Vector3 m_position;
 
-			private PlayerSnapshot(PacketHeader header, int serverId, Vector3 position)
+			public PlayerSnapshot(byte[] buf)
 			{
-				m_header = header;
-				m_serverId = serverId;
-				m_position = position;
+				Deserialize(buf);
 			}
 
 			public PlayerSnapshot(uint seqno, int serverId, Vector3 position)
@@ -81,57 +113,53 @@ namespace FpsNetcode {
 				m_position = position;
 			}
 
-			public static byte[] Serialize(PlayerSnapshot snapshot)
+			public override byte[] Serialize()
 			{
-				byte[] buf = Malloc(snapshot);
-				PacketHeader.Serialize(snapshot.m_header, ref buf);
-				MemCpy(snapshot.m_serverId, buf, Marshal.SizeOf(snapshot.m_header));
-				MemCpy(snapshot.m_position, buf, Marshal.SizeOf(snapshot.m_header) + sizeof(int));
+				byte[] buf = Malloc(this);
+				PacketHeader.Serialize(m_header, ref buf);
+				MemCpy(m_serverId, buf, Marshal.SizeOf(m_header));
+				MemCpy(m_position, buf, Marshal.SizeOf(m_header) + sizeof(int));
 				return buf;
 			}
 
-			public static PlayerSnapshot Deserialize(byte[] buf)
+			public override void Deserialize(byte[] buf)
 			{
-				PacketHeader header = PacketHeader.Deserialize(buf);
-				Vector3 position = new Vector3();
-				int serverId = BitConverter.ToInt32(buf, Marshal.SizeOf(header));
-				DeserializeVec3(ref position, buf, Marshal.SizeOf(header) + sizeof(int));
-				return new PlayerSnapshot(header, serverId, position);
+				m_header = PacketHeader.Deserialize(buf);
+				m_serverId = BitConverter.ToInt32(buf, Marshal.SizeOf(m_header));
+				m_position = new Vector3();
+				DeserializeVec3(ref m_position, buf, Marshal.SizeOf(m_header) + sizeof(int));
 			}
 		}
 
 		// @doc Everything after this is game-independent and shouldn't really be touched. 
 
 		[StructLayout(LayoutKind.Sequential, Pack = 1)]
-		public class ConnectPacket {
-			public PacketHeader m_header;
+		public class Connect : Packet {
 			public int m_serverId;
 
-			public ConnectPacket(uint seqno, int serverId)
+			public Connect(byte[] buf)
+			{
+				Deserialize(buf);
+			}
+
+			public Connect(uint seqno, int serverId)
 			{
 				m_header = new PacketHeader(PacketType.CONNECT, seqno);
 				m_serverId = serverId;
 			}
 
-			private ConnectPacket(PacketHeader header, int serverId)
+			public override byte[] Serialize()
 			{
-				m_header = header;
-				m_serverId = serverId;
-			}
-
-			public static byte[] Serialize(ConnectPacket connect)
-			{
-				byte[] buf = Malloc(connect);
-				PacketHeader.Serialize(connect.m_header, ref buf);
-				MemCpy(connect.m_serverId, buf, Marshal.SizeOf(connect.m_header));
+				byte[] buf = Malloc(this);
+				PacketHeader.Serialize(m_header, ref buf);
+				MemCpy(m_serverId, buf, Marshal.SizeOf(m_header));
 				return buf;
 			}
 
-			public static ConnectPacket Deserialize(byte[] buf)
+			public override void Deserialize(byte[] buf)
 			{
-				PacketHeader header = PacketHeader.Deserialize(buf);
-				int serverId = BitConverter.ToInt32(buf, Marshal.SizeOf(header));
-				return new ConnectPacket(header, serverId);
+				m_header = PacketHeader.Deserialize(buf);
+				m_serverId = BitConverter.ToInt32(buf, Marshal.SizeOf(m_header));
 			}
 		}
 
@@ -172,20 +200,17 @@ namespace FpsNetcode {
 
 		// @class ClientHistory
 		// @desc Maintains the client's history of snapshots for client-side prediction and delta compression. 
-		// TODO: ClientHistory doesn't have to have any knowledge of the game itself -- only the type that's been defined
-		// as the player snapshot -- so the snapshot should be a "template" argument. 
 		public class ClientHistory {
 			public static uint CLIENT_TIMEOUT = 5;
 			private static uint MAX_SNAPSHOTS = 10;
 
 			private PlayerSnapshot[] m_snapshots = new PlayerSnapshot[MAX_SNAPSHOTS];
-			private uint m_seqno;
-			private float m_timeSinceLastAck;
+			private uint m_seqno = 0;
+			private float m_timeSinceLastAck = 0f;
 
 			public ClientHistory(PlayerSnapshot initialPlayerState)
 			{
 				m_seqno = initialPlayerState.m_header.m_seqno;
-				m_timeSinceLastAck = 0f;
 				PutSnapshot(initialPlayerState);
 			}
 

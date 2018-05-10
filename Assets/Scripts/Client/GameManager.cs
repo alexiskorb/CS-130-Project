@@ -13,7 +13,6 @@ public class GameManager : MonoBehaviour {
     public static event MatchDelegate createMatchEvent;
     public static event MatchDelegate joinMatchEvent;
     public static event MatchDelegate leaveMatchLobbyEvent;
-    public static event MatchDelegate startMatchEvent;
     public static event MatchDelegate gameLoadedEvent;
     public static event MatchDelegate dropMatchEvent;
 
@@ -21,7 +20,7 @@ public class GameManager : MonoBehaviour {
     public GameObject mainPlayerPrefab;
     public GameObject playerPrefab;
     public bool isServer = false;
- 
+
     // Private variables
     private string m_mainPlayerName = "";
     private bool m_mainPlayerNameIsSet = false;
@@ -93,16 +92,6 @@ public class GameManager : MonoBehaviour {
     // Used to call relevant functions after the scene loads since scene loads complete in the frame after they're called
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // Call startMatchEvent when game scene is loaded
-        /*
-        if (scene.name == m_gameScene)
-        {
-            if (startMatchEvent != null)
-            {
-                startMatchEvent(m_mainPlayerName, m_matchName);
-            }
-        }*/
-
         // Call gameLoadedEvent when game scene is loaded
         if (scene.name == m_gameScene)
         {
@@ -126,7 +115,6 @@ public class GameManager : MonoBehaviour {
 
     void Update()
     {
-
     }
 
     // Getters and setters
@@ -258,7 +246,6 @@ public class GameManager : MonoBehaviour {
         m_inMatch = true;
         m_gameScene = scene;
         SceneManager.LoadScene(scene);
-        // startMatchEvent will be called after the scene is loaded
     }
 
 
@@ -339,11 +326,11 @@ public class GameManager : MonoBehaviour {
     }
 
     // Moves a player with the given ID to the given new position
-    public void MovePlayer(string playerId, Vector3 newPosition)
+	public void MovePlayer(string playerId, Vector3 position)
     {
         if (m_players.ContainsKey(playerId))
         {
-            m_players[playerId].transform.position = newPosition;
+			m_players[playerId].transform.position = position;   
         }
     }
 
@@ -364,6 +351,5 @@ public class GameManager : MonoBehaviour {
             m_players[playerId].GetComponent<PlayerMovement>().RotatePlayer(newRotation);
         }
     }
-
 
 }

@@ -16,6 +16,7 @@ public class ClientManager : MonoBehaviour
 
     public const int serverPort = 8889;
     public int clientPort;
+    public int messagesReceivedPerUpdate = 10;
 
     // Connection Info
     private int m_connectionID;
@@ -98,36 +99,41 @@ public class ClientManager : MonoBehaviour
         int bufferSize = 1024;
         byte[] recBuffer = new byte[bufferSize];
         int dataSize;
-        NetworkEventType recNetworkEvent = NetworkTransport.Receive(out recHostID, out recConnectionID, out recChannelID, recBuffer, bufferSize, out dataSize, out m_error);
 
-        switch (recNetworkEvent)
+        // Receive and handle messagesReceivedPerUpdate number of messages
+        for (int i = 0; i < messagesReceivedPerUpdate; i++)
         {
-            case NetworkEventType.ConnectEvent:
-                Debug.Log("Connected");
-                break;
-            case NetworkEventType.DataEvent:
-                string msg = Encoding.Unicode.GetString(recBuffer, 0, dataSize);
-                Debug.Log("Receiving: " + msg);
-                string[] splitData = msg.Split('|');
-                switch (splitData[0])
-                {
-                    case "OPEN_MATCH_LIST":
-                        UpdateOpenMatches(msg);
-                        break;
-                    case "PLAYER_LOBBY_UPDATE":
-                        UpdatePlayerLobby(msg);
-                        break;
-                    case "START_MATCH":
-                        StartMatch(splitData[1]);
-                        break;
-                    case "MOVE_PLAYER":
-                        MovePlayer(splitData[1], splitData[2], splitData[3], splitData[4]);
-                        break;
-                }
-                break;
-            case NetworkEventType.DisconnectEvent:
-                Debug.Log("Disconnected");
-                break;
+            NetworkEventType recNetworkEvent = NetworkTransport.Receive(out recHostID, out recConnectionID, out recChannelID, recBuffer, bufferSize, out dataSize, out m_error);
+
+            switch (recNetworkEvent)
+            {
+                case NetworkEventType.ConnectEvent:
+                    Debug.Log("Connected");
+                    break;
+                case NetworkEventType.DataEvent:
+                    string msg = Encoding.Unicode.GetString(recBuffer, 0, dataSize);
+                    Debug.Log("Receiving: " + msg);
+                    string[] splitData = msg.Split('|');
+                    switch (splitData[0])
+                    {
+                        case "OPEN_MATCH_LIST":
+                            UpdateOpenMatches(msg);
+                            break;
+                        case "PLAYER_LOBBY_UPDATE":
+                            UpdatePlayerLobby(msg);
+                            break;
+                        case "START_MATCH":
+                            StartMatch(splitData[1]);
+                            break;
+                        case "MOVE_PLAYER":
+                            MovePlayer(splitData[1], splitData[2], splitData[3], splitData[4]);
+                            break;
+                    }
+                    break;
+                case NetworkEventType.DisconnectEvent:
+                    Debug.Log("Disconnected");
+                    break;
+            }
         }
 
         // Update list of players and send player data to server
@@ -135,7 +141,7 @@ public class ClientManager : MonoBehaviour
 
         if (GameManager.Instance.InMatch)
         {
-            SendPlayerData();
+			SendPlayerData ();
         }
     }
 
@@ -145,7 +151,6 @@ public class ClientManager : MonoBehaviour
         GameManager.createMatchEvent += createMatchHandler;
         GameManager.joinMatchEvent += joinMatchHandler;
         GameManager.leaveMatchLobbyEvent += leaveMatchLobbyHandler;
-        GameManager.startMatchEvent += startMatchHandler;
         GameManager.gameLoadedEvent += gameLoadedHandler;
         GameManager.dropMatchEvent += dropMatchHandler;
     }
@@ -155,7 +160,6 @@ public class ClientManager : MonoBehaviour
         GameManager.createMatchEvent -= createMatchHandler;
         GameManager.joinMatchEvent -= joinMatchHandler;
         GameManager.leaveMatchLobbyEvent -= leaveMatchLobbyHandler;
-        GameManager.startMatchEvent -= startMatchHandler;
         GameManager.gameLoadedEvent += gameLoadedHandler;
         GameManager.dropMatchEvent -= dropMatchHandler;
     }
@@ -187,22 +191,12 @@ public class ClientManager : MonoBehaviour
         sendMessage(msg);
     }
 
-    // FUNCTION NOT CURRENTLY IN USE
-    // Called automatically when GameManager asks to start a match
-    private void startMatchHandler(string playerId, string matchId)
-    {
-        Debug.Log("GameManager asked to start a match");
-        GameManager.Instance.SpawnPlayer(GameManager.Instance.MainPlayerName, new Vector3(0,1,0));
-        string msg = "START_MATCH|" + playerId + "|" + matchId;
-        sendMessage(msg);
-    }
-
     // Called automatically when GameManager loads the match
     private void gameLoadedHandler(string playerId, string matchId)
     {
-        Debug.Log("Game loaded");
         Vector3 spawnVector = new Vector3(0, 1, 0);
-        foreach (string player in GameManager.Instance.PlayerIds)
+        List<string> playerIds = new List<string>(GameManager.Instance.Players.Keys);
+        foreach (string player in playerIds)
         {
             GameManager.Instance.SpawnPlayer(player, spawnVector);
             spawnVector += new Vector3(3, 0, 0);
@@ -247,9 +241,10 @@ public class ClientManager : MonoBehaviour
         string[] splitData = msg.Split('|');
         if (splitData[1] == GameManager.Instance.MatchName)
         {
-            foreach (string playerId in GameManager.Instance.PlayerIds)
+            List<string> playerIds = new List<string>(GameManager.Instance.Players.Keys);
+            foreach (string player in playerIds)
             {
-                GameManager.Instance.RemovePlayer(playerId);
+                GameManager.Instance.RemovePlayer(player);
             }
             for (int i = 2; i < splitData.Length; i++)
             {
@@ -282,38 +277,42 @@ public class ClientManager : MonoBehaviour
     }
 
     // Move player
-    private void MovePlayer(string playerId, string matchName, string velocity, string rotation)
+    private void MovePlayer(string playerId, string matchName, string position, string rotation)
     {
         if (matchName == GameManager.Instance.MatchName)
         {
             // Move Player
-            velocity = velocity.Substring(1, velocity.Length - 2);
-            string[] splitData = velocity.Split(',');
-            Vector3 velocityVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
-            GameManager.Instance.SetPlayerVelocity(playerId, velocityVec);
+            position = position.Substring(1, position.Length - 2);
+            string[] splitData = position.Split(',');
+            Vector3 positionVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
+            GameManager.Instance.MovePlayer(playerId, positionVec);
 
-            /*
+            // TEMP CODE = main player rotation currently done automatically and not based on server (see SendPlayerData)
+            
             // Rotate player
-            rotation = rotation.Substring(1, rotation.Length - 2);
-            splitData = rotation.Split(',');
-            Vector3 rotationVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
-            GameManager.Instance.RotatePlayer(playerId, rotationVec);
-            */
+            if (playerId != GameManager.Instance.MainPlayerName)
+            {
+                rotation = rotation.Substring(1, rotation.Length - 2);
+                splitData = rotation.Split(',');
+                Vector3 rotationVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
+                GameManager.Instance.RotatePlayer(playerId, rotationVec);
+            }          
         }
     }
 
     // Send player move data
     public void SendPlayerData()
     {
-        if (m_players[m_mainPlayerName] != null)
+		if (m_players[m_mainPlayerName] != null)
         {
             PlayerMovement mainPlayerMovement = m_players[m_mainPlayerName].GetComponent<PlayerMovement>();
             Vector3 velocity = mainPlayerMovement.CalculateVelocity(Input.GetAxis("Vertical"), Input.GetAxis("Horizontal"));
             Vector3 rotation = mainPlayerMovement.CalculateHorizontalRotation(Input.GetAxis("Mouse X"));
-            //GameManager.Instance.SetPlayerVelocity(m_mainPlayerName, velocity);
-            GameManager.Instance.RotatePlayer(m_mainPlayerName, rotation);
             string msg = "MOVE_PLAYER|" + m_mainPlayerName + "|" + GameManager.Instance.MatchName + "|" + velocity.ToString() + "|" + rotation.ToString();
             sendMessage(msg);
+
+            // TEMP CODE = main player rotation currently done automatically and not based on server
+            GameManager.Instance.RotatePlayer(m_mainPlayerName, rotation);
         }
     }
 

@@ -47,12 +47,14 @@ public class PlayerMovement : MonoBehaviour {
         */
     }
 
+    // Given an input axis, calculates the horizontal rotation of the player
     public Vector3 CalculateHorizontalRotation(float axis)
     {
         float yRotation = m_yRotation - horizontalCameraSensitivity * axis;
         return new Vector3(0, yRotation, 0);
     }
 
+    // Given two input axes, calculates the velocity of the player
     public Vector3 CalculateVelocity(float verticalAxis, float horizontalAxis)
     {
         Vector3 forwardBackDirection = new Vector3(Mathf.Sin(m_yRotation * Mathf.PI / 180), 0, Mathf.Cos(m_yRotation * Mathf.PI / 180));
@@ -60,12 +62,14 @@ public class PlayerMovement : MonoBehaviour {
         return moveSpeed * (forwardBackDirection * verticalAxis + leftRightDirection * horizontalAxis);
     }
 
+    // Sets the player rotation
     public void RotatePlayer(Vector3 rotation)
     {
         m_yRotation = rotation[1];
         transform.eulerAngles = rotation;
     }
 
+    // Sets the player velocity
     public void SetVelocity(Vector3 velocity)
     {
         m_rigidbody.velocity = velocity;

@@ -14,6 +14,7 @@ public class ServerManager : MonoBehaviour
     public string startingSceneName;
 
     // Connection Information
+    int messagesReceivedPerUpdate = 20;
     int m_connectionID;
     int m_channelID;
     int m_hostID;
@@ -41,7 +42,7 @@ public class ServerManager : MonoBehaviour
     // Singleton instance of the ServerManager
     private static ServerManager m_instance = null;
 
-    // Get instance of the ClientManager
+    // Get instance of the ServerManager
     public static ServerManager Instance
     {
         get
@@ -105,62 +106,68 @@ public class ServerManager : MonoBehaviour
         byte[] recBuffer = new byte[1024];
         int bufferSize = 1024;
         int datasize;
-        NetworkEventType recNetworkEvent = NetworkTransport.Receive(out recHostID, out recConnectionID, out recChannelID, recBuffer, bufferSize, out datasize, out m_error);
 
-        //These cases signify if a new connection is established, a message from an existing client is received, or a client is disconnecting.
-        switch (recNetworkEvent)
+        // Receive and handle messagesReceivedPerUpdate number of messages
+        for (int i = 0; i < messagesReceivedPerUpdate; i++ )
         {
-            case NetworkEventType.ConnectEvent:
-                string connectionMsg = "Connected " + recHostID + " " + recConnectionID + " " + recChannelID;
-                Debug.Log(connectionMsg);
-                // Add new connection to list of open connections
-                ConnectionInfo newConnection = new ConnectionInfo(recHostID, recConnectionID, recChannelID);
-                m_openConnections.Add(newConnection);
-                break;
-            case NetworkEventType.DataEvent:
-                string msg = Encoding.Unicode.GetString(recBuffer, 0, datasize);
-                Debug.Log("Receiving: " + msg);
-                string[] splitData = msg.Split('|');
-                switch (splitData[0])
-                {
-                    case "CREATE_MATCH":
-                        CreateMatch(splitData[1], splitData[2]);
-                        break;
-                    case "JOIN_MATCH":
-                        JoinMatch(splitData[1], splitData[2]);
-                        break;
-                    case "LEAVE_MATCH_LOBBY":
-                        LeaveMatchLobby(splitData[1], splitData[2]);
-                        break;
-                    case "START_MATCH":
-                        StartMatch(splitData[1], splitData[2]);
-                        break;
-                    case "DROP_PLAYER":
-                        DropPlayer(splitData[1], splitData[2]);
-                        break;
-                    case "MOVE_PLAYER":
-                        MovePlayer(splitData[1], splitData[2], splitData[3], splitData[4]);
-                        break;
-                    case "GET_OPEN_MATCHES":
-                        GetOpenMatches(recHostID, recConnectionID, recChannelID);
-                        break;
-                }
-                break;
-            case NetworkEventType.DisconnectEvent:
-                Debug.Log("Disconnected");
-                // Remove connection from list of open connections
-                List<ConnectionInfo> currentConnections = m_openConnections;
-                foreach (ConnectionInfo connection in currentConnections)
-                {
-                    if (connection.hostId == recHostID && connection.channelId == recChannelID && connection.connectionId == recConnectionID)
+            NetworkEventType recNetworkEvent = NetworkTransport.Receive(out recHostID, out recConnectionID, out recChannelID, recBuffer, bufferSize, out datasize, out m_error);
+
+            //These cases signify if a new connection is established, a message from an existing client is received, or a client is disconnecting.
+            switch (recNetworkEvent)
+            {
+                case NetworkEventType.ConnectEvent:
+                    string connectionMsg = "Connected " + recHostID + " " + recConnectionID + " " + recChannelID;
+                    Debug.Log(connectionMsg);
+                    // Add new connection to list of open connections
+                    ConnectionInfo newConnection = new ConnectionInfo(recHostID, recConnectionID, recChannelID);
+                    m_openConnections.Add(newConnection);
+                    break;
+                case NetworkEventType.DataEvent:
+                    string msg = Encoding.Unicode.GetString(recBuffer, 0, datasize);
+                    Debug.Log("Receiving: " + msg);
+                    string[] splitData = msg.Split('|');
+                    switch (splitData[0])
                     {
-                        m_openConnections.Remove(connection);
+                        case "CREATE_MATCH":
+                            CreateMatch(splitData[1], splitData[2]);
+                            break;
+                        case "JOIN_MATCH":
+                            JoinMatch(splitData[1], splitData[2]);
+                            break;
+                        case "LEAVE_MATCH_LOBBY":
+                            LeaveMatchLobby(splitData[1], splitData[2]);
+                            break;
+                        case "START_MATCH":
+                            StartMatch(splitData[1], splitData[2]);
+                            break;
+                        case "DROP_PLAYER":
+                            DropPlayer(splitData[1], splitData[2]);
+                            break;
+                        case "MOVE_PLAYER":
+                            MovePlayer(splitData[1], splitData[2], splitData[3], splitData[4]);
+                            break;
+                        case "GET_OPEN_MATCHES":
+                            GetOpenMatches(recHostID, recConnectionID, recChannelID);
+                            break;
                     }
-                }
-                break;
+                    break;
+                case NetworkEventType.DisconnectEvent:
+                    Debug.Log("Disconnected");
+                    // Remove connection from list of open connections
+                    List<ConnectionInfo> currentConnections = m_openConnections;
+                    foreach (ConnectionInfo connection in currentConnections)
+                    {
+                        if (connection.hostId == recHostID && connection.channelId == recChannelID && connection.connectionId == recConnectionID)
+                        {
+                            m_openConnections.Remove(connection);
+                        }
+                    }
+                    break;
+            }
         }
     }
 
+    // Send a message to a given client
     public void sendMessage(string message, int hostId, int connectionId, int channelId)
     {
         byte[] buffer = Encoding.Unicode.GetBytes(message);
@@ -228,12 +235,14 @@ public class ServerManager : MonoBehaviour
     }
 
     // Start a match
+    // Will only start the match if it is the most recently created match 
     private void StartMatch(string playerId, string matchName)
     {
         if (matchName == GameManager.Instance.MatchName)
         {
             Vector3 spawnVector = new Vector3(0, 1, 0);
-            foreach (string player in GameManager.Instance.PlayerIds)
+            List<string> playerIds = new List<string>(GameManager.Instance.Players.Keys);
+            foreach (string player in playerIds)
             {
                 GameManager.Instance.SpawnPlayer(player, spawnVector);
                 spawnVector += new Vector3(3, 0, 0);
@@ -252,6 +261,8 @@ public class ServerManager : MonoBehaviour
         }
     }
 
+    // Handles a MOVE_PLAYER request from client
+    // Sets player velocity and rotation and messages all clients
     private void MovePlayer(string playerId, string matchName, string velocity, string rotation)
     {
         if (matchName == GameManager.Instance.MatchName)
@@ -266,9 +277,12 @@ public class ServerManager : MonoBehaviour
             rotation = rotation.Substring(1, rotation.Length - 2);
             splitData = rotation.Split(',');
             Vector3 rotationVec = new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
-            //GameManager.Instance.RotatePlayer(playerId, rotationVec);
+            GameManager.Instance.RotatePlayer(playerId, rotationVec);
 
-            string msg = "MOVE_PLAYER|" + playerId + "|" + GameManager.Instance.MatchName + "|" + velocityVec.ToString() + "|" + rotationVec.ToString();
+            // Get player position
+            Vector3 position = GameManager.Instance.Players[playerId].transform.position;
+
+            string msg = "MOVE_PLAYER|" + playerId + "|" + GameManager.Instance.MatchName + "|" + position.ToString() + "|" + rotationVec.ToString();
             SendMessageToAll(msg);
         }
     }
@@ -294,8 +308,4 @@ public class ServerManager : MonoBehaviour
         }
         SendMessageToAll(msg);
     }
-
-
-
-
 }
