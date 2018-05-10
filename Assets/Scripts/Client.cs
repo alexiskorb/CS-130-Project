@@ -7,6 +7,8 @@ using FpsNetcode;
 
 namespace FpsClient {
 	// @class Client
+	// @desc Performs client-side prediction and server synchronization. 
+	// Both of these are meant to be completely transparent to the game. 
 	public class Client : MonoBehaviour {
 		// Server IP address.
 		public const string SERVER_IP = "127.0.0.1";
@@ -15,7 +17,7 @@ namespace FpsClient {
 		// The rate at which updates are sent to the server. 
 		public const float TICK_RATE = 0f;
 
-		// Tracks the game state.
+		// This is the client-side game.
 		public GameClient m_game;
 		// Queue of client commands. 
 		private Queue<Netcode.CmdType> m_cmdQueue = new Queue<Netcode.CmdType>();
@@ -30,6 +32,9 @@ namespace FpsClient {
 		// Client's current seqno.
 		private uint m_seqno = 0;
 
+		private delegate uint NewSeqnoDel();
+		NewSeqnoDel m_newSeqno;
+
 		void Start()
 		{
 			// Begin listening for packets.
@@ -38,15 +43,19 @@ namespace FpsClient {
 			// Initialize tick function.
 			m_sendTick = new PeriodicFunction(ConnectToServer, TICK_RATE);
 
-			// @doc Client history must be initialized with a snapshot! 
-			m_clientHistory = new Netcode.ClientHistory(new Netcode.PlayerSnapshot(m_seqno, 0, m_game.GetMainPlayer().GetComponent<Transform>().position));
+			// Initialize client history. It doesn't matter what the initial snapshot is on the 
+			// client side because if it's wrong it will be corrected by the server.
+			m_clientHistory = new Netcode.ClientHistory(
+				Netcode.Snapshot.FromPlayer(NewSeqno(), m_game.GetServerId(), m_game.GetMainPlayer()));
+
+			m_newSeqno = new NewSeqnoDel(GetSeqno);
 		}
 
 		void Tick()
 		{
 			// @test Send snapshots to the server. 
-			Vector3 position = m_game.GetMainPlayer().GetComponent<Transform>().position;
-			Netcode.PlayerSnapshot snapshot = new Netcode.PlayerSnapshot(m_seqno++, m_game.GetServerId(), position);
+			GameObject mainPlayer = m_game.GetMainPlayer();
+			Netcode.Snapshot snapshot = Netcode.Snapshot.FromPlayer(m_newSeqno(), m_game.GetServerId(), mainPlayer);
 			m_clientHistory.PutSnapshot(snapshot);
 
 			SendPacket(snapshot.Serialize());
@@ -57,7 +66,8 @@ namespace FpsClient {
 		{
 			while (m_mainWork.Count > 0) {
 				Netcode.MainThreadWork work = m_mainWork.Dequeue();
-				work.Invoke();
+				if (work != null)
+					work.Invoke();
 			}
 
 			// TODO: Add commands to the command queue and send them to the server.
@@ -73,12 +83,10 @@ namespace FpsClient {
 			m_client.BeginReceive(ReceiveCallback, m_client);
 
 			if (remoteEndPoint.Port != SERVER_PORT || remoteEndPoint.Address.ToString() != SERVER_IP) {
-				ClientLog("Packet not from server!");
+				ClientLog("Packet not from server.");
 				return;
 			}
 
-			// @doc Unity is not a thread-safe game engine: Calls to the Unity API have to be from the
-			// main thread or else the engine will spit out an error. Most of packet processing is therefore done from the main thread.
 			Netcode.MainThreadWork work = () => {
 				ProcessPacket(buf, remoteEndPoint);
 			};
@@ -108,61 +116,81 @@ namespace FpsClient {
 
 		void ProcessConnect(byte[] buf)
 		{
+			// Connected to server - start seqno counting. 
+			m_newSeqno = new NewSeqnoDel(NewSeqno);
+			// Begin sending updates to server. 
+			m_sendTick = new PeriodicFunction(Tick, TICK_RATE);
+			// Alert game to connection event. 
 			Netcode.Connect connect = new Netcode.Connect(buf);
 			m_game.NetEvent(connect);
-			m_sendTick = new PeriodicFunction(Tick, TICK_RATE);
-			ClientLog("Server connection request received! My Server ID is " + m_game.GetServerId());
+
+			ClientLog("Server connection request received. My Server ID is " + m_game.GetServerId());
 		}
 
 		void ProcessDisconnect(byte[] buf)
 		{
 			Netcode.Disconnect disconnect = new Netcode.Disconnect(buf);
-			if (disconnect.m_serverId == m_game.GetServerId()) {
-				// @TODO: Admittedly, this is a little harsh. Network events like these should be passed 
-				// to the game logic for it to decide what to do. 
-				OnDestroy();
-			} else {
-				m_game.KillEntity(disconnect.m_serverId);
-			}
+			m_game.NetEvent(disconnect);
 		}
 
+		// @func ProcessSnapshot
+		// @desc If the snapshot was intended for the main player, and the client and 
+		// server are in agreement, the Network Event is ignored and 
 		void ProcessSnapshot(byte[] buf)
 		{
-			Netcode.PlayerSnapshot snapshot = new Netcode.PlayerSnapshot(buf);
+			Netcode.Snapshot snapshot = new Netcode.Snapshot(buf);
+
+			// Check if the client's state and server state are out of sync.
 			if (snapshot.m_serverId == m_game.GetServerId()) {
-				// Check if the client's player state and server state are out of sync.
 				if (!m_clientHistory.Reconcile(snapshot)) {
-					ClientLog("OUT OF SYNC.");
-					m_clientHistory.PutSnapshot(snapshot);
-					m_game.PutSnapshot(snapshot);
-				}
-			} else {
-				m_game.PutSnapshot(snapshot);
-			}
+					ClientLog("Client is out of sync with the server -- reconciling");
+					m_game.NetEvent(snapshot);
+				} 
+			} else 
+				m_game.NetEvent(snapshot);
 		}
 
 		// @func ConnectToServer
-		// @desc Sends a connect packet to the server. 
+		// @desc Sends a connect packet to the server. This gets called every tick until the game connects.
 		void ConnectToServer()
 		{
-			Netcode.Connect connectPacket = new Netcode.Connect(m_seqno, m_game.GetServerId());
+			Netcode.Connect connectPacket = new Netcode.Connect(m_newSeqno(), m_game.GetServerId());
 			byte[] buf = connectPacket.Serialize();
 			SendPacket(buf);
 		}
 
+		// @func SendPacket
+		// @desc Sends a datagram packet to the server. 
 		void SendPacket(byte[] dgram)
 		{
 			m_client.Send(dgram, dgram.Length, SERVER_IP, SERVER_PORT);
 		}
 
+		// @func OnDestroy
+		// @desc Disconnect from the server and close the connection. 
 		void OnDestroy()
 		{
-			Netcode.Disconnect disconnect = new Netcode.Disconnect(m_seqno, m_game.GetServerId());
+			Netcode.Disconnect disconnect = new Netcode.Disconnect(m_newSeqno(), m_game.GetServerId());
 			SendPacket(disconnect.Serialize());
 			m_client.Close();
 		}
 
-		public void ClientLog(string message)
+		// @func NewSeqno
+		// @desc Returns the current seqno and increments it. 
+		uint NewSeqno()
+		{
+			uint seqno = m_seqno++;
+			return seqno;
+		}
+
+		// @func GetSeqno
+		// @desc Return the current seqno of the client. 
+		uint GetSeqno()
+		{
+			return m_seqno;
+		}
+
+		void ClientLog(string message)
 		{
 			Debug.Log("<Client> " + message);
 		}
