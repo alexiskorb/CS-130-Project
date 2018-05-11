@@ -2,10 +2,8 @@
 using System;
 using System.Runtime.InteropServices;
 
-// @TODO: The way offsets are being computed is disgustingly error prone.
-// A better way would be for MemCpy to return the number of bytes that were copied. 
-// An even better TODO would be to find a b
 namespace FpsNetcode {
+
 	// @class Netcode
 	// @desc Netcode contains the packet data structures used by the client and server. 
 	public static class Netcode {
@@ -20,16 +18,32 @@ namespace FpsNetcode {
 		// to leave open the possibility for client's having alternate key bindings. 
 		public enum CmdType {
 			FORWARD, BACKWARD, LEFT, RIGHT,
-			PRIMARY_WEAPON, 
+			PRIMARY_WEAPON,
+		}
+
+		// @class SnapshotInterface
+		// @desc Implement this interface to have snapshots 
+		// integrated with the rest server. 
+		public abstract class ISnapshot<T> : Packet {
+			// The server ID of the snapshot. 
+			public int m_serverId;
+
+			// @interface Equals
+			// @desc Performs an equality test. 
+			public abstract bool Equals(T other);
+			// @interface FromPlayer
+			// @desc Initialize the snapshot with a Game Object.
+			public abstract void FromPlayer(uint seqno, int serverId, GameObject gameObject);
+			// @interface Apply
+			// @desc Applies the snapshot to the Game Object.
+			public abstract void Apply(ref GameObject gameObject);
 		}
 
 		// @doc A Snapshot is the state that is synchronized among clients and server.
 		// Let's say you want to add new client state, such as weapon type and ammo. This is the only structure that has to be changed 
-		// in the entire source code for that new state to be reflected in the game. You'd add the new field to the Snapshot class, 
-		// update the constructor, Serialize, Deserialize, Apply, and FromPlayer.
+		// in the source code for that new state to be synchronized. Just implement the ISnapshot interface.
 		[StructLayout(LayoutKind.Sequential, Pack = 1)]
-		public class Snapshot : Packet {
-			public int m_serverId;
+		public class Snapshot : ISnapshot<Snapshot> {
 			public Vector3 m_position;
 			public Vector3 m_eulerAngles;
 
@@ -38,12 +52,9 @@ namespace FpsNetcode {
 				Deserialize(buf);
 			}
 
-			public Snapshot(uint seqno, int serverId, Vector3 position, Vector3 eulerAngles)
+			public Snapshot(uint seqno, int serverId, GameObject gameObject)
 			{
-				m_header = new PacketHeader(PacketType.CLIENT_SNAPSHOT, seqno);
-				m_serverId = serverId;
-				m_position = position;
-				m_eulerAngles = eulerAngles;
+				FromPlayer(seqno, serverId, gameObject);
 			}
 
 			public override byte[] Serialize()
@@ -64,22 +75,30 @@ namespace FpsNetcode {
 				DeserializeVec3(ref m_eulerAngles, buf, Marshal.SizeOf(m_header) + sizeof(int) + Marshal.SizeOf(m_position));
 			}
 
-			public static void Apply(ref GameObject gameObject, Snapshot snapshot)
+			public override void Apply(ref GameObject gameObject)
 			{
-				gameObject.transform.position = snapshot.m_position;
-				gameObject.transform.eulerAngles = snapshot.m_eulerAngles;
+				gameObject.transform.position = m_position;
+				gameObject.transform.eulerAngles = m_eulerAngles;
 			}
 
-			public static Snapshot FromPlayer(uint seqno, int serverId, GameObject gameObject)
+			public override void FromPlayer(uint seqno, int serverId, GameObject gameObject)
 			{
-				Vector3 position = gameObject.transform.position;
-				Vector3 eulerAngles = gameObject.transform.eulerAngles;
-				return new Snapshot(seqno, serverId, position, eulerAngles);
+				m_header = new PacketHeader(PacketType.CLIENT_SNAPSHOT, seqno);
+				m_serverId = serverId;
+				m_position = gameObject.transform.position;
+				m_eulerAngles = gameObject.transform.eulerAngles;
+			}
+
+			public override bool Equals(Snapshot other)
+			{
+				return (m_position == other.m_position) &&
+					(m_eulerAngles == other.m_eulerAngles);
 			}
 		}
 
 		// ==== @doc Everything after this is game-independent and shouldn't really be touched. ====
 
+		// TODO: Try to make Packet a templated pattern and use the serializer class. 
 		[StructLayout(LayoutKind.Sequential, Pack = 1)]
 		public abstract class Packet {
 			public PacketHeader m_header;
@@ -92,7 +111,7 @@ namespace FpsNetcode {
 		public class CmdPacket : Packet {
 			public CmdType m_cmd;
 
-			public CmdPacket(byte [] buf)
+			public CmdPacket(byte[] buf)
 			{
 				Deserialize(buf);
 			}
@@ -215,15 +234,15 @@ namespace FpsNetcode {
 
 		// @class ClientHistory
 		// @desc Maintains the client's history of snapshots for client-side prediction and delta compression. 
-		public class ClientHistory {
+		public class ClientHistory<T> where T : ISnapshot<T> {
 			public static uint CLIENT_TIMEOUT = 5;
 			private static uint MAX_SNAPSHOTS = 10;
 
-			private Snapshot[] m_snapshots = new Snapshot[MAX_SNAPSHOTS];
+			private T[] m_snapshots = new T[MAX_SNAPSHOTS];
 			private uint m_seqno = 0;
 			private float m_timeSinceLastAck = 0f;
 
-			public ClientHistory(Snapshot initialPlayerState)
+			public ClientHistory(T initialPlayerState)
 			{
 				m_seqno = initialPlayerState.m_header.m_seqno;
 				PutSnapshot(initialPlayerState);
@@ -232,10 +251,10 @@ namespace FpsNetcode {
 			// @func Reconcile
 			// @desc Reconciles the client state with the server state. If this returns false,
 			// the client player needs to be rolled back to the server's snapshot.
-			public bool Reconcile(Snapshot snapshot)
+			public bool Reconcile(T snapshot)
 			{
-				Snapshot predicted = GetSnapshot(snapshot.m_header.m_seqno);
-				if (predicted.m_position != snapshot.m_position) {
+				T predicted = GetSnapshot(snapshot.m_header.m_seqno);
+				if (!predicted.Equals(snapshot)) {
 					PutSnapshot(snapshot);
 					return false;
 				} else
@@ -244,7 +263,7 @@ namespace FpsNetcode {
 
 			// @func PutSnapshot
 			// @desc Reset the ack timer, update the seqno, and record the snapshot. 
-			public void PutSnapshot(Snapshot snapshot)
+			public void PutSnapshot(T snapshot)
 			{
 				m_timeSinceLastAck = 0f;
 				if (snapshot.m_header.m_seqno > m_seqno)
@@ -257,15 +276,15 @@ namespace FpsNetcode {
 			// Unless the client is way ahead of the server - in which case
 			// the client would most likely already be disconnected - the seqnos should
 			// always match. 
-			private Snapshot GetSnapshot(uint seqno)
+			private T GetSnapshot(uint seqno)
 			{
-				Snapshot snapshot = m_snapshots[seqno % MAX_SNAPSHOTS];
+				T snapshot = m_snapshots[seqno % MAX_SNAPSHOTS];
 				if (snapshot.m_header.m_seqno != seqno)
 					Debug.Log("<ClientHistory> Seqnos don't match.");
 				return snapshot;
 			}
 
-			public Snapshot GetMostRecentSnapshot()
+			public T GetMostRecentSnapshot()
 			{
 				return m_snapshots[GetSnapshotIndex()];
 			}
@@ -413,6 +432,10 @@ namespace FpsNetcode {
 
 			m_timeRemaining -= Time.deltaTime;
 		}
+
+		public void RunNow()
+		{
+			m_doEveryN();
+		}
 	}
 }
-	

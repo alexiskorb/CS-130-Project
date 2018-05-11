@@ -18,7 +18,7 @@ namespace FpsClient {
 		private GameObject SpawnPlayer(Netcode.Snapshot snapshot)
 		{
 			GameObject gameObject = Instantiate(playerPrefab);
-			Netcode.Snapshot.Apply(ref gameObject, snapshot);
+			snapshot.Apply(ref gameObject);
 			m_objects[snapshot.m_serverId] = gameObject;
 			return gameObject;
 		}
@@ -54,7 +54,7 @@ namespace FpsClient {
 				gameObject = SpawnPlayer(snapshot);
 			} else {
 				gameObject = GetEntity(snapshot.m_serverId);
-				Netcode.Snapshot.Apply(ref gameObject, snapshot);
+				snapshot.Apply(ref gameObject);
 			}
 
 			return gameObject;
