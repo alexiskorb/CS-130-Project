@@ -6,11 +6,12 @@ namespace FpsNetcode {
 
 	// @class Netcode
 	// @desc Netcode contains the packet data structures used by the client and server. 
+	// All packets must have a default constructor in order for serialization to work. 
 	public static class Netcode {
 		public enum PacketType : int {
 			CONNECT,
-			CLIENT_SNAPSHOT,
-			CLIENT_CMD,
+			SNAPSHOT,
+			COMMAND,
 			DISCONNECT
 		}
 
@@ -22,58 +23,41 @@ namespace FpsNetcode {
 		}
 
 		// @class SnapshotInterface
-		// @desc Implement this interface to have snapshots 
-		// integrated with the rest server. 
+		// @desc Implement this interface to have snapshots integrated with the rest server.
+		[StructLayout(LayoutKind.Sequential, Pack = 1)]
 		public abstract class ISnapshot<T> : Packet {
 			// The server ID of the snapshot. 
 			public int m_serverId;
+
+			public ISnapshot() { }
+			public ISnapshot(int serverId, PacketType type, uint seqno, GameObject gameObject)
+				: base(type, seqno)
+			{
+				m_serverId = serverId;
+				FromPlayer(gameObject);
+			}
 
 			// @interface Equals
 			// @desc Performs an equality test. 
 			public abstract bool Equals(T other);
 			// @interface FromPlayer
 			// @desc Initialize the snapshot with a Game Object.
-			public abstract void FromPlayer(uint seqno, int serverId, GameObject gameObject);
+			public abstract void FromPlayer(GameObject gameObject);
 			// @interface Apply
 			// @desc Applies the snapshot to the Game Object.
 			public abstract void Apply(ref GameObject gameObject);
 		}
 
 		// @doc A Snapshot is the state that is synchronized among clients and server.
-		// Let's say you want to add new client state, such as weapon type and ammo. This is the only structure that has to be changed 
-		// in the source code for that new state to be synchronized. Just implement the ISnapshot interface.
 		[StructLayout(LayoutKind.Sequential, Pack = 1)]
 		public class Snapshot : ISnapshot<Snapshot> {
 			public Vector3 m_position;
 			public Vector3 m_eulerAngles;
 
-			public Snapshot(byte[] buf)
-			{
-				Deserialize(buf);
-			}
-
+			public Snapshot() {}
+			// @doc Constructor must take this form or you'll get compiler errors. 
 			public Snapshot(uint seqno, int serverId, GameObject gameObject)
-			{
-				FromPlayer(seqno, serverId, gameObject);
-			}
-
-			public override byte[] Serialize()
-			{
-				byte[] buf = Malloc(this);
-				PacketHeader.Serialize(m_header, ref buf);
-				MemCpy(m_serverId, buf, Marshal.SizeOf(m_header));
-				MemCpy(m_position, buf, Marshal.SizeOf(m_header) + sizeof(int));
-				MemCpy(m_eulerAngles, buf, Marshal.SizeOf(m_header) + sizeof(int) + Marshal.SizeOf(m_position));
-				return buf;
-			}
-
-			public override void Deserialize(byte[] buf)
-			{
-				m_header = PacketHeader.Deserialize(buf);
-				m_serverId = BitConverter.ToInt32(buf, Marshal.SizeOf(m_header));
-				DeserializeVec3(ref m_position, buf, Marshal.SizeOf(m_header) + sizeof(int));
-				DeserializeVec3(ref m_eulerAngles, buf, Marshal.SizeOf(m_header) + sizeof(int) + Marshal.SizeOf(m_position));
-			}
+				: base(serverId, PacketType.SNAPSHOT, seqno, gameObject) {}
 
 			public override void Apply(ref GameObject gameObject)
 			{
@@ -81,10 +65,8 @@ namespace FpsNetcode {
 				gameObject.transform.eulerAngles = m_eulerAngles;
 			}
 
-			public override void FromPlayer(uint seqno, int serverId, GameObject gameObject)
+			public override void FromPlayer(GameObject gameObject)
 			{
-				m_header = new PacketHeader(PacketType.CLIENT_SNAPSHOT, seqno);
-				m_serverId = serverId;
 				m_position = gameObject.transform.position;
 				m_eulerAngles = gameObject.transform.eulerAngles;
 			}
@@ -97,43 +79,28 @@ namespace FpsNetcode {
 		}
 
 		// ==== @doc Everything after this is game-independent and shouldn't really be touched. ====
-
-		// TODO: Try to make Packet a templated pattern and use the serializer class. 
 		[StructLayout(LayoutKind.Sequential, Pack = 1)]
-		public abstract class Packet {
-			public PacketHeader m_header;
+		public class Packet {
+			public PacketType m_type;
+			public uint m_seqno;
 
-			public abstract byte[] Serialize();
-			public abstract void Deserialize(byte[] buf);
+			public Packet() { }
+			public Packet(PacketType type, uint seqno)
+			{
+				m_type = type;
+				m_seqno = seqno;
+			}
 		}
 
 		[StructLayout(LayoutKind.Sequential, Pack = 1)]
 		public class CmdPacket : Packet {
 			public CmdType m_cmd;
 
-			public CmdPacket(byte[] buf)
-			{
-				Deserialize(buf);
-			}
-
+			public CmdPacket() { }
 			public CmdPacket(uint seqno, CmdType cmd)
+				: base(PacketType.COMMAND, seqno)
 			{
-				m_header = new PacketHeader(PacketType.CLIENT_CMD, seqno);
 				m_cmd = cmd;
-			}
-
-			public override byte[] Serialize()
-			{
-				byte[] buf = Malloc(this);
-				PacketHeader.Serialize(m_header, ref buf);
-				MemCpy((int)m_cmd, buf, Marshal.SizeOf(m_header));
-				return buf;
-			}
-
-			public override void Deserialize(byte[] buf)
-			{
-				m_header = PacketHeader.Deserialize(buf);
-				m_cmd = (CmdType)BitConverter.ToInt32(buf, Marshal.SizeOf(m_header));
 			}
 		}
 
@@ -141,29 +108,11 @@ namespace FpsNetcode {
 		public class Disconnect : Packet {
 			public int m_serverId;
 
-			public Disconnect(byte[] buf)
-			{
-				Deserialize(buf);
-			}
-
+			public Disconnect() { }
 			public Disconnect(uint seqno, int serverId)
+				: base(PacketType.DISCONNECT, seqno)
 			{
-				m_header = new PacketHeader(PacketType.DISCONNECT, seqno);
 				m_serverId = serverId;
-			}
-
-			public override byte[] Serialize()
-			{
-				byte[] buf = Malloc(this);
-				PacketHeader.Serialize(m_header, ref buf);
-				MemCpy(m_serverId, buf, Marshal.SizeOf(m_header));
-				return buf;
-			}
-
-			public override void Deserialize(byte[] buf)
-			{
-				m_header = PacketHeader.Deserialize(buf);
-				m_serverId = BitConverter.ToInt32(buf, Marshal.SizeOf(m_header));
 			}
 		}
 
@@ -171,64 +120,11 @@ namespace FpsNetcode {
 		public class Connect : Packet {
 			public int m_serverId;
 
-			public Connect(byte[] buf)
-			{
-				Deserialize(buf);
-			}
-
+			public Connect() { }
 			public Connect(uint seqno, int serverId)
+				: base(PacketType.CONNECT, seqno)
 			{
-				m_header = new PacketHeader(PacketType.CONNECT, seqno);
 				m_serverId = serverId;
-			}
-
-			public override byte[] Serialize()
-			{
-				byte[] buf = Malloc(this);
-				PacketHeader.Serialize(m_header, ref buf);
-				MemCpy(m_serverId, buf, Marshal.SizeOf(m_header));
-				return buf;
-			}
-
-			public override void Deserialize(byte[] buf)
-			{
-				m_header = PacketHeader.Deserialize(buf);
-				m_serverId = BitConverter.ToInt32(buf, Marshal.SizeOf(m_header));
-			}
-		}
-
-		[StructLayout(LayoutKind.Sequential, Pack = 1)]
-		public class PacketHeader {
-			public PacketType m_type;
-			public uint m_seqno;
-
-			public PacketHeader(PacketType type, uint seqno)
-			{
-				m_type = type;
-				m_seqno = seqno;
-			}
-
-			// @func Serialize
-			// @desc Serializes a PacketHeader. Assumes dst is already backed by memory. 
-			public static void Serialize(PacketHeader header, ref byte[] dst)
-			{
-				MemCpy((int)header.m_type, dst, 0);
-				MemCpy(header.m_seqno, dst, sizeof(PacketType));
-			}
-
-			public static byte[] Serialize(PacketHeader header)
-			{
-				byte[] buf = Malloc(header);
-				MemCpy((int)header.m_type, buf, 0);
-				MemCpy(header.m_seqno, buf, sizeof(PacketType));
-				return buf;
-			}
-
-			public static PacketHeader Deserialize(byte[] buf)
-			{
-				PacketType type = (PacketType)BitConverter.ToInt32(buf, 0);
-				uint seqno = BitConverter.ToUInt32(buf, sizeof(PacketType));
-				return new PacketHeader(type, seqno);
 			}
 		}
 
@@ -244,7 +140,7 @@ namespace FpsNetcode {
 
 			public ClientHistory(T initialPlayerState)
 			{
-				m_seqno = initialPlayerState.m_header.m_seqno;
+				m_seqno = initialPlayerState.m_seqno;
 				PutSnapshot(initialPlayerState);
 			}
 
@@ -253,7 +149,7 @@ namespace FpsNetcode {
 			// the client player needs to be rolled back to the server's snapshot.
 			public bool Reconcile(T snapshot)
 			{
-				T predicted = GetSnapshot(snapshot.m_header.m_seqno);
+				T predicted = GetSnapshot(snapshot.m_seqno);
 				if (!predicted.Equals(snapshot)) {
 					PutSnapshot(snapshot);
 					return false;
@@ -266,9 +162,9 @@ namespace FpsNetcode {
 			public void PutSnapshot(T snapshot)
 			{
 				m_timeSinceLastAck = 0f;
-				if (snapshot.m_header.m_seqno > m_seqno)
-					m_seqno = snapshot.m_header.m_seqno;
-				m_snapshots[snapshot.m_header.m_seqno % MAX_SNAPSHOTS] = snapshot;
+				if (snapshot.m_seqno > m_seqno)
+					m_seqno = snapshot.m_seqno;
+				m_snapshots[snapshot.m_seqno % MAX_SNAPSHOTS] = snapshot;
 			}
 
 			// @func GetSnapshot
@@ -279,7 +175,7 @@ namespace FpsNetcode {
 			private T GetSnapshot(uint seqno)
 			{
 				T snapshot = m_snapshots[seqno % MAX_SNAPSHOTS];
-				if (snapshot.m_header.m_seqno != seqno)
+				if (snapshot.m_seqno != seqno)
 					Debug.Log("<ClientHistory> Seqnos don't match.");
 				return snapshot;
 			}
@@ -437,5 +333,30 @@ namespace FpsNetcode {
 		{
 			m_doEveryN();
 		}
+	}
+}
+
+// @source http://thecodeisart.blogspot.com/2008/11/with-this-class-you-can-easy-convert.html
+// (With some modifications)
+public static class Serializer {
+	public static byte[] Serialize<T>(T obj)
+	{
+		byte[] buf = FpsNetcode.Netcode.Malloc(obj);
+		IntPtr ptr = Marshal.AllocHGlobal(buf.Length);
+		Marshal.StructureToPtr(obj, ptr, false);
+		Marshal.Copy(ptr, buf, 0, buf.Length);
+		Marshal.FreeHGlobal(ptr);
+		return buf;
+	}
+
+	public static T Deserialize<T>(byte[] buf) where T : new()
+	{
+		object obj = new T();
+		int length = Marshal.SizeOf(obj);
+		IntPtr ptr = Marshal.AllocHGlobal(length);
+		Marshal.Copy(buf, 0, ptr, length);
+		obj = Marshal.PtrToStructure(ptr, obj.GetType());
+		Marshal.FreeHGlobal(ptr);
+		return (T)obj;
 	}
 }
