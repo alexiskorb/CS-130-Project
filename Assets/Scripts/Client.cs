@@ -6,6 +6,9 @@ using System.Collections.Generic;
 using FpsNetcode;
 
 namespace FpsClient {
+	// @doc Change MySnapshot to whatever Snapshot your game uses.
+	using MySnapshot = Netcode.Snapshot;
+
 	// @class Client
 	// @desc Performs client-side prediction and server synchronization. 
 	// Both of these are meant to be completely transparent to the game. 
@@ -22,7 +25,7 @@ namespace FpsClient {
 		// Queue of client commands. 
 		private Queue<Netcode.CmdType> m_cmdQueue = new Queue<Netcode.CmdType>();
 		// Client snapshots. 
-		private Netcode.ClientHistory m_clientHistory;
+		private Netcode.ClientHistory<MySnapshot> m_clientHistory;
 		// The UDP Client. 
 		private UdpClient m_client = new UdpClient();
 		// The tick function sends client commands at the specified tick rate.
@@ -40,22 +43,24 @@ namespace FpsClient {
 			// Begin listening for packets.
 			m_client.BeginReceive(ReceiveCallback, m_client);
 
-			// Initialize tick function.
-			m_sendTick = new PeriodicFunction(ConnectToServer, TICK_RATE);
+			// Initialize tick function to the "try to connect" function. 
+			m_sendTick = new PeriodicFunction(ConnectToServer, 2f);
 
 			// Initialize client history. It doesn't matter what the initial snapshot is on the 
 			// client side because if it's wrong it will be corrected by the server.
-			m_clientHistory = new Netcode.ClientHistory(
-				Netcode.Snapshot.FromPlayer(NewSeqno(), m_game.GetServerId(), m_game.GetMainPlayer()));
+			m_clientHistory = new Netcode.ClientHistory<MySnapshot>(
+				new MySnapshot(NewSeqno(), m_game.GetServerId(), m_game.GetMainPlayer()));
 
 			m_newSeqno = new NewSeqnoDel(GetSeqno);
+
+			m_sendTick.RunNow();
 		}
 
 		void Tick()
 		{
 			// @test Send snapshots to the server. 
 			GameObject mainPlayer = m_game.GetMainPlayer();
-			Netcode.Snapshot snapshot = Netcode.Snapshot.FromPlayer(m_newSeqno(), m_game.GetServerId(), mainPlayer);
+			MySnapshot snapshot = new MySnapshot(m_newSeqno(), m_game.GetServerId(), mainPlayer);
 			m_clientHistory.PutSnapshot(snapshot);
 
 			SendPacket(snapshot.Serialize());
@@ -138,7 +143,7 @@ namespace FpsClient {
 		// server are in agreement, the Network Event is ignored and 
 		void ProcessSnapshot(byte[] buf)
 		{
-			Netcode.Snapshot snapshot = new Netcode.Snapshot(buf);
+			MySnapshot snapshot = new MySnapshot(buf);
 
 			// Check if the client's state and server state are out of sync.
 			if (snapshot.m_serverId == m_game.GetServerId()) {

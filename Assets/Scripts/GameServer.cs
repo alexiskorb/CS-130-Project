@@ -25,7 +25,7 @@ namespace FpsServer {
 		public override GameObject NetEvent(Netcode.Snapshot snapshot)
 		{
 			GameObject gameObject = GetEntity(snapshot.m_serverId);
-			Netcode.Snapshot.Apply(ref gameObject, snapshot);
+			snapshot.Apply(ref gameObject);
 			return gameObject;
 		}
 
