@@ -29,16 +29,17 @@ namespace FpsServer {
 			return gameObject;
 		}
 
-		public override void NetEvent(Netcode.Connect connect)
+		public override GameObject NetEvent(Netcode.Connect connect)
 		{
-			throw new System.NotImplementedException();
+			return SpawnPlayer();
 		}
 
 		// @func NetEvent.Disconnect
 		// @desc In this particular game, when we get a disconnect, we just kill the entity.
-		public override void NetEvent(Netcode.Disconnect disconnect)
+		public override GameObject NetEvent(Netcode.Disconnect disconnect)
 		{
 			KillEntity(disconnect.m_serverId);
+			return null;
 		}
 	}
 }
