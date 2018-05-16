@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
-using FpsNetcode;
 
 // @TODO Commands, reliable connect/disconnect
 
@@ -8,13 +7,13 @@ namespace FpsServer {
 	// @alias Change MySnapshot to whatever Snapshot your game uses.
 	using MySnapshot = Netcode.Snapshot;
 	// @alias The mapping between client address and client history
-	using ClientHistoryMapping = Dictionary<Netcode.ClientAddress, Netcode.ClientHistory<Netcode.Snapshot>>;
+	using ClientHistoryMapping = Dictionary<Netcode.ClientAddress, Netcode.SnapshotHistory<Netcode.Snapshot>>;
 	// @alias The mapping between client address and server ID.
 	using ServerIdMapping = Dictionary<Netcode.ClientAddress, int>;
 
 	// @class Server
 	// @desc The authoritative server.
-	public class Server : FpsNetwork {
+	public class Server : Netcode.MultiplayerNetworking {
 		private const int SERVER_PORT = 9000;
 
 		// The server-side game manager.
@@ -43,12 +42,12 @@ namespace FpsServer {
 			}
 
 			foreach (var client in m_clients) {
-				Netcode.ClientHistory<MySnapshot> history = client.Value;
+				Netcode.SnapshotHistory<MySnapshot> history = client.Value;
 				Netcode.ClientAddress clientAddr = client.Key;
 
 				history.IncrTimeSinceLastAck(Time.deltaTime);
 
-				if (history.GetTimeSinceLastAck() >= Netcode.ClientHistory<MySnapshot>.CLIENT_TIMEOUT) {
+				if (history.GetTimeSinceLastAck() >= Netcode.SnapshotHistory<MySnapshot>.CLIENT_TIMEOUT) {
 					ServerLog("Disconnecting Client. " + clientAddr.Print());
 					Netcode.Disconnect disconnect = new Netcode.Disconnect(history.GetSeqno(), m_serverIds[clientAddr]);
 					m_game.NetEvent(disconnect);
@@ -71,10 +70,10 @@ namespace FpsServer {
 		{
 			// If this is a new client, add it to the client connection table, otherwise discard the packet. 
 			if (!m_clients.ContainsKey(clientAddr)) {
-				GameObject newPlayer = m_game.NetEvent(Serializer.Deserialize<Netcode.Connect>(buf));
+				GameObject newPlayer = m_game.NetEvent(Netcode.Serializer.Deserialize<Netcode.Connect>(buf));
 				ServerLog("Creating player with Server ID " + newPlayer.GetInstanceID());
 				MySnapshot initialSnapshot = new MySnapshot(0, newPlayer.GetInstanceID(), newPlayer);
-				Netcode.ClientHistory<MySnapshot> clientHistory = new Netcode.ClientHistory<MySnapshot>(initialSnapshot);
+				Netcode.SnapshotHistory<MySnapshot> clientHistory = new Netcode.SnapshotHistory<MySnapshot>(initialSnapshot);
 				m_clients.Add(clientAddr, clientHistory);
 				m_serverIds.Add(clientAddr, initialSnapshot.m_serverId);
 				// Send CONNECT ack.
@@ -86,15 +85,15 @@ namespace FpsServer {
 
 		public void ProcessDisconnect(Netcode.ClientAddress clientAddr, byte[] buf)
 		{
-			Netcode.Disconnect disconnect = Serializer.Deserialize<Netcode.Disconnect>(buf);
+			Netcode.Disconnect disconnect = Netcode.Serializer.Deserialize<Netcode.Disconnect>(buf);
 			m_game.NetEvent(disconnect);
 			DisconnectClient(clientAddr);
 		}
 
 		public void ProcessSnapshot(Netcode.ClientAddress clientAddr, byte[] buf)
 		{
-			MySnapshot snapshot = Serializer.Deserialize<MySnapshot>(buf);
-			Netcode.ClientHistory<MySnapshot> history = m_clients[clientAddr];
+			MySnapshot snapshot = Netcode.Serializer.Deserialize<MySnapshot>(buf);
+			Netcode.SnapshotHistory<MySnapshot> history = m_clients[clientAddr];
 
 			// Check the seqno, discarding old snapshots.
 			if (snapshot.m_seqno < history.GetSeqno()) {
@@ -110,7 +109,7 @@ namespace FpsServer {
 		// @desc Broadcasts the packet to all connected clients.
 		void BroadcastPacket<T>(T packet)
 		{
-			byte[] buf = Serializer.Serialize(packet);
+			byte[] buf = Netcode.Serializer.Serialize(packet);
 			foreach (var clientAddr in m_clients.Keys) {
 				SendPacket(clientAddr, buf);
 			}
@@ -118,7 +117,6 @@ namespace FpsServer {
 
 		void OnDestroy()
 		{
-			m_udp.Close();
 		}
 
 		// @func DisconnectClient
@@ -135,6 +133,8 @@ namespace FpsServer {
 			BroadcastPacket(disconnect);
 
 			ServerLog("Disconnecting Client. " + clientAddr.Print());
+
+			m_game.NetEvent(disconnect);
 		}
 
 		public void ServerLog(string message)
