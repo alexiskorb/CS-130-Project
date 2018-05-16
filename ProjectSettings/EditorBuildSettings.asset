@@ -26,9 +26,9 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scripts/LLAPIDemo/ServerDemo.unity
     guid: 690e8478c33318349b8a0c0bb588d7e3
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Server.unity
     guid: 0ada41f6bf3149c45a08c4ac8bc6a4f1
-  - enabled: 0
+  - enabled: 1
     path: Assets/Scenes/Client.unity
     guid: fdd5e20d8ab11484e9d717ee18be397d

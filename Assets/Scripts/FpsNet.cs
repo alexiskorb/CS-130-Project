@@ -1,9 +1,11 @@
 ﻿using UnityEngine;
 using System;
 using System.Runtime.InteropServices;
+using System.Net;
+using System.Net.Sockets;
+using System.Collections.Generic;
 
 namespace FpsNetcode {
-
 	// @class Netcode
 	// @desc Netcode contains the packet data structures used by the client and server. 
 	// All packets must have a default constructor in order for serialization to work. 
@@ -22,42 +24,17 @@ namespace FpsNetcode {
 			PRIMARY_WEAPON,
 		}
 
-		// @class SnapshotInterface
-		// @desc Implement this interface to have snapshots integrated with the rest server.
-		[StructLayout(LayoutKind.Sequential, Pack = 1)]
-		public abstract class ISnapshot<T> : Packet {
-			// The server ID of the snapshot. 
-			public int m_serverId;
-
-			public ISnapshot() { }
-			public ISnapshot(int serverId, PacketType type, uint seqno, GameObject gameObject)
-				: base(type, seqno)
-			{
-				m_serverId = serverId;
-				FromPlayer(gameObject);
-			}
-
-			// @interface Equals
-			// @desc Performs an equality test. 
-			public abstract bool Equals(T other);
-			// @interface FromPlayer
-			// @desc Initialize the snapshot with a Game Object.
-			public abstract void FromPlayer(GameObject gameObject);
-			// @interface Apply
-			// @desc Applies the snapshot to the Game Object.
-			public abstract void Apply(ref GameObject gameObject);
-		}
-
 		// @doc A Snapshot is the state that is synchronized among clients and server.
 		[StructLayout(LayoutKind.Sequential, Pack = 1)]
 		public class Snapshot : ISnapshot<Snapshot> {
 			public Vector3 m_position;
 			public Vector3 m_eulerAngles;
 
-			public Snapshot() {}
+			public Snapshot() { }
 			// @doc Constructor must take this form or you'll get compiler errors. 
+			// Static errors are better than runtime errors :)  
 			public Snapshot(uint seqno, int serverId, GameObject gameObject)
-				: base(serverId, PacketType.SNAPSHOT, seqno, gameObject) {}
+				: base(serverId, PacketType.SNAPSHOT, seqno, gameObject) { }
 
 			public override void Apply(ref GameObject gameObject)
 			{
@@ -78,7 +55,32 @@ namespace FpsNetcode {
 			}
 		}
 
+		// @class SnapshotInterface
+		// @desc Implement this interface to have snapshots integrated with the rest of the server.
+		[StructLayout(LayoutKind.Sequential, Pack = 1)]
+		public abstract class ISnapshot<T> : Packet {
+			// The server ID of the snapshot. 
+			public int m_serverId;
+			public ISnapshot() { }
+			public ISnapshot(int serverId, PacketType type, uint seqno, GameObject gameObject)
+				: base(type, seqno)
+			{
+				m_serverId = serverId;
+				FromPlayer(gameObject);
+			}
+			// @interface Equals
+			// @desc Performs an equality test. 
+			public abstract bool Equals(T other);
+			// @interface FromPlayer
+			// @desc Initialize the snapshot with a Game Object.
+			public abstract void FromPlayer(GameObject gameObject);
+			// @interface Apply
+			// @desc Applies the snapshot to the Game Object.
+			public abstract void Apply(ref GameObject gameObject);
+		}
+
 		// ==== @doc Everything after this is game-independent and shouldn't really be touched. ====
+
 		[StructLayout(LayoutKind.Sequential, Pack = 1)]
 		public class Packet {
 			public PacketType m_type;
@@ -228,78 +230,11 @@ namespace FpsNetcode {
 			}
 		}
 
-		// @doc Helpers for copying primitive types to byte arrays. 
-
-		public static void DeserializeVec3(ref Vector3 src, byte[] dst, int offset)
-		{
-			src = new Vector3 {
-				x = BitConverter.ToSingle(dst, offset + 0 * sizeof(float)),
-				y = BitConverter.ToSingle(dst, offset + 1 * sizeof(float)),
-				z = BitConverter.ToSingle(dst, offset + 2 * sizeof(float))
-			};
-		}
-
 		// @func Malloc
 		// @desc Allocate sizeof(obj) bytes. 
 		public static byte[] Malloc<T>(T obj)
 		{
 			return new byte[Marshal.SizeOf(obj)];
-		}
-
-		public static void MemCpy(Vector3 src, byte[] dst, int offset)
-		{
-			MemCpy(src.x, dst, offset + 0 * sizeof(float));
-			MemCpy(src.y, dst, offset + 1 * sizeof(float));
-			MemCpy(src.z, dst, offset + 2 * sizeof(float));
-		}
-
-		public static void MemCpy(bool src, byte[] dst, int offset)
-		{
-			Buffer.BlockCopy(BitConverter.GetBytes(src), 0, dst, offset, sizeof(bool));
-		}
-
-		public static void MemCpy(char src, byte[] dst, int offset)
-		{
-			Buffer.BlockCopy(BitConverter.GetBytes(src), 0, dst, offset, sizeof(char));
-		}
-
-		public static void MemCpy(double src, byte[] dst, int offset)
-		{
-			Buffer.BlockCopy(BitConverter.GetBytes(src), 0, dst, offset, sizeof(double));
-		}
-
-		public static void MemCpy(float src, byte[] dst, int offset)
-		{
-			Buffer.BlockCopy(BitConverter.GetBytes(src), 0, dst, offset, sizeof(float));
-		}
-
-		public static void MemCpy(int src, byte[] dst, int offset)
-		{
-			Buffer.BlockCopy(BitConverter.GetBytes(src), 0, dst, offset, sizeof(int));
-		}
-
-		public static void MemCpy(long src, byte[] dst, int offset)
-		{
-			Buffer.BlockCopy(BitConverter.GetBytes(src), 0, dst, offset, sizeof(long));
-		}
-
-		public static void MemCpy(short src, byte[] dst, int offset)
-		{
-			Buffer.BlockCopy(BitConverter.GetBytes(src), 0, dst, offset, sizeof(short));
-		}
-		public static void MemCpy(ushort src, byte[] dst, int offset)
-		{
-			Buffer.BlockCopy(BitConverter.GetBytes(src), 0, dst, offset, sizeof(ushort));
-		}
-
-		public static void MemCpy(ulong src, byte[] dst, int offset)
-		{
-			Buffer.BlockCopy(BitConverter.GetBytes(src), 0, dst, offset, sizeof(ulong));
-		}
-
-		public static void MemCpy(uint src, byte[] dst, int offset)
-		{
-			Buffer.BlockCopy(BitConverter.GetBytes(src), 0, dst, offset, sizeof(uint));
 		}
 	}
 
@@ -334,29 +269,110 @@ namespace FpsNetcode {
 			m_doEveryN();
 		}
 	}
-}
 
-// @source http://thecodeisart.blogspot.com/2008/11/with-this-class-you-can-easy-convert.html
-// (With some modifications)
-public static class Serializer {
-	public static byte[] Serialize<T>(T obj)
-	{
-		byte[] buf = FpsNetcode.Netcode.Malloc(obj);
-		IntPtr ptr = Marshal.AllocHGlobal(buf.Length);
-		Marshal.StructureToPtr(obj, ptr, false);
-		Marshal.Copy(ptr, buf, 0, buf.Length);
-		Marshal.FreeHGlobal(ptr);
-		return buf;
+	// @source http://thecodeisart.blogspot.com/2008/11/with-this-class-you-can-easy-convert.html
+	// (With some modifications)
+	public static class Serializer {
+		public static byte[] Serialize<T>(T obj)
+		{
+			byte[] buf = Netcode.Malloc(obj);
+			IntPtr ptr = Marshal.AllocHGlobal(buf.Length);
+			Marshal.StructureToPtr(obj, ptr, false);
+			Marshal.Copy(ptr, buf, 0, buf.Length);
+			Marshal.FreeHGlobal(ptr);
+			return buf;
+		}
+
+		public static T Deserialize<T>(byte[] buf) where T : new()
+		{
+			object obj = new T();
+			int length = Marshal.SizeOf(obj);
+			IntPtr ptr = Marshal.AllocHGlobal(length);
+			Marshal.Copy(buf, 0, ptr, length);
+			obj = Marshal.PtrToStructure(ptr, obj.GetType());
+			Marshal.FreeHGlobal(ptr);
+			return (T)obj;
+		}
 	}
 
-	public static T Deserialize<T>(byte[] buf) where T : new()
-	{
-		object obj = new T();
-		int length = Marshal.SizeOf(obj);
-		IntPtr ptr = Marshal.AllocHGlobal(length);
-		Marshal.Copy(buf, 0, ptr, length);
-		obj = Marshal.PtrToStructure(ptr, obj.GetType());
-		Marshal.FreeHGlobal(ptr);
-		return (T)obj;
+	// @class FpsNetwork
+	// @desc Contains code shared by the client and server. 
+	public abstract class FpsNetwork : MonoBehaviour {
+		public delegate void PacketHandler(Netcode.ClientAddress clientAddr, byte[] buf);
+		public UdpClient m_udp;
+		public TcpClient m_tcp; // TODO: TpcClient is bad. Use the C# socket library for sending reliable messages. 
+		public Queue<Netcode.MainThreadWork> m_mainWork = new Queue<Netcode.MainThreadWork>();
+		public Dictionary<Netcode.PacketType, PacketHandler> m_packetCallbacks = new Dictionary<Netcode.PacketType, PacketHandler>();
+
+		public void InitUdp(int portno = 0)
+		{
+			m_udp = new UdpClient(portno);
+			m_udp.BeginReceive(ReceiveCallback, m_udp);
+		}
+
+		// @func ReceiveCallback
+		// @desc Asynchronous callback for receiving packets.
+		virtual public void ReceiveCallback(IAsyncResult asyncResult)
+		{
+			IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
+			byte[] buf = m_udp.EndReceive(asyncResult, ref remoteEndPoint);
+			m_udp.BeginReceive(ReceiveCallback, m_udp);
+			Netcode.ClientAddress clientAddr = new Netcode.ClientAddress(remoteEndPoint.Address.ToString(), remoteEndPoint.Port);
+
+			Netcode.MainThreadWork work = () => {
+				HandlePacket(clientAddr, buf);
+			};
+
+			m_mainWork.Enqueue(work);
+		}
+
+		// @func RegisterPacket
+		// @desc Associates the packet handler with this packet type. 
+		public void RegisterPacket(Netcode.PacketType packetType, PacketHandler packetHandler)
+		{
+			m_packetCallbacks[packetType] = packetHandler;
+		}
+
+		// @func HandlePacket
+		// @desc Called every time a packet is received. HandlePacket will call
+		// the appropriate packet handler. 
+		public void HandlePacket(Netcode.ClientAddress clientAddr, byte[] buf)
+		{
+			Netcode.Packet header = Serializer.Deserialize<Netcode.Packet>(buf);
+
+			if (ShouldDiscard(clientAddr, header))
+				return;
+
+			if (m_packetCallbacks.ContainsKey(header.m_type))
+				m_packetCallbacks[header.m_type].Invoke(clientAddr, buf);
+			else
+				Debug.Log("Packet type " + header.m_type + " does not have a registered callback.");
+		}
+
+		// @func RemovePacketHandler
+		// @desc Stops using this callback for the given packet type. 
+		public void RemovePacketHandler(Netcode.PacketType packetType)
+		{
+			m_packetCallbacks.Remove(packetType);
+		}
+
+		// @func SendPacket
+		// @desc Sends packets without the caller having to serialize.
+		public void SendPacket<T>(Netcode.ClientAddress addr, T packet) where T : Netcode.Packet
+		{
+			byte[] buf = Serializer.Serialize(packet);
+			SendPacket(addr, buf);
+		}
+
+		// @func SendPacket
+		// @desc Sends the packet to the specified address. 
+		public void SendPacket(Netcode.ClientAddress addr, byte[] buf)
+		{
+			m_udp.Send(buf, buf.Length, addr.m_ipAddress, addr.m_port);
+		}
+
+		// @func ShouldDiscard
+		// @desc Decides how packets are dropped. 
+		public abstract bool ShouldDiscard(Netcode.ClientAddress clientAddr, Netcode.Packet header);
 	}
 }

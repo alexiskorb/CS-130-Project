@@ -63,22 +63,24 @@ namespace FpsClient {
 		// @func NetEvent.Connect
 		// @desc Do something when we get a connect ack... Say, play some music, show a load screen, or join a chat room. 
 		// Here, we just jump right into the game.
-		public override void NetEvent(Netcode.Connect connect)
+		public override GameObject NetEvent(Netcode.Connect connect)
 		{
 			SetServerId(connect.m_serverId);
 			PutEntity(GetServerId(), m_mainPlayer);
+			return null;
 		}
 
 		// @func NetEvent.Disconnect
 		// @desc When we get a disconnect packet, the game should probably go to the main menu
 		// scene, or send your mom an email, or whatever -- again, it's up to the game!. 
-		public override void NetEvent(Netcode.Disconnect disconnect)
+		public override GameObject NetEvent(Netcode.Disconnect disconnect)
 		{
 			if (m_serverId == disconnect.m_serverId) {
 				// End game, return to lobby, whatever
 			} else {
 				KillEntity(disconnect.m_serverId);
 			}
+			return null;
 		}
 	}
 }
