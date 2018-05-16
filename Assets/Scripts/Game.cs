@@ -1,19 +1,10 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-using FpsNetcode;
-
-// @class MultiplayerGame
-// @desc Games should implement this interface in order to be alerted to network events. 
-public abstract class MultiplayerGame : MonoBehaviour {
-	public abstract GameObject NetEvent(Netcode.Connect connect);
-	public abstract GameObject NetEvent(Netcode.Disconnect disconnect);
-	public abstract GameObject NetEvent(Netcode.Snapshot snapshot);
-}
 
 // @class Game
 // @desc Contains game logic code that is shared between the client game and the 
 // server game. 
-public abstract class Game : MultiplayerGame {
+public abstract class Game : Netcode.IMultiplayerGame {
 	protected Dictionary<int, GameObject> m_objects;
 
 	public void Start()

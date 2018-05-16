@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using FpsNetcode;
 
 namespace FpsServer {
 	// @class Game

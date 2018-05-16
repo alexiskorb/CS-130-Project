@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
-using FpsNetcode;
 
 namespace FpsClient {
 	// @doc Change MySnapshot to whatever Snapshot your game uses.
@@ -8,7 +7,7 @@ namespace FpsClient {
 
 	// @class Client
 	// @desc Performs client-side prediction and server synchronization. 
-	public class Client : FpsNetwork {
+	public class Client : Netcode.MultiplayerNetworking {
 		// The rate at which updates are sent to the server. 
 		public const float TICK_RATE = 0f;
 		// Address of the server.
@@ -18,9 +17,9 @@ namespace FpsClient {
 		// Queue of client commands. 
 		private Queue<Netcode.CmdType> m_cmdQueue = new Queue<Netcode.CmdType>();
 		// Client snapshots. 
-		private Netcode.ClientHistory<MySnapshot> m_clientHistory;
+		private Netcode.SnapshotHistory<MySnapshot> m_snapshotHistory;
 		// The tick function sends client commands at the specified tick rate.
-		private PeriodicFunction m_tick;
+		private Netcode.PeriodicFunction m_tick;
 		// Client's current seqno.
 		private uint m_seqno = 0;
 
@@ -32,14 +31,15 @@ namespace FpsClient {
 			RegisterPacket(Netcode.PacketType.CONNECT, ProcessConnect);
 			RegisterPacket(Netcode.PacketType.DISCONNECT, ProcessDisconnect);
 			RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
+
 			InitUdp();
 
 			// Initialize tick function to the "try to connect" function. 
-			m_tick = new PeriodicFunction(ConnectToServer, 2f);
+			m_tick = new Netcode.PeriodicFunction(ConnectToServer, 2f);
 
-			// Initialize client history. It doesn't matter what the initial snapshot is on the 
+			// Initialize snapshot history. It doesn't matter what the initial snapshot is on the 
 			// client side because if it's wrong it will be corrected by the server.
-			m_clientHistory = new Netcode.ClientHistory<MySnapshot>(
+			m_snapshotHistory = new Netcode.SnapshotHistory<MySnapshot>(
 				new MySnapshot(m_newSeqno(), m_game.GetServerId(), m_game.GetMainPlayer()));
 
 			m_newSeqno = new NewSeqnoDel(GetSeqno);
@@ -52,7 +52,7 @@ namespace FpsClient {
 			// @test Send snapshots to the server. 
 			GameObject mainPlayer = m_game.GetMainPlayer();
 			MySnapshot snapshot = new MySnapshot(m_newSeqno(), m_game.GetServerId(), mainPlayer);
-			m_clientHistory.PutSnapshot(snapshot);
+			m_snapshotHistory.PutSnapshot(snapshot);
 
 			SendPacket(m_serverAddr, snapshot);
 			// @endtest 
@@ -74,9 +74,9 @@ namespace FpsClient {
 			// Connected to server - start seqno counting. 
 			m_newSeqno = new NewSeqnoDel(NewSeqno);
 			// Begin sending updates to server. 
-			m_tick = new PeriodicFunction(Tick, TICK_RATE);
+			m_tick = new Netcode.PeriodicFunction(Tick, TICK_RATE);
 			// Alert game to connection event. 
-			Netcode.Connect connect = Serializer.Deserialize<Netcode.Connect>(buf);
+			Netcode.Connect connect = Netcode.Serializer.Deserialize<Netcode.Connect>(buf);
 			m_game.NetEvent(connect);
 
 			ClientLog("Server connection request received. My Server ID is " + m_game.GetServerId());
@@ -84,7 +84,7 @@ namespace FpsClient {
 
 		void ProcessDisconnect(Netcode.ClientAddress clientAddr, byte[] buf)
 		{
-			Netcode.Disconnect disconnect = Serializer.Deserialize<Netcode.Disconnect>(buf);
+			Netcode.Disconnect disconnect = Netcode.Serializer.Deserialize<Netcode.Disconnect>(buf);
 			m_game.NetEvent(disconnect);
 		}
 
@@ -93,10 +93,10 @@ namespace FpsClient {
 		// server are in agreement, the Network Event is ignored.
 		void ProcessSnapshot(Netcode.ClientAddress clientAddr, byte[] buf)
 		{
-			MySnapshot snapshot = Serializer.Deserialize<MySnapshot>(buf);
+			MySnapshot snapshot = Netcode.Serializer.Deserialize<MySnapshot>(buf);
 
 			if (snapshot.m_serverId == m_game.GetServerId()) {
-				if (!m_clientHistory.Reconcile(snapshot)) {
+				if (!m_snapshotHistory.Reconcile(snapshot)) {
 					ClientLog("Client is out of sync with the server -- reconciling");
 					m_game.NetEvent(snapshot);
 				}
