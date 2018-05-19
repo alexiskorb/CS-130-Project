@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System.Collections.Generic;
 
 namespace FpsServer {
 	// @class Game
@@ -6,6 +7,10 @@ namespace FpsServer {
 	// The game objects on the server side are hashed by their Unity instance IDs. 
 	public class GameServer : Game {
 		public GameObject spawnPlayerPrefab;
+
+		public void Startup()
+		{
+		}
 
 		public void Update() {}
 
@@ -21,24 +26,14 @@ namespace FpsServer {
 
 		// @func PutSnapshot
 		// @desc The server received a snapshot. 
-		public override GameObject NetEvent(Netcode.Snapshot snapshot)
+		public override void NetEvent(Netcode.Snapshot snapshot)
 		{
 			GameObject gameObject = GetEntity(snapshot.m_serverId);
 			snapshot.Apply(ref gameObject);
-			return gameObject;
 		}
 
-		public override GameObject NetEvent(Netcode.Connect connect)
+		public override void NetEvent(Netcode.ClientAddress clientAddr, Netcode.PacketType packetType, byte[] buf)
 		{
-			return SpawnPlayer();
-		}
-
-		// @func NetEvent.Disconnect
-		// @desc In this particular game, when we get a disconnect, we just kill the entity.
-		public override GameObject NetEvent(Netcode.Disconnect disconnect)
-		{
-			KillEntity(disconnect.m_serverId);
-			return null;
 		}
 	}
 }

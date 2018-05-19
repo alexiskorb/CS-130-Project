@@ -45,7 +45,7 @@ namespace FpsClient {
 
 		// @func NetEvent.Snapshot
 		// @desc If this is called, the game has received a snapshot. 
-		public override GameObject NetEvent(Netcode.Snapshot snapshot)
+		public override void NetEvent(Netcode.Snapshot snapshot)
 		{
 			GameObject gameObject;
 
@@ -55,31 +55,23 @@ namespace FpsClient {
 				gameObject = GetEntity(snapshot.m_serverId);
 				snapshot.Apply(ref gameObject);
 			}
-
-			return gameObject;
 		}
 
-		// @func NetEvent.Connect
-		// @desc Do something when we get a connect ack... Say, play some music, show a load screen, or join a chat room. 
-		// Here, we just jump right into the game.
-		public override GameObject NetEvent(Netcode.Connect connect)
+		public override void NetEvent(Netcode.ClientAddress clientAddr, Netcode.PacketType type, byte[] buf)
 		{
-			SetServerId(connect.m_serverId);
-			PutEntity(GetServerId(), m_mainPlayer);
-			return null;
-		}
-
-		// @func NetEvent.Disconnect
-		// @desc When we get a disconnect packet, the game should probably go to the main menu
-		// scene, or send your mom an email, or whatever -- again, it's up to the game!. 
-		public override GameObject NetEvent(Netcode.Disconnect disconnect)
-		{
-			if (m_serverId == disconnect.m_serverId) {
-				// End game, return to lobby, whatever
-			} else {
-				KillEntity(disconnect.m_serverId);
+			switch (type) {
+				case Netcode.PacketType.REFRESH_LOBBY_LIST:
+					// @CHRIS
+					break;
+				case Netcode.PacketType.CREATE_LOBBY:
+					// @CHRIS
+					break;
+				case Netcode.PacketType.JOIN_LOBBY:
+					// @CHRIS
+					break;
+				case Netcode.PacketType.START_GAME:
+					break;
 			}
-			return null;
 		}
 	}
 }
