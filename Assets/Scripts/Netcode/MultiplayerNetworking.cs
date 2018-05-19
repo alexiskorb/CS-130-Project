@@ -13,6 +13,12 @@ namespace Netcode {
 		private UdpClient m_udp;
 		private TcpClient m_tcp; // TODO: TpcClient is bad. Use the C# socket library for sending reliable messages. 
 		private Dictionary<PacketType, PacketHandler> m_packetCallbacks = new Dictionary<PacketType, PacketHandler>();
+		private IMultiplayerGame m_multiplayerGame;
+
+		public void SetMultiplayerGame(IMultiplayerGame multiplayerGame)
+		{
+			m_multiplayerGame = multiplayerGame;
+		}
 
 		public void InitUdp(int portno = 0)
 		{
@@ -48,15 +54,23 @@ namespace Netcode {
 		// the appropriate packet handler. 
 		public void HandlePacket(ClientAddress clientAddr, byte[] buf)
 		{
-			Packet header = Serializer.Deserialize<Packet>(buf);
+			Packet header;
+			try {
+				header = Serializer.Deserialize<Packet>(buf);
+			} catch (Exception) {
+				Debug.Log("Packet deserialization failed.");
+				return;
+			}
 
 			if (ShouldDiscard(clientAddr, header))
 				return;
 
 			if (m_packetCallbacks.ContainsKey(header.m_type))
 				m_packetCallbacks[header.m_type].Invoke(clientAddr, buf);
-			else
-				Debug.Log("Packet type " + header.m_type + " does not have a registered callback.");
+			else {
+				// Pass the net event to the game.
+				m_multiplayerGame.NetEvent(clientAddr, header.m_type, buf);
+			}
 		}
 
 		// @func RemovePacketHandler

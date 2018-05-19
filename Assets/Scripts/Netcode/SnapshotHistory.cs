@@ -3,13 +3,18 @@
 namespace Netcode {
 	// @class SnapshotHistory
 	// @desc Maintains the client's history of snapshots for client-side prediction and delta compression. 
-	public class SnapshotHistory<T> where T : ISnapshot<T> {
+	public class SnapshotHistory<T> where T : ISnapshot<T>, new() {
 		public static uint CLIENT_TIMEOUT = 5;
 		private static uint MAX_SNAPSHOTS = 10;
 
 		private T[] m_snapshots = new T[MAX_SNAPSHOTS];
 		private uint m_seqno = 0;
 		private float m_timeSinceLastAck = 0f;
+
+		public SnapshotHistory()
+		{
+			PutSnapshot(new T());
+		}
 
 		public SnapshotHistory(T initialPlayerState)
 		{

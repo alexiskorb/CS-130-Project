@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System;
 using System.Runtime.InteropServices;
-
+using System.Collections.Generic;
 // @namespace Netcode
 // @desc Netcode contains the packet data structures used by the client and server. 
 // All packets must have a default constructor in order for serialization to work. 
@@ -11,23 +11,93 @@ namespace Netcode {
 	// @class MultiplayerGame
 	// @desc Games should implement this interface in order to be alerted to network events. 
 	public abstract class IMultiplayerGame : MonoBehaviour {
-		public abstract GameObject NetEvent(Connect connect);
-		public abstract GameObject NetEvent(Disconnect disconnect);
-		public abstract GameObject NetEvent(Snapshot snapshot);
+		public abstract void NetEvent(Snapshot snapshot);
+		public abstract void NetEvent(ClientAddress clientAddr, PacketType packetType, byte[] buf);
+
+		private Queue<byte[]> m_packetQueue = new Queue<byte[]>();
+
+		// @func QueuePacket
+		// @desc Queue a packet for the client to send. 
+		public void QueuePacket<T>(T packet) where T : Packet
+		{
+			byte[] buf = Serializer.Serialize(packet);
+			m_packetQueue.Enqueue(buf);
+		}
+	
+		// @func RetrievePackets
+		// @desc Clears the packet queue and returns the packets. Used by the client to
+		// send game-related packets.
+		public Queue<byte[]> GetPacketQueue()
+		{
+			Queue<byte[]> packetQueue = new Queue<byte[]>(m_packetQueue);
+			m_packetQueue.Clear();
+			return packetQueue;
+		}
 	}
 
 	public enum PacketType : int {
-		CONNECT,
+		CREATE_LOBBY,
+		REFRESH_LOBBY_LIST,
+		JOIN_LOBBY,
+		START_GAME,
 		SNAPSHOT,
 		COMMAND,
-		DISCONNECT
 	}
 
 	// @doc Consider naming commands after actions and not key presses
 	// to leave open the possibility for client's having alternate key bindings. 
 	public enum CmdType {
-		FORWARD, BACKWARD, LEFT, RIGHT,
+		FORWARD, BACKWARD,
+		LEFT, RIGHT,
 		PRIMARY_WEAPON,
+	}
+
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+	public class CreateLobby : Packet {
+		public string m_lobbyName;
+		public string m_hostPlayerName;
+		public CreateLobby() { }
+		public CreateLobby(string lobbyname, string hostPlayerName)
+			: base(PacketType.CREATE_LOBBY, 0)
+		{
+			m_lobbyName = lobbyname;
+			m_hostPlayerName = hostPlayerName;
+		}
+	}
+
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+	public class RefreshLobbyList : Packet {
+		public string[] m_listOfGames;
+		public RefreshLobbyList() { }
+		public RefreshLobbyList(string[] listOfGames)
+			: base(PacketType.REFRESH_LOBBY_LIST, 0)
+		{
+			m_listOfGames = listOfGames;
+		}
+	}
+
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+	public class JoinLobby : Packet {
+		public string m_playerName;
+		public string m_lobbyName;
+		public JoinLobby() { }
+		public JoinLobby(string playerName, string lobbyName)
+			: base(PacketType.JOIN_LOBBY, 0)
+		{
+			m_playerName = playerName;
+			m_lobbyName = lobbyName;
+		}
+	}
+
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+	public class StartGame : Packet {
+		public int m_serverId;
+		public StartGame() { }
+		public StartGame(int serverId)
+			: base(PacketType.START_GAME, 0)
+		{
+			m_serverId = serverId;
+		}
 	}
 
 	// @doc A Snapshot is the state that is synchronized among clients and server.
@@ -110,30 +180,6 @@ namespace Netcode {
 			: base(PacketType.COMMAND, seqno)
 		{
 			m_cmd = cmd;
-		}
-	}
-
-	[StructLayout(LayoutKind.Sequential, Pack = 1)]
-	public class Disconnect : Packet {
-		public int m_serverId;
-
-		public Disconnect() { }
-		public Disconnect(uint seqno, int serverId)
-			: base(PacketType.DISCONNECT, seqno)
-		{
-			m_serverId = serverId;
-		}
-	}
-
-	[StructLayout(LayoutKind.Sequential, Pack = 1)]
-	public class Connect : Packet {
-		public int m_serverId;
-
-		public Connect() { }
-		public Connect(uint seqno, int serverId)
-			: base(PacketType.CONNECT, seqno)
-		{
-			m_serverId = serverId;
 		}
 	}
 

@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
+using System.Text;
 
 namespace FpsClient {
 	// @doc Change MySnapshot to whatever Snapshot your game uses.
@@ -8,16 +9,20 @@ namespace FpsClient {
 	// @class Client
 	// @desc Performs client-side prediction and server synchronization. 
 	public class Client : Netcode.MultiplayerNetworking {
+		public const string MASTER_SERVER_IP = "127.0.0.1";
+		public const int MASTER_SERVER_PORT = 9001;
+
 		// The rate at which updates are sent to the server. 
 		public const float TICK_RATE = 0f;
-		// Address of the server.
-		public Netcode.ClientAddress m_serverAddr = new Netcode.ClientAddress("127.0.0.1", 9000);
+		// Address of the server. Initially, we talk to the master server. The server address changes to the 
+		// game server that the master connects us to.
+		public Netcode.ClientAddress m_serverAddr = new Netcode.ClientAddress(MASTER_SERVER_IP, MASTER_SERVER_PORT);
 		// The client-side game logic.
 		public GameClient m_game;
 		// Queue of client commands. 
 		private Queue<Netcode.CmdType> m_cmdQueue = new Queue<Netcode.CmdType>();
 		// Client snapshots. 
-		private Netcode.SnapshotHistory<MySnapshot> m_snapshotHistory;
+		private Netcode.SnapshotHistory<MySnapshot> m_snapshotHistory = new Netcode.SnapshotHistory<MySnapshot>();
 		// The tick function sends client commands at the specified tick rate.
 		private Netcode.PeriodicFunction m_tick;
 		// Client's current seqno.
@@ -28,30 +33,20 @@ namespace FpsClient {
 
 		void Start()
 		{
-			RegisterPacket(Netcode.PacketType.CONNECT, ProcessConnect);
-			RegisterPacket(Netcode.PacketType.DISCONNECT, ProcessDisconnect);
+			SetMultiplayerGame(m_game);
 			RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
-
 			InitUdp();
 
-			// Initialize tick function to the "try to connect" function. 
-			m_tick = new Netcode.PeriodicFunction(ConnectToServer, 2f);
-
-			// Initialize snapshot history. It doesn't matter what the initial snapshot is on the 
-			// client side because if it's wrong it will be corrected by the server.
-			m_snapshotHistory = new Netcode.SnapshotHistory<MySnapshot>(
-				new MySnapshot(m_newSeqno(), m_game.GetServerId(), m_game.GetMainPlayer()));
-
+			m_tick = new Netcode.PeriodicFunction(() => { }, 2f);
 			m_newSeqno = new NewSeqnoDel(GetSeqno);
-
-			m_tick.RunNow();
 		}
 
-		void Tick()
+		void SnapshotTick()
 		{
-			// @test Send snapshots to the server. 
+			// @test 
 			GameObject mainPlayer = m_game.GetMainPlayer();
 			MySnapshot snapshot = new MySnapshot(m_newSeqno(), m_game.GetServerId(), mainPlayer);
+
 			m_snapshotHistory.PutSnapshot(snapshot);
 
 			SendPacket(m_serverAddr, snapshot);
@@ -60,32 +55,21 @@ namespace FpsClient {
 
 		void Update()
 		{
+			// Process the packets in the incoming queue.
 			while (m_mainWork.Count > 0) {
 				Netcode.MainThreadWork work = m_mainWork.Dequeue();
 				if (work != null)
 					work.Invoke();
 			}
 
+			// Send tick to server.
 			m_tick.Run();
-		}
 
-		void ProcessConnect(Netcode.ClientAddress clientAddr, byte[] buf)
-		{
-			// Connected to server - start seqno counting. 
-			m_newSeqno = new NewSeqnoDel(NewSeqno);
-			// Begin sending updates to server. 
-			m_tick = new Netcode.PeriodicFunction(Tick, TICK_RATE);
-			// Alert game to connection event. 
-			Netcode.Connect connect = Netcode.Serializer.Deserialize<Netcode.Connect>(buf);
-			m_game.NetEvent(connect);
-
-			ClientLog("Server connection request received. My Server ID is " + m_game.GetServerId());
-		}
-
-		void ProcessDisconnect(Netcode.ClientAddress clientAddr, byte[] buf)
-		{
-			Netcode.Disconnect disconnect = Netcode.Serializer.Deserialize<Netcode.Disconnect>(buf);
-			m_game.NetEvent(disconnect);
+			// Send the packets in the outgoing queue (the packets that the game requested us to send). 
+			Queue<byte[]> packetQueue = m_game.GetPacketQueue();
+			foreach (byte[] packet in packetQueue) {
+				SendPacket(m_serverAddr, packet);
+			}
 		}
 
 		// @func ProcessSnapshot
@@ -102,22 +86,6 @@ namespace FpsClient {
 				}
 			} else
 				m_game.NetEvent(snapshot);
-		}
-
-		// @func ConnectToServer
-		// @desc Sends a connect packet to the server. This gets called every tick until the game connects.
-		void ConnectToServer()
-		{
-			Netcode.Connect connectPacket = new Netcode.Connect(m_newSeqno(), m_game.GetServerId());
-			SendPacket(m_serverAddr, connectPacket);
-		}
-
-		// @func OnDestroy
-		// @desc Disconnect from the server and close the connection. 
-		void OnDestroy()
-		{
-			Netcode.Disconnect disconnect = new Netcode.Disconnect(m_newSeqno(), m_game.GetServerId());
-			SendPacket(m_serverAddr, disconnect);
 		}
 
 		// @func NewSeqno

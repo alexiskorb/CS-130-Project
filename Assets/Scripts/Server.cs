@@ -25,8 +25,7 @@ namespace FpsServer {
 
 		void Start()
 		{
-			RegisterPacket(Netcode.PacketType.CONNECT, ProcessConnect);
-			RegisterPacket(Netcode.PacketType.DISCONNECT, ProcessDisconnect);
+			SetMultiplayerGame(m_game);
 			RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
 			InitUdp(SERVER_PORT);
 		}
@@ -49,10 +48,6 @@ namespace FpsServer {
 
 				if (history.GetTimeSinceLastAck() >= Netcode.SnapshotHistory<MySnapshot>.CLIENT_TIMEOUT) {
 					ServerLog("Disconnecting Client. " + clientAddr.Print());
-					Netcode.Disconnect disconnect = new Netcode.Disconnect(history.GetSeqno(), m_serverIds[clientAddr]);
-					m_game.NetEvent(disconnect);
-					SendPacket(clientAddr, disconnect);
-					DisconnectClient(clientAddr);
 					break;
 				}
 
@@ -64,30 +59,6 @@ namespace FpsServer {
 		// @TODO
 		public void ProcessClientCmd()
 		{
-		}
-
-		public void ProcessConnect(Netcode.ClientAddress clientAddr, byte[] buf)
-		{
-			// If this is a new client, add it to the client connection table, otherwise discard the packet. 
-			if (!m_clients.ContainsKey(clientAddr)) {
-				GameObject newPlayer = m_game.NetEvent(Netcode.Serializer.Deserialize<Netcode.Connect>(buf));
-				ServerLog("Creating player with Server ID " + newPlayer.GetInstanceID());
-				MySnapshot initialSnapshot = new MySnapshot(0, newPlayer.GetInstanceID(), newPlayer);
-				Netcode.SnapshotHistory<MySnapshot> clientHistory = new Netcode.SnapshotHistory<MySnapshot>(initialSnapshot);
-				m_clients.Add(clientAddr, clientHistory);
-				m_serverIds.Add(clientAddr, initialSnapshot.m_serverId);
-				// Send CONNECT ack.
-				Netcode.Connect connectAck = new Netcode.Connect(clientHistory.GetSeqno(), initialSnapshot.m_serverId);
-				SendPacket(clientAddr, connectAck);
-			} else
-				ServerLog(clientAddr.Print() + " is already connected.");
-		}
-
-		public void ProcessDisconnect(Netcode.ClientAddress clientAddr, byte[] buf)
-		{
-			Netcode.Disconnect disconnect = Netcode.Serializer.Deserialize<Netcode.Disconnect>(buf);
-			m_game.NetEvent(disconnect);
-			DisconnectClient(clientAddr);
 		}
 
 		public void ProcessSnapshot(Netcode.ClientAddress clientAddr, byte[] buf)
@@ -119,24 +90,6 @@ namespace FpsServer {
 		{
 		}
 
-		// @func DisconnectClient
-		// @desc Disconnects the client, deleting all player history from the server.
-		public void DisconnectClient(Netcode.ClientAddress clientAddr)
-		{
-			int serverId = m_serverIds[clientAddr];
-			uint seqno = m_clients[clientAddr].GetSeqno();
-
-			m_serverIds.Remove(clientAddr);
-			m_clients.Remove(clientAddr);
-
-			Netcode.Disconnect disconnect = new Netcode.Disconnect(seqno, serverId);
-			BroadcastPacket(disconnect);
-
-			ServerLog("Disconnecting Client. " + clientAddr.Print());
-
-			m_game.NetEvent(disconnect);
-		}
-
 		public void ServerLog(string message)
 		{
 			Debug.Log("<Server> " + message);
@@ -144,11 +97,6 @@ namespace FpsServer {
 
 		public override bool ShouldDiscard(Netcode.ClientAddress clientAddr, Netcode.Packet header)
 		{
-			if (header.m_type != Netcode.PacketType.CONNECT && !m_clients.ContainsKey(clientAddr)) {
-				ServerLog("Client must establish a connection before sending. " + clientAddr.Print());
-				return true;
-			}
-
 			return false;
 		}
 	}
