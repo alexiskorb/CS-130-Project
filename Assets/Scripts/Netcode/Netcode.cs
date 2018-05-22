@@ -97,7 +97,7 @@ namespace Netcode {
 		public RefreshLobbyList(string[] listOfGames)
 			: base(PacketType.REFRESH_LOBBY_LIST, 0)
 		{
-			m_listOfGames = Serializer.SerializeString(listOfGames);
+			m_listOfGames = Serializer.Serialize(listOfGames);
 		}
 	}
 
@@ -110,8 +110,8 @@ namespace Netcode {
 		public JoinLobby(string[] playerList, string lobbyName, string playerName)
 			: base(PacketType.JOIN_LOBBY, 0)
 		{
-			m_listOfPlayers = Serializer.SerializeString(playerList);
-			m_lobbyName = lobbyName;
+            m_listOfPlayers = Serializer.Serialize(playerList);
+            m_lobbyName = lobbyName;
             m_playerName = playerName;
 		}
 	}
@@ -282,7 +282,21 @@ namespace Netcode {
 			return buf;
 		}
 
-		public static T Deserialize<T>(byte[] buf) where T : new()
+        // Serialization of arrays are not possible. For string arrays, it is necessary
+        // to manually serialize the string, and this is called by the constructor when a class
+        // has a string[] parameter in its constructor
+        //TODO: Extend serialize so that it will automatically serialize all array types
+        public static string Serialize(string[] stringArray)
+        {
+            string serialized = stringArray[0];
+            for (int i = 1; i < stringArray.Length; i++)
+            {
+                serialized += "|" + stringArray[i];
+            }
+            return serialized;
+        }
+
+        public static T Deserialize<T>(byte[] buf) where T : new()
 		{
 			object obj = new T();
 			int length = Marshal.SizeOf(obj);
@@ -293,27 +307,19 @@ namespace Netcode {
 			return (T)obj;
 		}
 
-		// @func Malloc
-		// @desc Allocate sizeof(obj) bytes. 
-		public static byte[] Malloc<T>(T obj)
-		{
-			return new byte[Marshal.SizeOf(obj)];
-		}
-
-        public static string SerializeString(string[] stringArray)
-        {
-            string serialized = stringArray[0];
-            for(int i = 1; i < stringArray.Length; i++)
-            {
-                serialized += "|" + stringArray[i]; 
-            }
-            return serialized;
-        }
-
-        public static string[] DeserializeString(string msg)
+        // Deserializes string[]. Must be called on a packet attribute that has an array[] in its constructor
+        // 
+        public static string[] Deserialize(string msg)
         {
             string[] deserializedString = msg.Split('|');
             return deserializedString;
         }
+
+        // @func Malloc
+        // @desc Allocate sizeof(obj) bytes. 
+        public static byte[] Malloc<T>(T obj)
+		{
+			return new byte[Marshal.SizeOf(obj)];
+		}
     }
 }
