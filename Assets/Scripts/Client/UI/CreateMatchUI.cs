@@ -8,7 +8,8 @@ public class CreateMatchUI : MonoBehaviour {
     public GameObject playerNameInput;
     public GameObject matchNameInput;
     public GameObject createMatchError;
-    
+
+
 
     // Use this for initialization
     void Start ()
@@ -25,13 +26,13 @@ public class CreateMatchUI : MonoBehaviour {
     public void SubmitMainPlayerName()
     {
         string name = playerNameInput.GetComponent<InputField>().text;
-        GameManager.Instance.MainPlayerName = name;
+        FpsClient.GameClient.Instance.MainPlayerName = name;
     }
 
     public void SubmitMatchName()
     {
         string name = matchNameInput.GetComponent<InputField>().text;
-        GameManager.Instance.MatchName = name;
+        FpsClient.GameClient.Instance.CurrentLobby = name;
     }
 
     public void ShowCreateMatchError()

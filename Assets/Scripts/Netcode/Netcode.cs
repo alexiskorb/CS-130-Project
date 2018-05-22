@@ -8,13 +8,25 @@ using System.Collections.Generic;
 namespace Netcode {
 	public delegate void MainThreadWork();
 
-	// @class MultiplayerGame
-	// @desc Games should implement this interface in order to be alerted to network events. 
-	public abstract class IMultiplayerGame : MonoBehaviour {
+    public struct PacketForClient
+    {
+        public ClientAddress m_clientAddr;
+        public byte[] m_packet;
+        public PacketForClient(ClientAddress clientAddr, byte[] packet)
+        {
+            m_clientAddr = clientAddr;
+            m_packet = packet;
+        }
+    }
+
+    // @class MultiplayerGame
+    // @desc Games should implement this interface in order to be alerted to network events. 
+    public abstract class IMultiplayerGame : MonoBehaviour {
 		public abstract void NetEvent(Snapshot snapshot);
 		public abstract void NetEvent(ClientAddress clientAddr, PacketType packetType, byte[] buf);
 
 		private Queue<byte[]> m_packetQueue = new Queue<byte[]>();
+        private Queue<PacketForClient> m_packetQueueForClient = new Queue<PacketForClient>();
 
 		// @func QueuePacket
 		// @desc Queue a packet for the client to send. 
@@ -23,6 +35,19 @@ namespace Netcode {
 			byte[] buf = Serializer.Serialize(packet);
 			m_packetQueue.Enqueue(buf);
 		}
+
+        public void QueuePacket<T>(ClientAddress clientAddr, T packet) where T : Packet
+        {
+            byte[] buf = Serializer.Serialize(packet);
+            m_packetQueueForClient.Enqueue(new PacketForClient(clientAddr, buf));
+        }
+
+        public Queue<PacketForClient> GetPacketsForClient()
+        {
+            Queue<PacketForClient> packetsForClient = new Queue<PacketForClient>(m_packetQueueForClient);
+            m_packetQueueForClient.Clear();
+            return packetsForClient;
+        }
 	
 		// @func RetrievePackets
 		// @desc Clears the packet queue and returns the packets. Used by the client to
@@ -67,36 +92,49 @@ namespace Netcode {
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class RefreshLobbyList : Packet {
-		public string[] m_listOfGames;
+		public string m_listOfGames;
 		public RefreshLobbyList() { }
 		public RefreshLobbyList(string[] listOfGames)
 			: base(PacketType.REFRESH_LOBBY_LIST, 0)
 		{
-			m_listOfGames = listOfGames;
+			m_listOfGames = Serializer.SerializeString(listOfGames);
 		}
 	}
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class JoinLobby : Packet {
-		public string m_playerName;
+		public string m_listOfPlayers;
 		public string m_lobbyName;
+        public string m_playerName;
 		public JoinLobby() { }
-		public JoinLobby(string playerName, string lobbyName)
+		public JoinLobby(string[] playerList, string lobbyName, string playerName)
 			: base(PacketType.JOIN_LOBBY, 0)
 		{
-			m_playerName = playerName;
+			m_listOfPlayers = Serializer.SerializeString(playerList);
 			m_lobbyName = lobbyName;
+            m_playerName = playerName;
 		}
 	}
+
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class StartGame : Packet {
 		public int m_serverId;
-		public StartGame() { }
-		public StartGame(int serverId)
+        public string m_hostIP;
+        public int m_hostPort;
+        public string m_matchName;
+        public StartGame() { }
+		public StartGame(string lobbyName)
+        {
+            m_matchName = lobbyName;
+        }
+		public StartGame(string lobbyName, int serverId, string hostIP, int hostPort)
 			: base(PacketType.START_GAME, 0)
 		{
+            m_matchName = lobbyName;
 			m_serverId = serverId;
+            m_hostIP = hostIP;
+            m_hostPort = hostPort;
 		}
 	}
 
@@ -261,5 +299,21 @@ namespace Netcode {
 		{
 			return new byte[Marshal.SizeOf(obj)];
 		}
-	}
+
+        public static string SerializeString(string[] stringArray)
+        {
+            string serialized = stringArray[0];
+            for(int i = 1; i < stringArray.Length; i++)
+            {
+                serialized += "|" + stringArray[i]; 
+            }
+            return serialized;
+        }
+
+        public static string[] DeserializeString(string msg)
+        {
+            string[] deserializedString = msg.Split('|');
+            return deserializedString;
+        }
+    }
 }

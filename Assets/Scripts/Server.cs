@@ -14,7 +14,7 @@ namespace FpsServer {
 	// @class Server
 	// @desc The authoritative server.
 	public class Server : Netcode.MultiplayerNetworking {
-		private const int SERVER_PORT = 9000;
+		private const int SERVER_PORT = 9001;
 
 		// The server-side game manager.
 		public GameServer m_game;
@@ -54,6 +54,14 @@ namespace FpsServer {
 				MySnapshot snapshot = history.GetMostRecentSnapshot();
 				BroadcastPacket(snapshot);
 			}
+
+            var packetQueue = m_game.GetPacketQueue();
+            foreach (var packet in packetQueue)
+                BroadcastPacket(packet);
+
+            var packetsForClient = m_game.GetPacketsForClient();
+            foreach (var packet in packetsForClient)
+                SendPacket(packet.m_clientAddr, packet.m_packet);
 		}
 
 		// @TODO
