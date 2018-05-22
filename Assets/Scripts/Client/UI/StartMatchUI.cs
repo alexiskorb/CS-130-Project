@@ -9,6 +9,7 @@ public class StartMatchUI : MonoBehaviour {
     public GameObject playerLobbyName;
     private Text m_playerLobbyText;
 
+
     // Use this for initialization
     void Start () {
         m_playerLobbyText = playerLobbyName.GetComponent<Text>();
@@ -17,12 +18,12 @@ public class StartMatchUI : MonoBehaviour {
     void Update ()
     {
         // Update match name
-        matchName.GetComponent<Text>().text = "Match: " + GameManager.Instance.MatchName;
+        matchName.GetComponent<Text>().text = "Match: " + FpsClient.GameClient.Instance.CurrentLobby;
 
         // Update player lobby text
         m_playerLobbyText.text = "";
 
-        foreach (string playerIDs in GameManager.Instance.PlayerIds)
+        foreach (string playerIDs in FpsClient.GameClient.Instance.LobbyPlayers)
         {
             m_playerLobbyText.text += playerIDs + "\n";
         }

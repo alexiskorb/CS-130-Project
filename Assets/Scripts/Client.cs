@@ -45,7 +45,7 @@ namespace FpsClient {
 		{
 			// @test 
 			GameObject mainPlayer = m_game.GetMainPlayer();
-			MySnapshot snapshot = new MySnapshot(m_newSeqno(), m_game.GetServerId(), mainPlayer);
+			MySnapshot snapshot = new MySnapshot(m_newSeqno(), m_game.ServerId, mainPlayer);
 
 			m_snapshotHistory.PutSnapshot(snapshot);
 
@@ -79,7 +79,7 @@ namespace FpsClient {
 		{
 			MySnapshot snapshot = Netcode.Serializer.Deserialize<MySnapshot>(buf);
 
-			if (snapshot.m_serverId == m_game.GetServerId()) {
+			if (snapshot.m_serverId == m_game.ServerId) {
 				if (!m_snapshotHistory.Reconcile(snapshot)) {
 					ClientLog("Client is out of sync with the server -- reconciling");
 					m_game.NetEvent(snapshot);

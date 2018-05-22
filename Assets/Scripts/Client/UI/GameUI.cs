@@ -7,7 +7,6 @@ public class GameUI : MonoBehaviour {
 
     public Canvas gameMenu;
     public string endGameScenePath;
-
     private bool m_enableMenu = false;
 
     // Use this for initialization
@@ -23,21 +22,22 @@ public class GameUI : MonoBehaviour {
         {
             m_enableMenu = !m_enableMenu;
             gameMenu.enabled = m_enableMenu;
-			GameManager.Instance.MenuOpen = m_enableMenu;
+			FpsClient.GameClient.Instance.MenuOpen = m_enableMenu;
         }
         		
 	}
 
     public void DropMatch()
     {
-        GameManager.Instance.DropMatch(endGameScenePath);
+        //TODO
+        //GameManager.Instance.DropMatch(endGameScenePath);
     }
 
     public void ResumeGame()
     {
         m_enableMenu = false;
         gameMenu.enabled = m_enableMenu;
-        GameManager.Instance.MenuOpen = m_enableMenu;
+        FpsClient.GameClient.Instance.MenuOpen = m_enableMenu;
     }
 
 }

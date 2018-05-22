@@ -11,6 +11,7 @@ public class JoinMatchUI : MonoBehaviour {
     public GameObject matchButtonPrefab;
     public GameObject matchTextPrefab;
 
+
     private Dictionary<string, GameObject> openMatchTexts;
 
     // Use this for initialization
@@ -24,7 +25,7 @@ public class JoinMatchUI : MonoBehaviour {
     void Update ()
     {
         // Get list of open matches from the client
-        List<string> openMatches = ClientManager.Instance.GetOpenMatches();
+        List<string> openMatches = FpsClient.GameClient.Instance.ListOfGames;
 
         // Add in new matches
         foreach (string match in openMatches)
@@ -55,18 +56,18 @@ public class JoinMatchUI : MonoBehaviour {
 
     public void RefreshOpenMatches()
     {
-        ClientManager.Instance.RequestOpenMatchList();
+        FpsClient.GameClient.Instance.SendRefreshLobbyList();
     }
 
     public void SubmitMainPlayerName()
     {
         string name = playerNameInput.GetComponent<InputField>().text;
-        GameManager.Instance.MainPlayerName = name;
+        FpsClient.GameClient.Instance.MainPlayerName = name;
     }
 
     public void SubmitMatchName(string name)
     {
-        GameManager.Instance.MatchName = name;
+        FpsClient.GameClient.Instance.CurrentLobby = name;
     }
 
     public void ShowJoinMatchError()

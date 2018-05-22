@@ -44,14 +44,17 @@ public class MainMenuUI : MonoBehaviour {
     // Start a match
     public void StartMatch()
     {
-        ClientManager.Instance.SendStartMatchRequest();
+        FpsClient.GameClient.Instance.SendStartGame();
     }
 
     // Create a match
     public void CreateMatch()
     {
         m_isMatchCreator = true;
-        if (GameManager.Instance.CreateMatch())
+        FpsClient.GameClient.Instance.CreateLobby();
+        ShowStartMatchMenu();
+        /* TODO: Possibly handle match creation error
+        if ()
         {
             ShowStartMatchMenu();
         }
@@ -59,26 +62,31 @@ public class MainMenuUI : MonoBehaviour {
         {
             createMatchMenu.GetComponent<CreateMatchUI>().ShowCreateMatchError();
         }
+        */
     }
 
     // Join a match
-    public void JoinMatch()
+    public void JoinLobby()
     {
         m_isMatchCreator = false;
-        if (GameManager.Instance.JoinMatch())
+        FpsClient.GameClient.Instance.SendJoinLobby();
+        ShowStartMatchMenu();
+        /* TODO: Possibly handle lobby joining failure
+        if ()
         {
-            ShowStartMatchMenu();
         }
         else
         {
             joinMatchMenu.GetComponent<JoinMatchUI>().ShowJoinMatchError();
         }
+        */
     }
 
     // Leave player lobby
     public void CancelMatch()
     {
-        GameManager.Instance.LeaveMatchLobby();
+        /* TODO
+        FpsClient.GameClient.Instance.LeaveMatchLobby();
         if (m_isMatchCreator)
         {
             createMatchMenu.GetComponent<CreateMatchUI>().ResetMenu();
@@ -89,15 +97,18 @@ public class MainMenuUI : MonoBehaviour {
             joinMatchMenu.GetComponent<JoinMatchUI>().ResetMenu();
             ShowJoinMatchMenu();
         }
+        */
     }
 
     // Return to main menu
     public void ReturnToMainMenu()
     {
-        GameManager.Instance.LeaveMatchLobby();
+        /* TODO
+        FpsClient.GameClient.Instance.LeaveMatchLobby();
         joinMatchMenu.GetComponent<JoinMatchUI>().ResetMenu();
         createMatchMenu.GetComponent<CreateMatchUI>().ResetMenu();
         ShowMainMenu();
+        */
     }
 
     public void ShowMainMenu()
