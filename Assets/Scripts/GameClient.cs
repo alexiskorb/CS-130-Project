@@ -139,7 +139,7 @@ namespace FpsClient {
         public void ProcessRefreshLobbyList(byte[] buf)
         {
             Netcode.RefreshLobbyList list = Netcode.Serializer.Deserialize<Netcode.RefreshLobbyList>(buf);
-            ListOfGames = Netcode.Serializer.DeserializeString(list.m_listOfGames).ToList();
+            ListOfGames = Netcode.Serializer.Deserialize(list.m_listOfGames).ToList();
         }
         // @func SendRefreshLobbyList
         // @desc Sends a request to the server for an updated lobby list. Called by the UI.
@@ -154,7 +154,7 @@ namespace FpsClient {
         {
             Netcode.JoinLobby lobby = Netcode.Serializer.Deserialize<Netcode.JoinLobby>(buf);
             CurrentLobby = lobby.m_lobbyName;
-            LobbyPlayers = Netcode.Serializer.DeserializeString(lobby.m_listOfPlayers).ToList();
+            LobbyPlayers = Netcode.Serializer.Deserialize(lobby.m_listOfPlayers).ToList();
         }
         // @func SendJoinLobby
         // @desc Request the server to join a lobby. This function is called by the UI.
