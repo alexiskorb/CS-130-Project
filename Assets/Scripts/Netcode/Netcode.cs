@@ -282,7 +282,7 @@ namespace Netcode {
 			return buf;
 		}
 
-        // Serialization of arrays are not possible. For string arrays, it is necessary
+        // Serialization of arrays in a class causes issues. For string arrays, it is necessary
         // to manually serialize the string, and this is called by the constructor when a class
         // has a string[] parameter in its constructor
         //TODO: Extend serialize so that it will automatically serialize all array types
@@ -307,8 +307,8 @@ namespace Netcode {
 			return (T)obj;
 		}
 
-        // Deserializes string[]. Must be called on a packet attribute that has an array[] in its constructor
-        // 
+        // Deserializes string[]. If a class contains an array[] parameter in its
+        // constructor, this must be called on the string it is serialized to.
         public static string[] Deserialize(string msg)
         {
             string[] deserializedString = msg.Split('|');
