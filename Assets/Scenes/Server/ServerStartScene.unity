@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.37311947, g: 0.38074005, b: 0.35872722, a: 1}
+  m_IndirectSpecularColor: {r: 0.37311992, g: 0.38074034, b: 0.35872713, a: 1}
 --- !u!157 &3
 LightmapSettings:
   m_ObjectHideFlags: 0
@@ -113,88 +113,86 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &795484099
+--- !u!1 &51616472
 GameObject:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   serializedVersion: 5
   m_Component:
-  - component: {fileID: 795484101}
-  - component: {fileID: 795484100}
+  - component: {fileID: 51616474}
+  - component: {fileID: 51616473}
   m_Layer: 0
-  m_Name: GameManager
+  m_Name: Server
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &795484100
+--- !u!114 &51616473
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 795484099}
+  m_GameObject: {fileID: 51616472}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ae3acc6ab5d6a6e48be05a0df4147d17, type: 3}
+  m_Script: {fileID: 11500000, guid: 90dca5b0b17d56449907d010755f27f1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mainPlayerPrefab: {fileID: 1998137392989358, guid: 3b0091a50b5f33545b09f3efa0bed288,
-    type: 2}
-  playerPrefab: {fileID: 1868695881446178, guid: 09889cba0a2c90c45af25107be8023c0,
-    type: 2}
-  isServer: 1
---- !u!4 &795484101
+  m_game: {fileID: 1751232226}
+--- !u!4 &51616474
 Transform:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 795484099}
+  m_GameObject: {fileID: 51616472}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1056449954
+--- !u!1 &1751232225
 GameObject:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   serializedVersion: 5
   m_Component:
-  - component: {fileID: 1056449956}
-  - component: {fileID: 1056449955}
+  - component: {fileID: 1751232227}
+  - component: {fileID: 1751232226}
   m_Layer: 0
-  m_Name: ServerManager
+  m_Name: GameServer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1056449955
+--- !u!114 &1751232226
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 1056449954}
+  m_GameObject: {fileID: 1751232225}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7c6f68a5209d2a240b80a266eb6c6074, type: 3}
+  m_Script: {fileID: 11500000, guid: f43a348e22e383e409d6401f22665b54, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  startingSceneName: ServerMainScene
-  playerObject: {fileID: 0}
---- !u!4 &1056449956
+  spawnPlayerPrefab: {fileID: 1868695881446178, guid: 09889cba0a2c90c45af25107be8023c0,
+    type: 2}
+  m_server: {fileID: 51616473}
+  gameSceneName: MainScene
+--- !u!4 &1751232227
 Transform:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 1056449954}
+  m_GameObject: {fileID: 1751232225}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: 0.24999988}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}

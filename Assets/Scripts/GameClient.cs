@@ -2,12 +2,17 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine.SceneManagement;
 
 namespace FpsClient {
     // @class Game
     // @desc Simulates the game state on the client side. 
     public class GameClient : Game
     {
+        public FpsClient.Client m_client;
+        public string gameSceneName = "MainScene";
+        public string startingSceneName = "MainMenu";
+
         //Prefabs for players 
         public GameObject playerPrefab;
         public GameObject m_mainPlayer;
@@ -79,7 +84,14 @@ namespace FpsClient {
             }
         }
 
+      
         public void Update() { }
+
+        public void OnEnable()
+        {
+            // Load into main menu at start of game
+            SceneManager.LoadScene(startingSceneName);
+        }
 
         // @func GetMainPlayer
         // @desc Gets the game object associated with the main player. 
@@ -138,6 +150,7 @@ namespace FpsClient {
         // @desc When a REFRESH_LOBBY_LIST packet is received, store the updated list of lobbies open.
         public void ProcessRefreshLobbyList(byte[] buf)
         {
+            Debug.Log("Receieved RefreshLobbyList packet");
             Netcode.RefreshLobbyList list = Netcode.Serializer.Deserialize<Netcode.RefreshLobbyList>(buf);
             ListOfGames = Netcode.Serializer.Deserialize(list.m_listOfGames).ToList();
         }
@@ -152,6 +165,7 @@ namespace FpsClient {
         // @desc Server will send a JOIN_LOBBY packet every time a new player joins the lobby. In that case, update local list of players in the lobby
         public void ProcessJoinLobby(byte[] buf)
         {
+            Debug.Log("Receieved JoinLobby packet");
             Netcode.JoinLobby lobby = Netcode.Serializer.Deserialize<Netcode.JoinLobby>(buf);
             CurrentLobby = lobby.m_lobbyName;
             LobbyPlayers = Netcode.Serializer.Deserialize(lobby.m_listOfPlayers).ToList();
@@ -172,7 +186,8 @@ namespace FpsClient {
             ServerId = game.m_serverId;
             MatchHostIp = game.m_hostIP;
             MatchHostPort = game.m_hostPort;
-
+            EnterMatch();
+            m_client.Tick = new Netcode.PeriodicFunction(m_client.SnapshotTick, 2f);
         }
         // @func SendStartGame
         // @desc Tell the server to start the match. Called by the UI.
@@ -187,6 +202,7 @@ namespace FpsClient {
         // The client will receive a JOIN_LOBBY response after it succeeds.
         public void CreateLobby()
         {
+            Debug.Log("Sending create lobby packet");
             Netcode.CreateLobby packet = new Netcode.CreateLobby(CurrentLobby, MainPlayerName);
             QueuePacket(packet);
             //TODO: Possibly receive ACK for match creation
@@ -196,6 +212,11 @@ namespace FpsClient {
         public void LeaveLobby()
         {
 
+        }
+
+        public void EnterMatch()
+        {
+            SceneManager.LoadScene(gameSceneName);
         }
     }
 }

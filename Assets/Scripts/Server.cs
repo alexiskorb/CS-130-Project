@@ -22,12 +22,21 @@ namespace FpsServer {
 		private ClientHistoryMapping m_clients = new ClientHistoryMapping();
 		// Mapping from address to server ID. 
 		private ServerIdMapping m_serverIds = new ServerIdMapping();
+        public ClientHistoryMapping Clients
+        {
+            get { return m_clients; }
+        }
+        public ServerIdMapping ServerIds
+        {
+            get { return m_serverIds; }
+        }
 
-		void Start()
+        void Start()
 		{
 			SetMultiplayerGame(m_game);
 			RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
 			InitUdp(SERVER_PORT);
+            Debug.Log("Opened Server");
 		}
 
 		// @func Update
@@ -64,8 +73,13 @@ namespace FpsServer {
                 SendPacket(packet.m_clientAddr, packet.m_packet);
 		}
 
-		// @TODO
-		public void ProcessClientCmd()
+        public void OnEnable()
+        {
+            DontDestroyOnLoad(this.gameObject);
+        }
+
+        // @TODO
+        public void ProcessClientCmd()
 		{
 		}
 

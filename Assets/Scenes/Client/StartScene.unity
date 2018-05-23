@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.37311947, g: 0.38074005, b: 0.35872722, a: 1}
+  m_IndirectSpecularColor: {r: 0.37311992, g: 0.38074034, b: 0.35872713, a: 1}
 --- !u!157 &3
 LightmapSettings:
   m_ObjectHideFlags: 0
@@ -113,103 +113,91 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &970545276
+--- !u!1 &1050854640
 GameObject:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   serializedVersion: 5
   m_Component:
-  - component: {fileID: 970545278}
-  - component: {fileID: 970545277}
+  - component: {fileID: 1050854642}
+  - component: {fileID: 1050854641}
   m_Layer: 0
-  m_Name: ClientManager
+  m_Name: Client
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &970545277
+--- !u!114 &1050854641
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 970545276}
+  m_GameObject: {fileID: 1050854640}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b04550f0157972149a0909defa4b7d2e, type: 3}
+  m_Script: {fileID: 11500000, guid: 66af7ea253b4e70409824d61e48e974f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  startingSceneName: MainMenu
-  gameSceneName: MainScene
-  clientPort: 0
---- !u!4 &970545278
+  m_game: {fileID: 2080816197}
+--- !u!4 &1050854642
 Transform:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 970545276}
+  m_GameObject: {fileID: 1050854640}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: 0.24999988}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1326872901
+--- !u!1 &2080816196
 GameObject:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   serializedVersion: 5
   m_Component:
-  - component: {fileID: 1326872903}
-  - component: {fileID: 1326872902}
-  - component: {fileID: 1326872904}
+  - component: {fileID: 2080816198}
+  - component: {fileID: 2080816197}
   m_Layer: 0
-  m_Name: GameManager
+  m_Name: GameClient
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1326872902
+--- !u!114 &2080816197
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 1326872901}
+  m_GameObject: {fileID: 2080816196}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ae3acc6ab5d6a6e48be05a0df4147d17, type: 3}
+  m_Script: {fileID: 11500000, guid: bdd3519da0f031645b27dbbca0f54d76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mainPlayerPrefab: {fileID: 1998137392989358, guid: 3b0091a50b5f33545b09f3efa0bed288,
-    type: 2}
+  m_client: {fileID: 1050854641}
+  gameSceneName: MainScene
+  startingSceneName: MainMenu
   playerPrefab: {fileID: 1868695881446178, guid: 09889cba0a2c90c45af25107be8023c0,
     type: 2}
-  isServer: 0
---- !u!4 &1326872903
+  m_mainPlayer: {fileID: 1998137392989358, guid: 3b0091a50b5f33545b09f3efa0bed288,
+    type: 2}
+--- !u!4 &2080816198
 Transform:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 1326872901}
+  m_GameObject: {fileID: 2080816196}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: 0.24999988}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1326872904
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 1326872901}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ef4bffeda13d7a748973ff9204401c07, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
