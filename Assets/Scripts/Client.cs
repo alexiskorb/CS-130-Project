@@ -25,6 +25,11 @@ namespace FpsClient {
 		private Netcode.SnapshotHistory<MySnapshot> m_snapshotHistory = new Netcode.SnapshotHistory<MySnapshot>();
 		// The tick function sends client commands at the specified tick rate.
 		private Netcode.PeriodicFunction m_tick;
+        public Netcode.PeriodicFunction Tick
+        {
+            get { return m_tick;  }
+            set { m_tick = value; }
+        }
 		// Client's current seqno.
 		private uint m_seqno = 0;
 
@@ -41,7 +46,11 @@ namespace FpsClient {
 			m_newSeqno = new NewSeqnoDel(GetSeqno);
 		}
 
-		void SnapshotTick()
+        public void OnEnable()
+        {
+            DontDestroyOnLoad(this.gameObject);
+        }
+        public void SnapshotTick()
 		{
 			// @test 
 			GameObject mainPlayer = m_game.GetMainPlayer();

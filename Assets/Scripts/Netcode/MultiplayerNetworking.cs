@@ -3,6 +3,7 @@ using UnityEngine;
 using System.Net;
 using System.Net.Sockets;
 using System;
+using System.Collections;
 
 namespace Netcode {
 	// @class MultiplayerNetworking
@@ -15,7 +16,7 @@ namespace Netcode {
 		private Dictionary<PacketType, PacketHandler> m_packetCallbacks = new Dictionary<PacketType, PacketHandler>();
 		private IMultiplayerGame m_multiplayerGame;
 
-		public void SetMultiplayerGame(IMultiplayerGame multiplayerGame)
+        public void SetMultiplayerGame(IMultiplayerGame multiplayerGame)
 		{
 			m_multiplayerGame = multiplayerGame;
 		}
@@ -34,17 +35,22 @@ namespace Netcode {
 			byte[] buf = m_udp.EndReceive(asyncResult, ref remoteEndPoint);
 			m_udp.BeginReceive(ReceiveCallback, m_udp);
 			ClientAddress clientAddr = new ClientAddress(remoteEndPoint.Address.ToString(), remoteEndPoint.Port);
+           
 
-			MainThreadWork work = () => {
-				HandlePacket(clientAddr, buf);
+            MainThreadWork work = () => {
+                HandlePacket(clientAddr, buf);
 			};
 
 			m_mainWork.Enqueue(work);
-		}
+        }
+        IEnumerator Waitf()
+        {
+            yield return new WaitForSeconds(5);
+        }
 
-		// @func RegisterPacket
-		// @desc Associates the packet handler with this packet type. 
-		public void RegisterPacket(PacketType packetType, PacketHandler packetHandler)
+        // @func RegisterPacket
+        // @desc Associates the packet handler with this packet type. 
+        public void RegisterPacket(PacketType packetType, PacketHandler packetHandler)
 		{
 			m_packetCallbacks[packetType] = packetHandler;
 		}
@@ -54,7 +60,8 @@ namespace Netcode {
 		// the appropriate packet handler. 
 		public void HandlePacket(ClientAddress clientAddr, byte[] buf)
 		{
-			Packet header;
+
+            Packet header;
 			try {
 				header = Serializer.Deserialize<Packet>(buf);
 			} catch (Exception) {
@@ -65,10 +72,12 @@ namespace Netcode {
 			if (ShouldDiscard(clientAddr, header))
 				return;
 
-			if (m_packetCallbacks.ContainsKey(header.m_type))
+            Debug.Log("Packet type is" + header.m_type);
+
+            if (m_packetCallbacks.ContainsKey(header.m_type))
 				m_packetCallbacks[header.m_type].Invoke(clientAddr, buf);
 			else {
-				// Pass the net event to the game.
+                // Pass the net event to the game.
 				m_multiplayerGame.NetEvent(clientAddr, header.m_type, buf);
 			}
 		}

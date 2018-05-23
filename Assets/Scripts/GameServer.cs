@@ -1,6 +1,9 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine.SceneManagement;
+using System.Collections;
+
 namespace FpsServer {
 	// @class Game
 	// @desc Simulates the game state on the server side.
@@ -9,16 +12,18 @@ namespace FpsServer {
 		public GameObject spawnPlayerPrefab;
         private Dictionary<string, List<string>> m_listOfMatches = new Dictionary<string, List<string>>();
         private Dictionary<string, Netcode.ClientAddress> m_clientAddresses= new Dictionary<string, Netcode.ClientAddress>();
+        public FpsServer.Server m_server;
 
-        public void Startup()
-		{
-		}
+        public string gameSceneName = "ServerMainScene";
 
-		public void Update() {}
-
-		// @func PutSnapshot
-		// @desc The server received a snapshot. 
-		public override void NetEvent(Netcode.Snapshot snapshot)
+        public void Update() {}
+        public void OnEnable()
+        {
+            DontDestroyOnLoad(this.gameObject);
+        }
+        // @func PutSnapshot
+        // @desc The server received a snapshot. 
+        public override void NetEvent(Netcode.Snapshot snapshot)
 		{
 			GameObject gameObject = GetEntity(snapshot.m_serverId);
 			snapshot.Apply(ref gameObject);
@@ -63,9 +68,11 @@ namespace FpsServer {
         // to the client with a JoinLobby confirmation packet.
         public void ProcessCreateLobby(Netcode.ClientAddress clientAddr, byte[] buf)
         {
+            Debug.Log("Received CreateLobby packet");
             Netcode.CreateLobby lobby = Netcode.Serializer.Deserialize<Netcode.CreateLobby>(buf);
             m_listOfMatches.Add(lobby.m_lobbyName, new List<string> { lobby.m_hostPlayerName });
             ProcessJoinLobby(clientAddr, buf);
+            ProcessRefreshLobbyList(clientAddr);
         }
         // @func ProcessJoinLobby
         // @desc A client requests to join a lobby. Add the player to the list, and store player string 
@@ -73,6 +80,7 @@ namespace FpsServer {
         // in the lobby.
         public void ProcessJoinLobby(Netcode.ClientAddress clientAddr, byte[] buf)
         {
+            Debug.Log("Received JoinLobby packet");
             Netcode.JoinLobby lobby = Netcode.Serializer.Deserialize<Netcode.JoinLobby>(buf);
             string lobbyName = lobby.m_lobbyName;
 
@@ -104,23 +112,6 @@ namespace FpsServer {
         //********************************
         //This will be called by the server running the instance of the match
 
-        // @func RunMatch
-        // @desc The match server will initialize a gameobject for each client, and send every client in the match
-        // their unique ServerID, and the hostIP and hostPort to start communicating with.
-        public void RunMatch(string matchName, List<string> players)
-        {
-            string hostIP;
-            int hostPort;
-            hostIP = "127.0.0.1";
-            hostPort = 9001;
-            foreach (string client in players)
-            {
-                Netcode.ClientAddress clientAddress= m_clientAddresses[client];
-                int clientId = SpawnPlayer();
-                Netcode.StartGame game = new Netcode.StartGame(matchName, clientId, hostIP, hostPort);
-                QueuePacket(clientAddress, game);
-            }
-        }
         // @func SpawnPlayer
         // @desc Spawns a new player and returns it
         public int SpawnPlayer()
@@ -130,6 +121,31 @@ namespace FpsServer {
             int serverId = gameObject.GetInstanceID();
             PutEntity(serverId, gameObject);
             return serverId;
+        }
+
+        // @func RunMatch
+        // @desc The match server will initialize a gameobject for each client, and send every client in the match
+        // their unique ServerID, and the hostIP and hostPort to start communicating with.
+        public void RunMatch(string matchName, List<string> players)
+        {
+            string hostIP;
+            int hostPort;
+            hostIP = "127.0.0.1";
+            hostPort = 9001;
+            EnterMatch();
+            foreach (string client in players)
+            {
+                Netcode.ClientAddress clientAddress= m_clientAddresses[client];
+                int serverId = SpawnPlayer();
+                m_server.ServerIds[clientAddress] = serverId;
+                m_server.Clients[clientAddress] = new Netcode.SnapshotHistory<Netcode.Snapshot>();
+                Netcode.StartGame game = new Netcode.StartGame(matchName, serverId, hostIP, hostPort);
+                QueuePacket(clientAddress, game);
+            }
+        }
+        public void EnterMatch()
+        {
+            SceneManager.LoadScene(gameSceneName);
         }
     }
 }
