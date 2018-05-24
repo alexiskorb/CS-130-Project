@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine.SceneManagement;
+using System.Text.RegularExpressions;
 
 namespace FpsClient {
     // @class Game
@@ -20,10 +21,33 @@ namespace FpsClient {
         // The server ID of the main player.
         public int ServerId { get; set; }
         //String name of the main player.
-        public string MainPlayerName { get; set; }
+        private string m_mainPlayerName = "";
+        public string MainPlayerName
+        {
+            get { return m_mainPlayerName;  }
+            set
+            {
+                Regex alphanumericRegex = new Regex("^[a-zA-Z0-9]*$");
+                if (value != "" && alphanumericRegex.IsMatch(value))
+                {
+                    m_mainPlayerName = value;
+                }
+            }
+        }
         //String name of the lobby the main player is in
-        public string CurrentLobby { get; set; }
-
+        private string m_currentLobby = "";
+        public string CurrentLobby
+        {
+            get { return m_currentLobby; }
+            set
+            {
+                Regex alphanumericRegex = new Regex("^[a-zA-Z0-9]*$");
+                if (value != "" && alphanumericRegex.IsMatch(value))
+                {
+                    m_currentLobby = value;
+                }
+            }
+        }
 
         //IP of the host server the client communicates to in a match
         public string MatchHostIp { get; set; }
@@ -114,6 +138,17 @@ namespace FpsClient {
             }
         }
 
+        // @func NamesSet
+        // @desc Returns true if the main player name and current lobby are set
+        public bool NamesSet()
+        {
+            if (MainPlayerName != "" && CurrentLobby != "")
+            {
+                return true;
+            }
+            return false;
+        }
+
         // @func GetMainPlayer
         // @desc Gets the game object associated with the main player. 
         public GameObject GetMainPlayer()
@@ -162,6 +197,9 @@ namespace FpsClient {
                     break;
                 case Netcode.PacketType.JOIN_LOBBY:
                     ProcessJoinLobby(buf);
+                    break;
+                case Netcode.PacketType.LEAVE_LOBBY:
+                    ProcessLeaveLobby(buf);
                     break;
                 case Netcode.PacketType.START_GAME:
                     ProcessStartGame(buf);
@@ -247,10 +285,25 @@ namespace FpsClient {
             //TODO: Possibly receive ACK for match creation
         }
 
-        //TODO
+        // @func ProcessLeaveLobby
+        // @desc Server will send a LEAVE_LOBBY packet every time a new player leaves the lobby. In that case, update local list of players in the lobby
+        public void ProcessLeaveLobby(byte[] buf)
+        {
+            Debug.Log("Receieved LeaveLobby packet");
+            Netcode.LeaveLobby lobby = Netcode.Serializer.Deserialize<Netcode.LeaveLobby>(buf);
+            if (CurrentLobby == lobby.m_lobbyName)
+            {
+                LobbyPlayers = Netcode.Serializer.Deserialize(lobby.m_listOfPlayers).ToList();
+            }
+        }
+
         public void LeaveLobby()
         {
-
+            Debug.Log("Sending leave lobby packet");
+            Netcode.LeaveLobby packet = new Netcode.LeaveLobby(null, CurrentLobby, MainPlayerName);
+            QueuePacket(packet);
+            m_mainPlayerName = "";
+            m_currentLobby = "";
         }
 
     }

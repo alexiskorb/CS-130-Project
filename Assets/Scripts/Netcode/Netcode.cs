@@ -73,6 +73,7 @@ namespace Netcode {
 		CREATE_LOBBY,
 		REFRESH_LOBBY_LIST,
 		JOIN_LOBBY,
+        LEAVE_LOBBY,
 		START_GAME,
 		SNAPSHOT,
 		COMMAND,
@@ -101,7 +102,7 @@ namespace Netcode {
 		}
 	}
 
-	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class RefreshLobbyList : Packet {
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
         public string m_listOfGames;
@@ -131,8 +132,27 @@ namespace Netcode {
 		}
 	}
 
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public class LeaveLobby : Packet
+    {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 140)]
+        public string m_listOfPlayers;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+        public string m_lobbyName;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+        public string m_playerName;
+        public LeaveLobby() : base(PacketType.LEAVE_LOBBY, 0) { }
+        public LeaveLobby(string[] playerList, string lobbyName, string playerName)
+            : base(PacketType.LEAVE_LOBBY, 0)
+        {
+            m_listOfPlayers = Serializer.Serialize(playerList);
+            m_lobbyName = lobbyName;
+            m_playerName = playerName;
+        }
+    }
 
-	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class StartGame : Packet {
 		public int m_serverId;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
@@ -306,7 +326,7 @@ namespace Netcode {
         //TODO: Extend serialize so that it will automatically serialize all array types
         public static string Serialize(string[] stringArray)
         {
-            if(stringArray != null)
+            if(stringArray != null && stringArray.Length > 0)
             {
                 string serialized = stringArray[0];
                 for (int i = 1; i < stringArray.Length; i++)
