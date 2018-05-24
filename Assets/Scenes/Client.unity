@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.44657826, g: 0.49641263, b: 0.57481676, a: 1}
+  m_IndirectSpecularColor: {r: 0.44657844, g: 0.49641222, b: 0.57481694, a: 1}
 --- !u!157 &3
 LightmapSettings:
   m_ObjectHideFlags: 0
@@ -120,41 +120,44 @@ Prefab:
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 4081526679641298, guid: 3b0091a50b5f33545b09f3efa0bed288, type: 2}
+    - target: {fileID: 4008054225472766, guid: 0e9c3e5046bd90247a9c23794a9ee867, type: 2}
       propertyPath: m_LocalPosition.x
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4081526679641298, guid: 3b0091a50b5f33545b09f3efa0bed288, type: 2}
+    - target: {fileID: 4008054225472766, guid: 0e9c3e5046bd90247a9c23794a9ee867, type: 2}
       propertyPath: m_LocalPosition.y
       value: 1
       objectReference: {fileID: 0}
-    - target: {fileID: 4081526679641298, guid: 3b0091a50b5f33545b09f3efa0bed288, type: 2}
+    - target: {fileID: 4008054225472766, guid: 0e9c3e5046bd90247a9c23794a9ee867, type: 2}
       propertyPath: m_LocalPosition.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4081526679641298, guid: 3b0091a50b5f33545b09f3efa0bed288, type: 2}
+    - target: {fileID: 4008054225472766, guid: 0e9c3e5046bd90247a9c23794a9ee867, type: 2}
       propertyPath: m_LocalRotation.x
       value: -0
       objectReference: {fileID: 0}
-    - target: {fileID: 4081526679641298, guid: 3b0091a50b5f33545b09f3efa0bed288, type: 2}
+    - target: {fileID: 4008054225472766, guid: 0e9c3e5046bd90247a9c23794a9ee867, type: 2}
       propertyPath: m_LocalRotation.y
       value: -0
       objectReference: {fileID: 0}
-    - target: {fileID: 4081526679641298, guid: 3b0091a50b5f33545b09f3efa0bed288, type: 2}
+    - target: {fileID: 4008054225472766, guid: 0e9c3e5046bd90247a9c23794a9ee867, type: 2}
       propertyPath: m_LocalRotation.z
       value: -0
       objectReference: {fileID: 0}
-    - target: {fileID: 4081526679641298, guid: 3b0091a50b5f33545b09f3efa0bed288, type: 2}
+    - target: {fileID: 4008054225472766, guid: 0e9c3e5046bd90247a9c23794a9ee867, type: 2}
       propertyPath: m_LocalRotation.w
       value: 1
       objectReference: {fileID: 0}
-    - target: {fileID: 4081526679641298, guid: 3b0091a50b5f33545b09f3efa0bed288, type: 2}
+    - target: {fileID: 4008054225472766, guid: 0e9c3e5046bd90247a9c23794a9ee867, type: 2}
       propertyPath: m_RootOrder
       value: 5
       objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 114199604469949864, guid: 3b0091a50b5f33545b09f3efa0bed288, type: 2}
-  m_ParentPrefab: {fileID: 100100000, guid: 3b0091a50b5f33545b09f3efa0bed288, type: 2}
+    - target: {fileID: 1048663789035698, guid: 0e9c3e5046bd90247a9c23794a9ee867, type: 2}
+      propertyPath: m_Name
+      value: MainPlayer
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+  m_ParentPrefab: {fileID: 100100000, guid: 0e9c3e5046bd90247a9c23794a9ee867, type: 2}
   m_IsPrefabParent: 0
 --- !u!1 &199953172
 GameObject:
@@ -229,23 +232,9 @@ Transform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &338268593 stripped
 GameObject:
-  m_PrefabParentObject: {fileID: 1998137392989358, guid: 3b0091a50b5f33545b09f3efa0bed288,
+  m_PrefabParentObject: {fileID: 1048663789035698, guid: 0e9c3e5046bd90247a9c23794a9ee867,
     type: 2}
   m_PrefabInternal: {fileID: 96855764}
---- !u!114 &338268594
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 338268593}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6c3e8dfc089a4e848827b425fd6dd3d1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  moveSpeed: 5
-  horizontalCameraSensitivity: 15
-  verticalCameraSensitivity: 5
 --- !u!1 &1213022325
 GameObject:
   m_ObjectHideFlags: 0
@@ -379,6 +368,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bdd3519da0f031645b27dbbca0f54d76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_client: {fileID: 0}
+  gameSceneName: MainScene
+  startingSceneName: MainMenu
   playerPrefab: {fileID: 1868695881446178, guid: 09889cba0a2c90c45af25107be8023c0,
     type: 2}
   m_mainPlayer: {fileID: 338268593}

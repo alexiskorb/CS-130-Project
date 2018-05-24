@@ -33,8 +33,8 @@ namespace FpsClient {
 		// Client's current seqno.
 		private uint m_seqno = 0;
 
-		private delegate uint NewSeqnoDel();
-		NewSeqnoDel m_newSeqno;
+		public delegate uint NewSeqnoDel();
+		public NewSeqnoDel m_newSeqno;
 
 		void Start()
 		{
@@ -99,7 +99,7 @@ namespace FpsClient {
 
 		// @func NewSeqno
 		// @desc Returns the current seqno and increments it. 
-		uint NewSeqno()
+		public uint NewSeqno()
 		{
 			uint seqno = m_seqno++;
 			return seqno;

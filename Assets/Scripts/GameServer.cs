@@ -14,12 +14,37 @@ namespace FpsServer {
         private Dictionary<string, Netcode.ClientAddress> m_clientAddresses= new Dictionary<string, Netcode.ClientAddress>();
         public FpsServer.Server m_server;
 
+
+        public List<string> activeMatchPlayers = new List<string>();
+        public string activeMatchName;
+        public string activeHostIp;
+        public int activeHostPort;
+
         public string gameSceneName = "ServerMainScene";
 
         public void Update() {}
         public void OnEnable()
         {
             DontDestroyOnLoad(this.gameObject);
+            SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+        // Unsubscribe from sceneLoaded event
+        void OnDisable()
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+        }
+        // Used to call relevant functions after the scene loads since scene loads complete in the frame after they're called
+        void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            foreach (string client in activeMatchPlayers)
+            {
+                Netcode.ClientAddress clientAddress = m_clientAddresses[client];
+                int serverId = SpawnPlayer();
+                m_server.ServerIds[clientAddress] = serverId;
+                m_server.Clients[clientAddress] = new Netcode.SnapshotHistory<Netcode.Snapshot>();
+                Netcode.StartGame game = new Netcode.StartGame(activeMatchName, serverId, activeHostIp, activeHostPort);
+                QueuePacket(clientAddress, game);
+            }
         }
         // @func PutSnapshot
         // @desc The server received a snapshot. 
@@ -59,6 +84,7 @@ namespace FpsServer {
         // @desc A client asked for LobbyList. Sends the packet to the client.
         public void ProcessRefreshLobbyList(Netcode.ClientAddress clientAddr)
         {
+            Debug.Log("Received RefreshLobby packet");
             string[] lobbyList = m_listOfMatches.Keys.ToArray();
             Netcode.RefreshLobbyList packet = new Netcode.RefreshLobbyList(lobbyList);
             QueuePacket(clientAddr, packet);
@@ -71,8 +97,8 @@ namespace FpsServer {
             Debug.Log("Received CreateLobby packet");
             Netcode.CreateLobby lobby = Netcode.Serializer.Deserialize<Netcode.CreateLobby>(buf);
             m_listOfMatches.Add(lobby.m_lobbyName, new List<string> { lobby.m_hostPlayerName });
-            ProcessJoinLobby(clientAddr, buf);
-            ProcessRefreshLobbyList(clientAddr);
+            m_clientAddresses[lobby.m_hostPlayerName] = clientAddr;
+            SendJoinLobby(lobby.m_lobbyName);
         }
         // @func ProcessJoinLobby
         // @desc A client requests to join a lobby. Add the player to the list, and store player string 
@@ -82,16 +108,19 @@ namespace FpsServer {
         {
             Debug.Log("Received JoinLobby packet");
             Netcode.JoinLobby lobby = Netcode.Serializer.Deserialize<Netcode.JoinLobby>(buf);
-            string lobbyName = lobby.m_lobbyName;
 
-            m_listOfMatches[lobbyName].Add(lobby.m_playerName);
+            m_listOfMatches[lobby.m_lobbyName].Add(lobby.m_playerName);
             m_clientAddresses[lobby.m_playerName] = clientAddr;
-
+            SendJoinLobby(lobby.m_lobbyName);
+        }
+        public void SendJoinLobby(string lobbyName)
+        {
+            Debug.Log("Sending JoinLobby packet");
             Netcode.JoinLobby packet = new Netcode.JoinLobby(m_listOfMatches[lobbyName].ToArray(), lobbyName, "");
             foreach (string player in m_listOfMatches[lobbyName])
             {
                 QueuePacket(m_clientAddresses[player], packet);
-            } 
+            }
         }
         // @func ProcessStartGame
         // @desc A client requests to begin a match from an existing lobby. Find/Create a server to handle the match,
@@ -102,10 +131,14 @@ namespace FpsServer {
             string matchName = game.m_matchName;
             List<string> matchPlayers = m_listOfMatches[matchName];
             //TODO: Find IP and Port of server hosting
-            string hostIP;
-            int hostPort;
+            string hostIP = "127.0.0.1";
+            int hostPort = 9001;
             //Send list of names and IP to new server
-            RunMatch(matchName, matchPlayers);
+            activeHostIp = hostIP;
+            activeHostPort = hostPort;
+            activeMatchPlayers = matchPlayers;
+            activeMatchName = matchName;
+            EnterMatch();
         }
 
 
@@ -116,13 +149,14 @@ namespace FpsServer {
         // @desc Spawns a new player and returns it
         public int SpawnPlayer()
         {
+            Debug.Log("Spawning Player");
             GameObject gameObject = Instantiate(spawnPlayerPrefab);
             gameObject.transform.position = new Vector3(0, 1, 0);
             int serverId = gameObject.GetInstanceID();
             PutEntity(serverId, gameObject);
             return serverId;
         }
-
+/*
         // @func RunMatch
         // @desc The match server will initialize a gameobject for each client, and send every client in the match
         // their unique ServerID, and the hostIP and hostPort to start communicating with.
@@ -130,19 +164,9 @@ namespace FpsServer {
         {
             string hostIP;
             int hostPort;
-            hostIP = "127.0.0.1";
-            hostPort = 9001;
-            EnterMatch();
-            foreach (string client in players)
-            {
-                Netcode.ClientAddress clientAddress= m_clientAddresses[client];
-                int serverId = SpawnPlayer();
-                m_server.ServerIds[clientAddress] = serverId;
-                m_server.Clients[clientAddress] = new Netcode.SnapshotHistory<Netcode.Snapshot>();
-                Netcode.StartGame game = new Netcode.StartGame(matchName, serverId, hostIP, hostPort);
-                QueuePacket(clientAddress, game);
-            }
+            
         }
+        */
         public void EnterMatch()
         {
             SceneManager.LoadScene(gameSceneName);

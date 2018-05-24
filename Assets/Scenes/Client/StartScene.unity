@@ -181,6 +181,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bdd3519da0f031645b27dbbca0f54d76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  mainPlayerServerId: 0
   m_client: {fileID: 1050854641}
   gameSceneName: MainScene
   startingSceneName: MainMenu
@@ -188,6 +189,7 @@ MonoBehaviour:
     type: 2}
   m_mainPlayer: {fileID: 1998137392989358, guid: 3b0091a50b5f33545b09f3efa0bed288,
     type: 2}
+  count: 0
 --- !u!4 &2080816198
 Transform:
   m_ObjectHideFlags: 0
