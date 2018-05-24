@@ -80,4 +80,5 @@ public class JoinMatchUI : MonoBehaviour {
         playerNameInput.GetComponent<InputField>().text = "";
         joinMatchError.SetActive(false);
     }
+
 }

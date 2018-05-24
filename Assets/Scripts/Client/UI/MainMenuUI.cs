@@ -12,6 +12,7 @@ public class MainMenuUI : MonoBehaviour {
     public Canvas createMatchMenu;
     public Canvas startMatchMenu;
     public Canvas joinMatchMenu;
+    public Canvas steamJoinMatchCanvas;
 
     private bool m_isMatchCreator = true;
 
@@ -39,6 +40,16 @@ public class MainMenuUI : MonoBehaviour {
 
     void Update()
     {
+    }
+
+    public void GoToCreateMatchMenu()
+    {
+        ShowCreateMatchMenu();
+    }
+
+    public void GoToJoinMatchMenu()
+    {
+        ShowJoinMatchMenu();
     }
 
     // Start a match
@@ -82,6 +93,14 @@ public class MainMenuUI : MonoBehaviour {
         */
     }
 
+    // MELODIE: TODO
+    // Join a lobby from the Steam join match invite
+    public void JoinLobbyFromInvite()
+    {
+        // Called by popup menu join button
+    }
+   
+
     // Leave player lobby
     public void CancelMatch()
     {
@@ -111,37 +130,59 @@ public class MainMenuUI : MonoBehaviour {
         */
     }
 
-    public void ShowMainMenu()
+
+    // MELODIE: TODO
+    public void OpenSteamJoinMatchPopup()
+    {
+        steamJoinMatchCanvas.enabled = true;
+        // Presumably, you'll change this text based on the user doing the invite
+        steamJoinMatchCanvas.GetComponent<SteamJoinMatchUI>().SetMatchText("User XXXX would like you to to invite you to a match:");
+    }
+
+    // MELODIE: TODO
+    public void CloseSteamJoinMatchPopup()
+    {
+        // Called by popup menu decline button
+        steamJoinMatchCanvas.enabled = false;
+    }
+
+
+    private void ShowMainMenu()
     {
         mainMenu.enabled = true;
         createMatchMenu.enabled = false;
         startMatchMenu.enabled = false;
         joinMatchMenu.enabled = false;
+        steamJoinMatchCanvas.enabled = false;
     }
 
-    public void ShowCreateMatchMenu()
+    private void ShowCreateMatchMenu()
     {
         mainMenu.enabled = false;
         createMatchMenu.enabled = true;
         startMatchMenu.enabled = false;
         joinMatchMenu.enabled = false;
+        steamJoinMatchCanvas.enabled = false;
     }
 
-    public void ShowStartMatchMenu()
+    private void ShowStartMatchMenu()
     {
         mainMenu.enabled = false;
         createMatchMenu.enabled = false;
         startMatchMenu.enabled = true;
         joinMatchMenu.enabled = false;
+        steamJoinMatchCanvas.enabled = false;
     }
 
-    public void ShowJoinMatchMenu()
+    private void ShowJoinMatchMenu()
     {
         mainMenu.enabled = false;
         createMatchMenu.enabled = false;
         startMatchMenu.enabled = false;
         joinMatchMenu.enabled = true;
+        steamJoinMatchCanvas.enabled = false;
         joinMatchMenu.GetComponent<JoinMatchUI>().RefreshOpenMatches();
     }
+
 
 }
