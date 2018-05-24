@@ -72,6 +72,9 @@ namespace FpsServer {
                 case Netcode.PacketType.JOIN_LOBBY:
                     ProcessJoinLobby(clientAddr, buf);
                     break;
+                case Netcode.PacketType.LEAVE_LOBBY:
+                    ProcessLeaveLobby(clientAddr, buf);
+                    break;
                 case Netcode.PacketType.START_GAME:
                     ProcessStartGame(buf);
                     break;
@@ -87,6 +90,7 @@ namespace FpsServer {
             Netcode.RefreshLobbyList packet = new Netcode.RefreshLobbyList(lobbyList);
             QueuePacket(clientAddr, packet);
         }
+
         // @func ProcessCreateLobby
         // @desc Client wants to create a lobby. Add it to the list of lobbies, then reply back 
         // to the client with a JoinLobby confirmation packet.
@@ -106,9 +110,12 @@ namespace FpsServer {
         {
             Debug.Log("Received JoinLobby packet");
             Netcode.JoinLobby lobby = Netcode.Serializer.Deserialize<Netcode.JoinLobby>(buf);
-            m_listOfMatches[lobby.m_lobbyName].Add(lobby.m_playerName);
-            m_clientAddresses[lobby.m_playerName] = clientAddr;
-            SendJoinLobby(lobby.m_lobbyName);
+            if(m_listOfMatches.ContainsKey(lobby.m_lobbyName))
+            {
+                m_listOfMatches[lobby.m_lobbyName].Add(lobby.m_playerName);
+                m_clientAddresses[lobby.m_playerName] = clientAddr;
+                SendJoinLobby(lobby.m_lobbyName);
+            }
         }
         public void SendJoinLobby(string lobbyName)
         {
@@ -119,6 +126,40 @@ namespace FpsServer {
                 QueuePacket(m_clientAddresses[player], packet);
             }
         }
+
+        // @func ProcessLeaveLobby
+        // @desc A client requests to leave a lobby. Remove the player from the list.
+        // If the lobby is non-empty, send a packet to all players in that lobby with an
+        // updated list of players in the lobby.
+        // Otherwise, remove the lobby from the list of matches.
+        public void ProcessLeaveLobby(Netcode.ClientAddress clientAddr, byte[] buf)
+        {
+            Debug.Log("Received LeaveLobby packet");
+            Netcode.LeaveLobby lobby = Netcode.Serializer.Deserialize<Netcode.LeaveLobby>(buf);
+            if (m_listOfMatches[lobby.m_lobbyName].Contains(lobby.m_playerName))
+            {
+                m_listOfMatches[lobby.m_lobbyName].Remove(lobby.m_playerName);
+                if (m_listOfMatches[lobby.m_lobbyName].Any())
+                {
+                    SendLeaveLobby(lobby.m_lobbyName);
+                }
+                else
+                {
+                    Debug.Log("Removing Lobby " + lobby.m_lobbyName);
+                    m_listOfMatches.Remove(lobby.m_lobbyName);
+                }
+            }
+        }
+        public void SendLeaveLobby(string lobbyName)
+        {
+            Debug.Log("Sending LeaveLobby packet");
+            Netcode.LeaveLobby packet = new Netcode.LeaveLobby(m_listOfMatches[lobbyName].ToArray(), lobbyName, "");
+            foreach (string player in m_listOfMatches[lobbyName])
+            {
+                QueuePacket(m_clientAddresses[player], packet);
+            }
+        }
+
         // @func ProcessStartGame
         // @desc A client requests to begin a match from an existing lobby. Find/Create a server to handle the match,
         // and get its IP & port. Give the list of players and their ClientAddress off to the new match server.

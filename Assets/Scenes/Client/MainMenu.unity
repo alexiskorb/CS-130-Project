@@ -268,7 +268,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: -75}
-  m_SizeDelta: {x: 350, y: 50}
+  m_SizeDelta: {x: 400, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &23970180
 MonoBehaviour:
@@ -304,7 +304,7 @@ MonoBehaviour:
     m_LineSpacing: 1
   m_Text: 'Cannot Join Match
 
-    Must Choose a Match and input a Player Name'
+    Must Choose a Match and Input an Alphanumeric Player Name'
 --- !u!222 &23970181
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1691,7 +1691,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: -10}
-  m_SizeDelta: {x: 350, y: 50}
+  m_SizeDelta: {x: 500, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &388640877
 MonoBehaviour:
@@ -1727,7 +1727,7 @@ MonoBehaviour:
     m_LineSpacing: 1
   m_Text: 'Cannot Create Match
 
-    Must Choose a Match Name and a Player Name'
+    Must Choose an Alphanumeric Match Name and Player Name'
 --- !u!222 &388640878
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -6798,7 +6798,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 254856662}
-        m_MethodName: JoinMatch
+        m_MethodName: JoinLobby
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
