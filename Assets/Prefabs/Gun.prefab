@@ -19,9 +19,9 @@ GameObject:
   serializedVersion: 5
   m_Component:
   - component: {fileID: 4611072276351312}
+  - component: {fileID: 114930853670859720}
   - component: {fileID: 23232934656502462}
   - component: {fileID: 33443351415432342}
-  - component: {fileID: 114657334526294798}
   m_Layer: 0
   m_Name: Gun
   m_TagString: Untagged
@@ -51,6 +51,7 @@ MeshRenderer:
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
@@ -66,6 +67,7 @@ MeshRenderer:
   m_PreserveUVs: 0
   m_IgnoreNormalsForChartDetection: 0
   m_ImportantGI: 0
+  m_StitchLightmapSeams: 0
   m_SelectedEditorRenderState: 3
   m_MinimumChartSize: 4
   m_AutoUVMaxDistance: 0.5
@@ -81,7 +83,7 @@ MeshFilter:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 1736882857683852}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!114 &114657334526294798
+--- !u!114 &114930853670859720
 MonoBehaviour:
   m_ObjectHideFlags: 1
   m_PrefabParentObject: {fileID: 0}
@@ -89,9 +91,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1736882857683852}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e84d72cfbdce2f54db6ccc63f798295e, type: 3}
+  m_Script: {fileID: 11500000, guid: b90862fe9aa30a04e85a1f40521e71be, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bulletPrefab: {fileID: 1533964733570946, guid: a32b30edf37dc5047b96a5d9cf377c74,
+  bulletPrefab: {fileID: 1533964733570946, guid: 20bd79850a7cb36439db1a92f22abc69,
     type: 2}
-  bulletSpeed: 10
+  bulletSpeed_: 10

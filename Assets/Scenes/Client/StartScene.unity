@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.37311992, g: 0.38074034, b: 0.35872713, a: 1}
+  m_IndirectSpecularColor: {r: 0.37311918, g: 0.3807398, b: 0.35872716, a: 1}
 --- !u!157 &3
 LightmapSettings:
   m_ObjectHideFlags: 0
@@ -185,9 +185,11 @@ MonoBehaviour:
   m_client: {fileID: 1050854641}
   gameSceneName: MainScene
   startingSceneName: MainMenu
-  playerPrefab: {fileID: 1868695881446178, guid: 09889cba0a2c90c45af25107be8023c0,
+  playerPrefab: {fileID: 1868695881446178, guid: c9a5d70276cf59a4d880ce358d50e705,
     type: 2}
-  m_mainPlayer: {fileID: 1998137392989358, guid: 3b0091a50b5f33545b09f3efa0bed288,
+  bulletPrefab: {fileID: 1533964733570946, guid: 20bd79850a7cb36439db1a92f22abc69,
+    type: 2}
+  m_mainPlayer: {fileID: 1998137392989358, guid: b609e829cf4eb094c9c9f6e3c7c10878,
     type: 2}
   count: 0
 --- !u!4 &2080816198

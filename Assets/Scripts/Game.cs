@@ -5,15 +5,12 @@ using UnityEngine;
 // @desc Contains game logic code that is shared between the client game and the 
 // server game. 
 public abstract class Game : Netcode.IMultiplayerGame {
-	protected Dictionary<int, GameObject> m_objects;
-
-	public void Start()
-	{
-		m_objects = new Dictionary<int, GameObject>();
-	}
+	protected Dictionary<int, GameObject> m_objects = new Dictionary<int, GameObject>();
 
 	// @func GetEntity
 	// @desc Gets the entity from the server ID. 
+	// Always check for null. It's possible that the entity was destroyed and 
+	// this is an old packet.
 	public GameObject GetEntity(int serverId)
 	{
 		if (m_objects.ContainsKey(serverId)) {

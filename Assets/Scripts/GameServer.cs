@@ -2,7 +2,6 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine.SceneManagement;
-using System.Collections;
 
 namespace FpsServer {
 	// @class Game
@@ -12,7 +11,7 @@ namespace FpsServer {
 		public GameObject spawnPlayerPrefab;
         private Dictionary<string, List<string>> m_listOfMatches = new Dictionary<string, List<string>>();
         private Dictionary<string, Netcode.ClientAddress> m_clientAddresses= new Dictionary<string, Netcode.ClientAddress>();
-        public FpsServer.Server m_server;
+        public Server m_server;
         public List<string> activeMatchPlayers = new List<string>();
         public string activeMatchName;
         public string activeHostIp;
@@ -26,11 +25,13 @@ namespace FpsServer {
             DontDestroyOnLoad(this.gameObject);
             SceneManager.sceneLoaded += OnSceneLoaded;
         }
+
         // Unsubscribe from sceneLoaded event
         void OnDisable()
         {
             SceneManager.sceneLoaded -= OnSceneLoaded;
         }
+
         // Used to call relevant functions after the scene loads since scene loads complete in the frame after they're called
         void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
@@ -44,6 +45,7 @@ namespace FpsServer {
                 QueuePacket(clientAddress, game);
             }
         }
+
         // @func PutSnapshot
         // @desc The server received a snapshot. 
         public override void NetEvent(Netcode.Snapshot snapshot)
@@ -54,7 +56,6 @@ namespace FpsServer {
 
         //*******************************
         //TODO: The functions below will likely be called by the Master server eventually.
-
 
         // @func NetEvent.PacketType 
         // @desc If this is called, the game has received a packet, that is not a snapshot
@@ -102,6 +103,7 @@ namespace FpsServer {
             m_clientAddresses[lobby.m_hostPlayerName] = clientAddr;
             SendJoinLobby(lobby.m_lobbyName);
         }
+
         // @func ProcessJoinLobby
         // @desc A client requests to join a lobby. Add the player to the list, and store player string 
         // and connection info. Send a packet to all players in that lobby with an updated list of players
@@ -179,7 +181,6 @@ namespace FpsServer {
             EnterMatch();
         }
 
-
         //********************************
         //This will be called by the server running the instance of the match
 
@@ -205,10 +206,25 @@ namespace FpsServer {
             
         }
         */
+
         public void EnterMatch()
         {
             SceneManager.LoadScene(gameSceneName);
         }
-    }
+
+		public override void NetEvent(Netcode.PlayerInput playerInput)
+		{
+			GameObject gameObject = GetEntity(playerInput.serverId_);
+			if (gameObject == null)
+				return;
+			NetworkedPlayer networkedPlayer = gameObject.GetComponent<NetworkedPlayer>();
+			networkedPlayer.TakeCommands(playerInput.cmdBits_);
+		}
+
+		public override void NetEvent(Netcode.BulletSnapshot bulletSnapshot)
+		{
+			throw new System.NotImplementedException();
+		}
+	}
 }
 

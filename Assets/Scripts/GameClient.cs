@@ -6,20 +6,32 @@ using UnityEngine.SceneManagement;
 using System.Text.RegularExpressions;
 
 namespace FpsClient {
-    // @class Game
-    // @desc Simulates the game state on the client side. 
-    public class GameClient : Game
+	struct GameInput {
+		public KeyCode key_;
+		public Netcode.InputBit cmd_;
+		public GameInput(KeyCode key, Netcode.InputBit cmd)
+		{
+			key_ = key;
+			cmd_ = cmd;
+		}
+	}
+
+	// @class Game
+	// @desc Simulates the game state on the client side. 
+	public class GameClient : Game
     {
         public int mainPlayerServerId;
-        public FpsClient.Client m_client;
+        public Client m_client;
         public string gameSceneName = "MainScene";
         public string startingSceneName = "MainMenu";
 
         //Prefabs for players 
         public GameObject playerPrefab;
+		public GameObject bulletPrefab;
         public GameObject m_mainPlayer;
-        // The server ID of the main player.
-        public int ServerId { get; set; }
+		private List<GameInput> input_ = new List<GameInput>();
+		// The server ID of the main player.
+		public int ServerId { get; set; }
         //String name of the main player.
         private string m_mainPlayerName = "";
         public string MainPlayerName
@@ -110,16 +122,26 @@ namespace FpsClient {
             }
         }
 
-      
-        public void Update() {  }
+		private void Start()
+		{
+			input_.Add(new GameInput(KeyCode.Mouse0, Netcode.InputBit.PRIMARY_WEAPON));
+		}
+
+		public void Update()
+		{
+			foreach (var input in input_) {
+				if (Input.GetKey(input.key_))
+					QueueInput(input.cmd_);
+			}
+		}
 
         public void OnEnable()
         {
             // Load into main menu at start of game
             SceneManager.LoadScene(startingSceneName);
-            SceneManager.sceneLoaded += OnSceneLoaded;
-
+			SceneManager.sceneLoaded += OnSceneLoaded;
         }
+
         // Unsubscribe from sceneLoaded event
         void OnDisable()
         {
@@ -167,24 +189,6 @@ namespace FpsClient {
             return gameObject;
         }
 
-        // @func NetEvent.Snapshot
-        // @desc If this is called, the game has received a snapshot. 
-        public override void NetEvent(Netcode.Snapshot snapshot)
-        {
-            GameObject gameObject;
-
-            if (!m_objects.ContainsKey(snapshot.m_serverId))
-            {
-                gameObject = SpawnPlayer(snapshot);
-            }
-            else
-            {
-                gameObject = GetEntity(snapshot.m_serverId);
-                snapshot.Apply(ref gameObject);
-            }
-        }
-
-
         // @func NetEvent.PacketType 
         // @desc If this is called, the game has received a packet, that is not a snapshot
         // The function analyzes the packet type and responds accordingly.
@@ -206,6 +210,7 @@ namespace FpsClient {
                     break;
             }
         }
+
         // @func ProcessResfreshLobbyList
         // @desc When a REFRESH_LOBBY_LIST packet is received, store the updated list of lobbies open.
         public void ProcessRefreshLobbyList(byte[] buf)
@@ -306,6 +311,48 @@ namespace FpsClient {
             m_currentLobby = "";
         }
 
+		private GameObject SpawnBullet(Netcode.BulletSnapshot bulletState)
+		{
+			GameObject gameObject = Instantiate(bulletPrefab);
+			bulletState.Apply(ref gameObject);
+			PutEntity(bulletState.m_serverId, gameObject);
+			return gameObject;
+		}
 
-    }
+		public override void NetEvent(Netcode.PlayerInput playerInput)
+		{
+			throw new System.NotImplementedException();
+		}
+
+
+		public override void NetEvent(Netcode.BulletSnapshot bullet)
+		{
+			GameObject gameObject;
+
+			if (!m_objects.ContainsKey(bullet.m_serverId)) {
+				gameObject = SpawnBullet(bullet);
+			} else {
+				gameObject = GetEntity(bullet.m_serverId);
+				if (gameObject == null) {
+					KillEntity(bullet.m_serverId);
+				} else {
+					bullet.Apply(ref gameObject);
+				}
+			}
+		}
+
+		// @func NetEvent.Snapshot
+		// @desc If this is called, the game has received a snapshot. 
+		public override void NetEvent(Netcode.Snapshot snapshot)
+		{
+			GameObject gameObject;
+
+			if (!m_objects.ContainsKey(snapshot.m_serverId)) {
+				gameObject = SpawnPlayer(snapshot);
+			} else {
+				gameObject = GetEntity(snapshot.m_serverId);
+				snapshot.Apply(ref gameObject);
+			}
+		}
+	}
 }

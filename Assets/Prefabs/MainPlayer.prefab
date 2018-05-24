@@ -21,7 +21,7 @@ GameObject:
   - component: {fileID: 4317550414155566}
   - component: {fileID: 23839749448051098}
   - component: {fileID: 33435757082666796}
-  - component: {fileID: 114616550101792588}
+  - component: {fileID: 114867688203251090}
   m_Layer: 0
   m_Name: Right Gun
   m_TagString: Untagged
@@ -58,7 +58,7 @@ GameObject:
   - component: {fileID: 4812697276763936}
   - component: {fileID: 23889384921968722}
   - component: {fileID: 33455975235252090}
-  - component: {fileID: 114883628246005362}
+  - component: {fileID: 114576776626995310}
   m_Layer: 0
   m_Name: Left Gun
   m_TagString: Untagged
@@ -74,11 +74,11 @@ GameObject:
   serializedVersion: 5
   m_Component:
   - component: {fileID: 4081526679641298}
+  - component: {fileID: 114980334339787406}
   - component: {fileID: 54164743666505150}
   - component: {fileID: 23977659315289620}
   - component: {fileID: 33767822876739220}
   - component: {fileID: 136210916523469550}
-  - component: {fileID: 114222489565478666}
   m_Layer: 0
   m_Name: MainPlayer
   m_TagString: Untagged
@@ -329,36 +329,7 @@ Behaviour:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 1244235348251670}
   m_Enabled: 1
---- !u!114 &114222489565478666
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1998137392989358}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6c3e8dfc089a4e848827b425fd6dd3d1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  horizontalCameraSensitivity_: 15
-  verticalCameraSensitivity_: 5
-  movementSpeed_: 5
-  primaryWeapon: {fileID: 1166999588452756}
---- !u!114 &114616550101792588
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1166999588452756}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e84d72cfbdce2f54db6ccc63f798295e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  bulletPrefab: {fileID: 1533964733570946, guid: a32b30edf37dc5047b96a5d9cf377c74,
-    type: 2}
-  bulletSpeed_: 10
---- !u!114 &114883628246005362
+--- !u!114 &114576776626995310
 MonoBehaviour:
   m_ObjectHideFlags: 1
   m_PrefabParentObject: {fileID: 0}
@@ -366,12 +337,41 @@ MonoBehaviour:
   m_GameObject: {fileID: 1959539394870592}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e84d72cfbdce2f54db6ccc63f798295e, type: 3}
+  m_Script: {fileID: 11500000, guid: b90862fe9aa30a04e85a1f40521e71be, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bulletPrefab: {fileID: 1533964733570946, guid: a32b30edf37dc5047b96a5d9cf377c74,
+  bulletPrefab: {fileID: 1533964733570946, guid: 20bd79850a7cb36439db1a92f22abc69,
     type: 2}
   bulletSpeed_: 10
+--- !u!114 &114867688203251090
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1166999588452756}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b90862fe9aa30a04e85a1f40521e71be, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  bulletPrefab: {fileID: 1533964733570946, guid: 20bd79850a7cb36439db1a92f22abc69,
+    type: 2}
+  bulletSpeed_: 10
+--- !u!114 &114980334339787406
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1998137392989358}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7ba77318b30ff1743929c30557675669, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  horizontalCameraSensitivity_: 15
+  verticalCameraSensitivity_: 5
+  movementSpeed_: 5
+  primaryWeapon: {fileID: 1166999588452756}
 --- !u!124 &124363502682661702
 Behaviour:
   m_ObjectHideFlags: 1

@@ -1,6 +1,5 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System.Text;
 
 namespace FpsClient {
 	// @doc Change MySnapshot to whatever Snapshot your game uses.
@@ -33,11 +32,14 @@ namespace FpsClient {
 		public delegate uint NewSeqnoDel();
 		public NewSeqnoDel m_newSeqno;
 
+		private int m_serverHash = 0;
+
 		void Start()
 		{
-			SetMultiplayerGame(m_game);
 			RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
-			InitUdp();
+			RegisterPacket(Netcode.PacketType.BULLET_SNAPSHOT, ProcessBulletSnapshot);
+
+			InitNetworking(m_game);
 
 			m_tick = new Netcode.PeriodicFunction(() => { }, 2f);
 			m_newSeqno = new NewSeqnoDel(GetSeqno);
@@ -47,26 +49,25 @@ namespace FpsClient {
         {
             DontDestroyOnLoad(this.gameObject);
         }
+
         public void SnapshotTick()
 		{
-			// @test 
+			uint newSeqno = m_newSeqno();
+
 			GameObject mainPlayer = m_game.GetMainPlayer();
-			MySnapshot snapshot = new MySnapshot(m_newSeqno(), m_game.ServerId, mainPlayer);
+			MySnapshot state = new MySnapshot(newSeqno, m_game.mainPlayerServerId, m_serverHash, mainPlayer);
+			m_snapshotHistory.PutSnapshot(state);
+			SendPacket(m_serverAddr, state);
 
-			m_snapshotHistory.PutSnapshot(snapshot);
+			Netcode.InputBit inputBits = m_game.GetInput();
+			Netcode.PlayerInput playerInput = new Netcode.PlayerInput(newSeqno, m_game.mainPlayerServerId, inputBits);
 
-			SendPacket(m_serverAddr, snapshot);
-			// @endtest 
+			SendPacket(m_serverAddr, playerInput);
 		}
 
 		void Update()
 		{
-			// Process the packets in the incoming queue.
-			while (m_mainWork.Count > 0) {
-				Netcode.MainThreadWork work = m_mainWork.Dequeue();
-				if (work != null)
-					work.Invoke();
-			}
+			ProcessPacketsInQueue();
 
 			// Send tick to server.
 			m_tick.Run();
@@ -76,6 +77,12 @@ namespace FpsClient {
 			foreach (byte[] packet in packetQueue) {
 				SendPacket(m_serverAddr, packet);
 			}
+		}
+
+		void ProcessBulletSnapshot(Netcode.ClientAddress clientAddress, byte[] buf)
+		{
+			Netcode.BulletSnapshot bulletSnapshot = Netcode.Serializer.Deserialize<Netcode.BulletSnapshot>(buf);
+			m_game.NetEvent(bulletSnapshot);
 		}
 
 		// @func ProcessSnapshot

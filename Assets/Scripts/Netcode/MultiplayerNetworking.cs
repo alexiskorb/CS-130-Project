@@ -16,20 +16,26 @@ namespace Netcode {
 		private Dictionary<PacketType, PacketHandler> m_packetCallbacks = new Dictionary<PacketType, PacketHandler>();
 		private IMultiplayerGame m_multiplayerGame;
 
-        public void SetMultiplayerGame(IMultiplayerGame multiplayerGame)
+		public void InitNetworking(IMultiplayerGame game, int portno = 0)
 		{
-			m_multiplayerGame = multiplayerGame;
-		}
-
-		public void InitUdp(int portno = 0)
-		{
+			m_multiplayerGame = game;
 			m_udp = new UdpClient(portno);
 			m_udp.BeginReceive(ReceiveCallback, m_udp);
 		}
 
+		public void ProcessPacketsInQueue()
+		{
+			// Process the packets in the incoming queue.
+			while (m_mainWork.Count > 0) {
+				Netcode.MainThreadWork work = m_mainWork.Dequeue();
+				if (work != null)
+					work.Invoke();
+			}
+		}
+
 		// @func ReceiveCallback
 		// @desc Asynchronous callback for receiving packets.
-		virtual public void ReceiveCallback(IAsyncResult asyncResult)
+		public void ReceiveCallback(IAsyncResult asyncResult)
 		{
 			IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
 			byte[] buf = m_udp.EndReceive(asyncResult, ref remoteEndPoint);

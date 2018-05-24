@@ -1,8 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 
-// @TODO Commands, reliable connect/disconnect
-
 namespace FpsServer {
 	// @alias Change MySnapshot to whatever Snapshot your game uses.
 	using MySnapshot = Netcode.Snapshot;
@@ -33,21 +31,17 @@ namespace FpsServer {
 
         void Start()
 		{
-			SetMultiplayerGame(m_game);
+			RegisterPacket(Netcode.PacketType.PLAYER_INPUT, ProcessPlayerInput);
 			RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
-			InitUdp(SERVER_PORT);
-            Debug.Log("Opened Server");
+
+			InitNetworking(m_game, SERVER_PORT);
 		}
 
 		// @func Update
 		// @desc Every update we do all the work in the work queue, then propagate updates to all connected clients.
 		void Update()
 		{
-			while (m_mainWork.Count > 0) {
-				Netcode.MainThreadWork work = m_mainWork.Dequeue();
-				if (work != null)
-					work.Invoke();
-			}
+			ProcessPacketsInQueue();
 
 			foreach (var client in m_clients) {
 				Netcode.SnapshotHistory<MySnapshot> history = client.Value;
@@ -71,16 +65,29 @@ namespace FpsServer {
             var packetsForClient = m_game.GetPacketsForClient();
             foreach (var packet in packetsForClient)
                 SendPacket(packet.m_clientAddr, packet.m_packet);
+
+			SendState<Bullet, Netcode.BulletSnapshot>();
 		}
 
-        public void OnEnable()
+		private void SendState<G, T>() where G : MonoBehaviour where T : Netcode.ISnapshot<T>, new()
+		{
+			var gameObjects = m_game.FindNetworkObjects<G>();
+			foreach (var gameObject in gameObjects) {
+				T playerState = new T();
+				playerState.Create(0, gameObject.GetInstanceID(), gameObject);
+				BroadcastPacket(playerState);
+			}
+		}
+
+		public void OnEnable()
         {
             DontDestroyOnLoad(this.gameObject);
         }
 
-        // @TODO
-        public void ProcessClientCmd()
+		public void ProcessPlayerInput(Netcode.ClientAddress clientAddr, byte[] buf)
 		{
+			Netcode.PlayerInput playerInput = Netcode.Serializer.Deserialize<Netcode.PlayerInput>(buf);
+			m_game.NetEvent(playerInput);
 		}
 
 		public void ProcessSnapshot(Netcode.ClientAddress clientAddr, byte[] buf)
@@ -106,10 +113,6 @@ namespace FpsServer {
 			foreach (var clientAddr in m_clients.Keys) {
 				SendPacket(clientAddr, buf);
 			}
-		}
-
-		void OnDestroy()
-		{
 		}
 
 		public void ServerLog(string message)

@@ -19,8 +19,8 @@ GameObject:
   serializedVersion: 5
   m_Component:
   - component: {fileID: 4262116079501616}
+  - component: {fileID: 114126861681318062}
   - component: {fileID: 23198581439855822}
-  - component: {fileID: 114131784549511164}
   - component: {fileID: 33979489472291514}
   - component: {fileID: 54526077154802902}
   m_Layer: 0
@@ -52,6 +52,7 @@ MeshRenderer:
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
@@ -67,6 +68,7 @@ MeshRenderer:
   m_PreserveUVs: 0
   m_IgnoreNormalsForChartDetection: 0
   m_ImportantGI: 0
+  m_StitchLightmapSeams: 0
   m_SelectedEditorRenderState: 3
   m_MinimumChartSize: 4
   m_AutoUVMaxDistance: 0.5
@@ -97,7 +99,7 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &114131784549511164
+--- !u!114 &114126861681318062
 MonoBehaviour:
   m_ObjectHideFlags: 1
   m_PrefabParentObject: {fileID: 0}
@@ -105,7 +107,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1533964733570946}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fed1397bcf94e9c4e894893fc7805e9b, type: 3}
+  m_Script: {fileID: 11500000, guid: 74b1e7d209120844aa6ccc1f38e503db, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifetime: 3
+  lifetime_: 3

@@ -49,7 +49,7 @@ namespace Netcode {
 		// @desc Returns the snapshot with the given seqno. 
 		// Unless the client is way ahead of the server - in which case
 		// the client would most likely already be disconnected - the seqnos should
-		// always match. 
+		// always match.
 		private T GetSnapshot(uint seqno)
 		{
 			T snapshot = m_snapshots[seqno % MAX_SNAPSHOTS];

@@ -24,8 +24,11 @@ namespace Netcode {
     // @desc Games should implement this interface in order to be alerted to network events. 
     public abstract class IMultiplayerGame : MonoBehaviour {
 		public abstract void NetEvent(Snapshot snapshot);
+		public abstract void NetEvent(BulletSnapshot bulletSnapshot);
+		public abstract void NetEvent(PlayerInput playerInput);
 		public abstract void NetEvent(ClientAddress clientAddr, PacketType packetType, byte[] buf);
 
+		private InputBit inputBits_ = 0; // Bitmask for buttons pressed. 
 		private Queue<byte[]> m_packetQueue = new Queue<byte[]>();
         private Queue<PacketForClient> m_packetQueueForClient = new Queue<PacketForClient>();
 
@@ -50,7 +53,19 @@ namespace Netcode {
             m_packetQueueForClient.Clear();
             return packetsForClient;
         }
-	
+
+		public void QueueInput(InputBit cmd)
+		{
+			inputBits_ |= cmd;
+		}
+
+		public InputBit GetInput()
+		{
+			InputBit inputBits = inputBits_;
+			inputBits_ &= 0;
+			return inputBits;
+		}
+
 		// @func RetrievePackets
 		// @desc Clears the packet queue and returns the packets. Used by the client to
 		// send game-related packets.
@@ -59,6 +74,22 @@ namespace Netcode {
 			Queue<byte[]> packetQueue = new Queue<byte[]>(m_packetQueue);
 			m_packetQueue.Clear();
 			return packetQueue;
+		}
+
+		// Finds all game objects in the scene with type T. 
+		public List<GameObject> FindNetworkObjects<T>() where T : MonoBehaviour
+		{
+			List<GameObject> networkObjects = new List<GameObject>();
+			var gos = Resources.FindObjectsOfTypeAll<T>();
+
+			foreach (var go in gos) {
+				if (go.hideFlags == HideFlags.None) {
+					networkObjects.Add(go.gameObject);
+					continue;
+				}
+			}
+
+			return networkObjects;
 		}
 	}
 
@@ -89,7 +120,7 @@ namespace Netcode {
 			m_type = PacketType.BULLET_SNAPSHOT;
 		}
 
-		public BulletSnapshot(uint seqno, int serverId, GameObject gameObject)
+		public BulletSnapshot(uint seqno, int serverId, int serverHash, GameObject gameObject)
 			: base(serverId, PacketType.BULLET_SNAPSHOT, seqno, gameObject) { }
 
 		public override void Apply(ref GameObject gameObject)
@@ -180,9 +211,9 @@ namespace Netcode {
         public string m_lobbyName;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
         public string m_playerName;
-        public LeaveLobby() : base(PacketType.LEAVE_LOBBY, 0) { }
+        public LeaveLobby() : base(PacketType.LEAVE_LOBBY) { }
         public LeaveLobby(string[] playerList, string lobbyName, string playerName)
-            : base(PacketType.LEAVE_LOBBY, 0)
+            : base(PacketType.LEAVE_LOBBY)
         {
             m_listOfPlayers = Serializer.Serialize(playerList);
             m_lobbyName = lobbyName;
@@ -220,12 +251,16 @@ namespace Netcode {
 	public class Snapshot : ISnapshot<Snapshot> {
 		public Vector3 m_position;
 		public Vector3 m_eulerAngles;
+		public int m_serverHash;
 
 		public Snapshot() { }
 		// @doc Constructor must take this form or you'll get compiler errors. 
 		// Static errors are better than runtime errors :)  
-		public Snapshot(uint seqno, int serverId, GameObject gameObject)
-			: base(serverId, PacketType.SNAPSHOT, seqno, gameObject) { }
+		public Snapshot(uint seqno, int serverId, int serverHash, GameObject gameObject)
+			: base(serverId, PacketType.SNAPSHOT, seqno, gameObject)
+		{
+			m_serverHash = serverHash;
+		}
 
 		public override void Apply(ref GameObject gameObject)
 		{
@@ -261,6 +296,14 @@ namespace Netcode {
 			m_serverId = serverId;
 			FromObject(gameObject);
 		}
+
+		public void Create(uint seqno, int serverId, GameObject gameObject)
+		{
+			m_seqno = seqno;
+			m_serverId = serverId;
+			FromObject(gameObject);
+		}
+
 		// @interface Equals
 		// @desc Performs an equality test. 
 		public abstract bool Equals(T other);

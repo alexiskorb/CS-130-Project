@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.37311992, g: 0.38074034, b: 0.35872713, a: 1}
+  m_IndirectSpecularColor: {r: 0.37311918, g: 0.3807398, b: 0.35872716, a: 1}
 --- !u!157 &3
 LightmapSettings:
   m_ObjectHideFlags: 0
@@ -181,9 +181,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f43a348e22e383e409d6401f22665b54, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  spawnPlayerPrefab: {fileID: 1868695881446178, guid: 09889cba0a2c90c45af25107be8023c0,
+  spawnPlayerPrefab: {fileID: 1868695881446178, guid: c9a5d70276cf59a4d880ce358d50e705,
     type: 2}
   m_server: {fileID: 51616473}
+  activeMatchPlayers: []
+  activeMatchName: 
+  activeHostIp: 
+  activeHostPort: 0
   gameSceneName: ServerMainScene
 --- !u!4 &1751232227
 Transform:
