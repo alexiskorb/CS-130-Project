@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +9,7 @@ namespace FpsClient {
     // @desc Simulates the game state on the client side. 
     public class GameClient : Game
     {
+        public int mainPlayerServerId;
         public FpsClient.Client m_client;
         public string gameSceneName = "MainScene";
         public string startingSceneName = "MainMenu";
@@ -70,6 +71,7 @@ namespace FpsClient {
             }
         }
 
+        public int count = 0;
         // Enforce singleton behavior
         void Awake()
         {
@@ -85,12 +87,31 @@ namespace FpsClient {
         }
 
       
-        public void Update() { }
+        public void Update() {  }
 
         public void OnEnable()
         {
             // Load into main menu at start of game
             SceneManager.LoadScene(startingSceneName);
+            SceneManager.sceneLoaded += OnSceneLoaded;
+
+        }
+        // Unsubscribe from sceneLoaded event
+        void OnDisable()
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+        }
+
+        // Used to call relevant functions after the scene loads since scene loads complete in the frame after they're called
+        void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name == gameSceneName)
+            {
+                Debug.Log("Main Player Instantiated");
+                GameObject gameObject = Instantiate(m_mainPlayer);
+                m_objects[mainPlayerServerId] = gameObject;
+                m_mainPlayer = gameObject;
+            }
         }
 
         // @func GetMainPlayer
@@ -104,6 +125,7 @@ namespace FpsClient {
         // @desc Spawns a new player with the given snapshot. 
         private GameObject SpawnPlayer(Netcode.Snapshot snapshot)
         {
+            Debug.Log("Spawning Player");
             GameObject gameObject = Instantiate(playerPrefab);
             snapshot.Apply(ref gameObject);
             m_objects[snapshot.m_serverId] = gameObject;
@@ -175,6 +197,7 @@ namespace FpsClient {
         public void SendJoinLobby()
         {
             Netcode.JoinLobby packet = new Netcode.JoinLobby(null, CurrentLobby, MainPlayerName);
+            Debug.Log(packet.m_type);
             QueuePacket(packet);
         }
 
@@ -182,19 +205,35 @@ namespace FpsClient {
         // @desc With the START_GAME packet, save the client's new ID, and IP/port of the match server to communicate with.
         public void ProcessStartGame(byte[] buf)
         {
+            Debug.Log("Received StartGame packet");
             Netcode.StartGame game = Netcode.Serializer.Deserialize<Netcode.StartGame>(buf);
             ServerId = game.m_serverId;
             MatchHostIp = game.m_hostIP;
             MatchHostPort = game.m_hostPort;
-            EnterMatch();
-            m_client.Tick = new Netcode.PeriodicFunction(m_client.SnapshotTick, 2f);
+            Debug.Log("Connecting to IP " + MatchHostIp + " at port " + MatchHostPort);
+            EnterMatch(ServerId);
+
+            //These two functions makes the client send its snapshots periodically to the server.
+            m_client.Tick = new Netcode.PeriodicFunction(m_client.SnapshotTick, 0);
+            m_client.m_newSeqno = m_client.NewSeqno;
         }
         // @func SendStartGame
         // @desc Tell the server to start the match. Called by the UI.
         public void SendStartGame()
         {
+            Debug.Log("Sending StartGame packet");
             Netcode.StartGame packet = new Netcode.StartGame(CurrentLobby);
             QueuePacket(packet);
+        }
+
+        // @func EnterMatch
+        // @desc Loads the scene for the match. After it loads, OnSceneLoaded will be called,
+        // where the player is spawned.
+        public void EnterMatch(int serverId)
+        {
+            Debug.Log("Loading Game Scene");
+            mainPlayerServerId = serverId;
+            SceneManager.LoadScene(gameSceneName);
         }
 
         // @func CreateLobby
@@ -214,9 +253,5 @@ namespace FpsClient {
 
         }
 
-        public void EnterMatch()
-        {
-            SceneManager.LoadScene(gameSceneName);
-        }
     }
 }

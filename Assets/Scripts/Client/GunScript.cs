@@ -10,10 +10,10 @@ public class GunScript : MonoBehaviour {
 
     // Use this for initialization
     void Start () {
-		if(SteamManager.Initialized) {
+		/* if(SteamManager.Initialized) {
 			string name = SteamFriends.GetPersonaName();
 			Debug.Log(name);
-		}
+		}*/
 	}
 	
 	// Update is called once per frame

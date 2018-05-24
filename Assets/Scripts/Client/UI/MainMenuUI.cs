@@ -56,6 +56,7 @@ public class MainMenuUI : MonoBehaviour {
     public void StartMatch()
     {
         FpsClient.GameClient.Instance.SendStartGame();
+        startMatchMenu.enabled = false;
     }
 
     // Create a match
@@ -122,12 +123,11 @@ public class MainMenuUI : MonoBehaviour {
     // Return to main menu
     public void ReturnToMainMenu()
     {
-        /* TODO
-        FpsClient.GameClient.Instance.LeaveMatchLobby();
+        // Need to Implement LeaveMatchLobby
+        //FpsClient.GameClient.Instance.LeaveMatchLobby();
         joinMatchMenu.GetComponent<JoinMatchUI>().ResetMenu();
         createMatchMenu.GetComponent<CreateMatchUI>().ResetMenu();
         ShowMainMenu();
-        */
     }
 
 

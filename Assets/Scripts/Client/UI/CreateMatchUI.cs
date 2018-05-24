@@ -46,5 +46,4 @@ public class CreateMatchUI : MonoBehaviour {
         matchNameInput.GetComponent<InputField>().text = "";
         createMatchError.SetActive(false);
     }
-
 }

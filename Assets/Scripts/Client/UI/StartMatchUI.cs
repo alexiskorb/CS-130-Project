@@ -18,7 +18,6 @@ public class StartMatchUI : MonoBehaviour {
     private bool steamFriendsListActive = false;
     private Dictionary<string, GameObject> steamFriendsObjects;
 
-
     // Use this for initialization
     void Start () {
         m_playerLobbyText = playerLobbyName.GetComponent<Text>();
@@ -33,7 +32,6 @@ public class StartMatchUI : MonoBehaviour {
 
         // Update player lobby text
         m_playerLobbyText.text = "";
-
         foreach (string playerID in FpsClient.GameClient.Instance.LobbyPlayers)
         {
             m_playerLobbyText.text += playerID + "\n";

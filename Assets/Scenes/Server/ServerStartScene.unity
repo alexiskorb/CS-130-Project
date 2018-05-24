@@ -184,7 +184,7 @@ MonoBehaviour:
   spawnPlayerPrefab: {fileID: 1868695881446178, guid: 09889cba0a2c90c45af25107be8023c0,
     type: 2}
   m_server: {fileID: 51616473}
-  gameSceneName: MainScene
+  gameSceneName: ServerMainScene
 --- !u!4 &1751232227
 Transform:
   m_ObjectHideFlags: 0
