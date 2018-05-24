@@ -2,6 +2,7 @@ using UnityEngine;
 using System;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
+
 // @namespace Netcode
 // @desc Netcode contains the packet data structures used by the client and server. 
 // All packets must have a default constructor in order for serialization to work. 
@@ -42,14 +43,6 @@ namespace Netcode {
             byte[] buf = Serializer.Serialize(packet);
             m_packetQueueForClient.Enqueue(new PacketForClient(clientAddr, buf));
         }
-/*
-        public void QueuePacket(ClientAddress clientAddr, CreateLobby packet)
-        {
-             //int lobbyNameSize 
-             //int playerNameSize = 
-             //byte[] buf = new byte[pa]
-        }
-        */
 
         public Queue<PacketForClient> GetPacketsForClient()
         {
@@ -75,15 +68,61 @@ namespace Netcode {
 		JOIN_LOBBY,
 		START_GAME,
 		SNAPSHOT,
-		COMMAND,
+		BULLET_SNAPSHOT,
+		PLAYER_INPUT,
 	}
 
-	// @doc Consider naming commands after actions and not key presses
-	// to leave open the possibility for client's having alternate key bindings. 
-	public enum CmdType {
-		FORWARD, BACKWARD,
-		LEFT, RIGHT,
-		PRIMARY_WEAPON,
+	public enum InputBit : int {
+		BEGIN = 0,
+		PRIMARY_WEAPON = 1 << 0,
+		END
+	}
+
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+	public class BulletSnapshot : ISnapshot<BulletSnapshot> {
+		public Vector3 position_;
+		public Vector3 eulerAngles_;
+
+		public BulletSnapshot()
+		{
+			m_type = PacketType.BULLET_SNAPSHOT;
+		}
+
+		public BulletSnapshot(uint seqno, int serverId, GameObject gameObject)
+			: base(serverId, PacketType.BULLET_SNAPSHOT, seqno, gameObject) { }
+
+		public override void Apply(ref GameObject gameObject)
+		{
+			gameObject.transform.position = position_;
+			gameObject.transform.eulerAngles = eulerAngles_;
+		}
+
+		public override void FromObject(GameObject gameObject)
+		{
+			position_ = gameObject.transform.position;
+			eulerAngles_ = gameObject.transform.eulerAngles;
+		}
+
+		public override bool Equals(BulletSnapshot other)
+		{
+			return (position_ == other.position_) &&
+				(eulerAngles_ == other.eulerAngles_);
+		}
+	}
+
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+	public class PlayerInput : Packet {
+		public int serverId_;
+		public uint seqno_;
+		public InputBit cmdBits_;
+		public PlayerInput() { }
+		public PlayerInput(uint seqno, int serverId, InputBit cmdBits)
+			: base(PacketType.PLAYER_INPUT)
+		{
+			seqno_ = seqno;
+			serverId_ = serverId;
+			cmdBits_ = cmdBits;
+		}
 	}
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -92,9 +131,9 @@ namespace Netcode {
         public string m_lobbyName;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
         public string m_hostPlayerName;
-		public CreateLobby() : base(PacketType.CREATE_LOBBY, 0) { }
+		public CreateLobby() : base(PacketType.CREATE_LOBBY) { }
 		public CreateLobby(string lobbyname, string hostPlayerName)
-			: base(PacketType.CREATE_LOBBY, 0)
+			: base(PacketType.CREATE_LOBBY)
 		{
 			m_lobbyName = lobbyname;
 			m_hostPlayerName = hostPlayerName;
@@ -105,9 +144,9 @@ namespace Netcode {
 	public class RefreshLobbyList : Packet {
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
         public string m_listOfGames;
-		public RefreshLobbyList() : base(PacketType.REFRESH_LOBBY_LIST, 0) { }
+		public RefreshLobbyList() : base(PacketType.REFRESH_LOBBY_LIST) { }
 		public RefreshLobbyList(string[] listOfGames)
-			: base(PacketType.REFRESH_LOBBY_LIST, 0)
+			: base(PacketType.REFRESH_LOBBY_LIST)
 		{
 			m_listOfGames = Serializer.Serialize(listOfGames);
 		}
@@ -121,9 +160,9 @@ namespace Netcode {
         public string m_lobbyName;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
         public string m_playerName;
-		public JoinLobby() : base(PacketType.JOIN_LOBBY, 0) { }
+		public JoinLobby() : base(PacketType.JOIN_LOBBY) { }
 		public JoinLobby(string[] playerList, string lobbyName, string playerName)
-			: base(PacketType.JOIN_LOBBY, 0)
+			: base(PacketType.JOIN_LOBBY)
 		{
             m_listOfPlayers = Serializer.Serialize(playerList);
             m_lobbyName = lobbyName;
@@ -140,14 +179,14 @@ namespace Netcode {
         public int m_hostPort;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
         public string m_matchName;
-        public StartGame() : base(PacketType.START_GAME, 0) { }
+        public StartGame() : base(PacketType.START_GAME) { }
 		public StartGame(string lobbyName)
-            : base(PacketType.START_GAME, 0)
+            : base(PacketType.START_GAME)
         {
             m_matchName = lobbyName;
         }
 		public StartGame(string lobbyName, int serverId, string hostIP, int hostPort)
-			: base(PacketType.START_GAME, 0)
+			: base(PacketType.START_GAME)
 		{
             m_matchName = lobbyName;
 			m_serverId = serverId;
@@ -174,7 +213,7 @@ namespace Netcode {
 			gameObject.transform.eulerAngles = m_eulerAngles;
 		}
 
-		public override void FromPlayer(GameObject gameObject)
+		public override void FromObject(GameObject gameObject)
 		{
 			m_position = gameObject.transform.position;
 			m_eulerAngles = gameObject.transform.eulerAngles;
@@ -192,19 +231,22 @@ namespace Netcode {
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public abstract class ISnapshot<T> : Packet {
 		public int m_serverId;
+		public uint m_seqno;
+
 		public ISnapshot() { }
 		public ISnapshot(int serverId, PacketType type, uint seqno, GameObject gameObject)
-			: base(type, seqno)
+			: base(type)
 		{
+			m_seqno = seqno;
 			m_serverId = serverId;
-			FromPlayer(gameObject);
+			FromObject(gameObject);
 		}
 		// @interface Equals
 		// @desc Performs an equality test. 
 		public abstract bool Equals(T other);
-		// @interface FromPlayer
+		// @interface FromObject
 		// @desc Initialize the snapshot with a Game Object.
-		public abstract void FromPlayer(GameObject gameObject);
+		public abstract void FromObject(GameObject gameObject);
 		// @interface Apply
 		// @desc Applies the snapshot to the Game Object.
 		public abstract void Apply(ref GameObject gameObject);
@@ -217,25 +259,11 @@ namespace Netcode {
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class Packet {
 		public PacketType m_type;
-		public uint m_seqno;
 
 		public Packet() { }
-		public Packet(PacketType type, uint seqno)
+		public Packet(PacketType type)
 		{
 			m_type = type;
-			m_seqno = seqno;
-		}
-	}
-
-	[StructLayout(LayoutKind.Sequential, Pack = 1)]
-	public class CmdPacket : Packet {
-		public CmdType m_cmd;
-
-		public CmdPacket() { }
-		public CmdPacket(uint seqno, CmdType cmd)
-			: base(PacketType.COMMAND, seqno)
-		{
-			m_cmd = cmd;
 		}
 	}
 

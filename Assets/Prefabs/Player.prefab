@@ -21,6 +21,7 @@ GameObject:
   - component: {fileID: 4893973643734624}
   - component: {fileID: 23836566396565826}
   - component: {fileID: 33261236388355186}
+  - component: {fileID: 114171598912146392}
   m_Layer: 0
   m_Name: Left Gun
   m_TagString: Untagged
@@ -38,6 +39,7 @@ GameObject:
   - component: {fileID: 4293384253227338}
   - component: {fileID: 23965478883665912}
   - component: {fileID: 33654535281983806}
+  - component: {fileID: 114654736849212674}
   m_Layer: 0
   m_Name: Right Gun
   m_TagString: Untagged
@@ -56,8 +58,7 @@ GameObject:
   - component: {fileID: 54526772445389234}
   - component: {fileID: 23815984118200702}
   - component: {fileID: 33571652866257542}
-  - component: {fileID: 114586732417469798}
-  - component: {fileID: 114168068980729974}
+  - component: {fileID: 114760813960940310}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -244,7 +245,35 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &114168068980729974
+--- !u!114 &114171598912146392
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1054606939013384}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e84d72cfbdce2f54db6ccc63f798295e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  bulletPrefab: {fileID: 1533964733570946, guid: a32b30edf37dc5047b96a5d9cf377c74,
+    type: 2}
+  bulletSpeed_: 10
+--- !u!114 &114654736849212674
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1260376075693218}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e84d72cfbdce2f54db6ccc63f798295e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  bulletPrefab: {fileID: 1533964733570946, guid: a32b30edf37dc5047b96a5d9cf377c74,
+    type: 2}
+  bulletSpeed_: 10
+--- !u!114 &114760813960940310
 MonoBehaviour:
   m_ObjectHideFlags: 1
   m_PrefabParentObject: {fileID: 0}
@@ -252,42 +281,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 1868695881446178}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 83d6ca1ece2ae3044834e480bf7e6374, type: 3}
+  m_Script: {fileID: 11500000, guid: 1ebeb50a6d49b3b4d89932e9c718d832, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  isMainPlayer: 0
-  moveSpeed: 5
-  horizontalCameraSensitivity: 15
-  verticalCameraSensitivity: 5
---- !u!114 &114586732417469798
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1868695881446178}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 372142912, guid: dc443db3e92b4983b9738c1131f555cb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_SceneId:
-    m_Value: 0
-  m_AssetId:
-    i0: 9
-    i1: 136
-    i2: 156
-    i3: 186
-    i4: 10
-    i5: 44
-    i6: 144
-    i7: 196
-    i8: 90
-    i9: 242
-    i10: 81
-    i11: 7
-    i12: 190
-    i13: 128
-    i14: 35
-    i15: 192
-  m_ServerOnly: 0
-  m_LocalPlayerAuthority: 0
+  movementSpeed_: 5
+  primaryWeapon: {fileID: 1260376075693218}

@@ -136,7 +136,7 @@ public class MainMenuUI : MonoBehaviour {
     {
         steamJoinMatchCanvas.enabled = true;
         // Presumably, you'll change this text based on the user doing the invite
-        steamJoinMatchCanvas.GetComponent<SteamJoinMatchUI>().SetMatchText("User XXXX would like you to to invite you to a match:");
+        //steamJoinMatchCanvas.GetComponent<SteamJoinMatchUI>().SetMatchText("User XXXX would like you to to invite you to a match:");
     }
 
     // MELODIE: TODO

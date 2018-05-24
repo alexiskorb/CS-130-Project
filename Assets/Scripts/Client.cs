@@ -19,8 +19,6 @@ namespace FpsClient {
 		public Netcode.ClientAddress m_serverAddr = new Netcode.ClientAddress(MASTER_SERVER_IP, MASTER_SERVER_PORT);
 		// The client-side game logic.
 		public GameClient m_game;
-		// Queue of client commands. 
-		private Queue<Netcode.CmdType> m_cmdQueue = new Queue<Netcode.CmdType>();
 		// Client snapshots. 
 		private Netcode.SnapshotHistory<MySnapshot> m_snapshotHistory = new Netcode.SnapshotHistory<MySnapshot>();
 		// The tick function sends client commands at the specified tick rate.
