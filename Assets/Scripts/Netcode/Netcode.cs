@@ -102,6 +102,7 @@ namespace Netcode {
 		SNAPSHOT,
 		BULLET_SNAPSHOT,
 		PLAYER_INPUT,
+		INVITE_PLAYER
 	}
 
 	public enum InputBit : int {
@@ -243,6 +244,25 @@ namespace Netcode {
 			m_serverId = serverId;
             m_hostIP = hostIP;
             m_hostPort = hostPort;
+		}
+	}
+
+
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+	public class InvitePlayer : Packet {
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+		public string m_lobbyName;
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+		public string m_hostSteamName;
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+		public string m_invitedSteamName;
+		public InvitePlayer() : base(PacketType.INVITE_PLAYER) { }
+		public InvitePlayer(string lobbyname, string hostSteamName, string invitedSteamName)
+			: base(PacketType.INVITE_PLAYER)
+		{
+			m_lobbyName = lobbyname;
+			m_hostSteamName = hostSteamName;
+			m_invitedSteamName = invitedSteamName;
 		}
 	}
 

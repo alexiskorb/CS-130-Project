@@ -79,6 +79,9 @@ namespace FpsServer {
                 case Netcode.PacketType.START_GAME:
                     ProcessStartGame(buf);
                     break;
+				case Netcode.PacketType.INVITE_PLAYER:
+					ProcessInvitePlayer (buf);
+					break;
             }
         }
 
@@ -180,6 +183,28 @@ namespace FpsServer {
             activeMatchName = matchName;
             EnterMatch();
         }
+
+		// @func ProcessInvitePlayer
+		// @desc A client wants to invite another player to join their existing lobby. Find the player based on their
+		// name and send them a packet with the lobby information and the source of the invite.
+		public void ProcessInvitePlayer(byte[] buf)
+		{
+			Debug.Log("Received InvitePlayer packet");
+			Netcode.InvitePlayer invitation = Netcode.Serializer.Deserialize<Netcode.InvitePlayer>(buf);
+			if(m_listOfMatches.ContainsKey(invitation.m_lobbyName))
+			{
+				if (m_clientAddresses.ContainsKey(invitation.m_invitedSteamName))
+				{
+					SendInvitePlayer (invitation.m_lobbyName, invitation.m_hostSteamName, invitation.m_invitedSteamName);
+				}
+			}
+		}
+		public void SendInvitePlayer(string lobbyName, string hostPlayer, string invitedPlayer)
+		{
+			Debug.Log("Sending InvitePlayer packet");
+			Netcode.InvitePlayer packet = new Netcode.InvitePlayer(lobbyName, hostPlayer, invitedPlayer);
+			QueuePacket(m_clientAddresses[invitedPlayer], packet);
+		}
 
         //********************************
         //This will be called by the server running the instance of the match

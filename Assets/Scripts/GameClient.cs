@@ -28,7 +28,7 @@ namespace FpsClient {
         //Prefabs for players 
         public GameObject playerPrefab;
 		public GameObject bulletPrefab;
-        public GameObject m_mainPlayer;
+		public GameObject m_mainPlayer;
 		private List<GameInput> input_ = new List<GameInput>();
 		// The server ID of the main player.
 		public int ServerId { get; set; }
@@ -208,6 +208,9 @@ namespace FpsClient {
                 case Netcode.PacketType.START_GAME:
                     ProcessStartGame(buf);
                     break;
+				case Netcode.PacketType.INVITE_PLAYER:
+					ProcessInvitePlayer (buf);
+					break;
             }
         }
 
@@ -243,6 +246,23 @@ namespace FpsClient {
             Debug.Log(packet.m_type);
             QueuePacket(packet);
         }
+
+		// @func ProcessInvitePlayer
+		// @desc Server will send a INVITE_PLAYER packet when another player asks to invite 
+		public void ProcessInvitePlayer(byte[] buf)
+		{
+			Debug.Log("Receieved InvitePlayer packet");
+			Netcode.InvitePlayer invitation = Netcode.Serializer.Deserialize<Netcode.InvitePlayer>(buf);
+			//TODO: trigger the popup UI to display invitation
+			string text = invitation.m_hostSteamName + " has invited you to join a match with them.";
+			SteamJoinMatchUI.Instance.SetMatchText(text);
+		}
+		public void SendInvitePlayer(string invitedPlayer)
+		{
+			Netcode.InvitePlayer packet = new Netcode.InvitePlayer (CurrentLobby, MainPlayerName, invitedPlayer);
+			Debug.Log (packet.m_type);
+			QueuePacket (packet);
+		}
 
         // @func ProcessStartGame
         // @desc With the START_GAME packet, save the client's new ID, and IP/port of the match server to communicate with.
