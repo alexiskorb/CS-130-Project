@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using Steamworks;
 
 public class StartMatchUI : MonoBehaviour {
 
@@ -16,6 +17,7 @@ public class StartMatchUI : MonoBehaviour {
     private Text m_playerLobbyText;
 
     private bool steamFriendsListActive = false;
+	private Dictionary<string, EPersonaState> steamFriendsStates = new Dictionary<string, EPersonaState>();
     private Dictionary<string, GameObject> steamFriendsObjects;
 
     // Use this for initialization
@@ -23,6 +25,24 @@ public class StartMatchUI : MonoBehaviour {
         m_playerLobbyText = playerLobbyName.GetComponent<Text>();
         steamFriendsObjects = new Dictionary<string, GameObject>();
         HideSteamFriendsList();
+
+		if (SteamManager.Initialized) {
+			string name = SteamFriends.GetPersonaName ();
+			Debug.Log (name);
+		} else {
+			//TODO: handle error when Steamworks isn't working/Steam Manager didn't get initialized
+		}
+
+		int friendCount = SteamFriends.GetFriendCount(EFriendFlags.k_EFriendFlagImmediate);
+		for (int i = 0; i < friendCount; ++i) {
+			CSteamID friendSteamId = SteamFriends.GetFriendByIndex(i, EFriendFlags.k_EFriendFlagImmediate);
+			string friendName = SteamFriends.GetFriendPersonaName(friendSteamId);
+			EPersonaState friendState = SteamFriends.GetFriendPersonaState(friendSteamId);
+
+			Debug.Log ("Friend " + friendName + " is " + friendState);
+			//Add friend and their current state to the dictionary
+			steamFriendsStates.Add (friendName, friendState);
+		}
     }
 
     void Update ()
@@ -42,11 +62,16 @@ public class StartMatchUI : MonoBehaviour {
         {
             // MELODIE: TOOD
             // Get list of steam friends from the client
-            List<string> steamFriends = new List<string> { "friend1", "friend2", "friend3", "friend4" };  // TEMP CODE
+			List<string> steamFriends = new List<string>(steamFriendsStates.Keys);
 
             // Add in new friends
             foreach (string friend in steamFriends)
             {
+				//if the friend is not online or looking to play, don't display them
+				if (steamFriendsStates [friend] != EPersonaState.k_EPersonaStateOnline && steamFriendsStates [friend] != EPersonaState.k_EPersonaStateLookingToPlay)
+					continue;
+
+				//otherwise, display them in the list of friends to invite
                 if (!steamFriendsObjects.ContainsKey(friend))
                 {
                     GameObject steamFriendButton = (GameObject)Instantiate(steamFriendButtonPrefab);
@@ -88,11 +113,25 @@ public class StartMatchUI : MonoBehaviour {
         steamFriendsLobbyElement.SetActive(false);
         steamFriendsListActive = false;
     }
-
-    // MELODIE: TODO
+		
     public void RefreshSteamFriends()
     {
-        Debug.Log("Refresh friends");
+		//get all the friend names and states again
+		int friendCount = SteamFriends.GetFriendCount(EFriendFlags.k_EFriendFlagImmediate);
+		for (int i = 0; i < friendCount; ++i) {
+			CSteamID friendSteamId = SteamFriends.GetFriendByIndex(i, EFriendFlags.k_EFriendFlagImmediate);
+			string friendName = SteamFriends.GetFriendPersonaName(friendSteamId);
+			EPersonaState friendState = SteamFriends.GetFriendPersonaState(friendSteamId);
+
+			//if the friend is already stored, update their state
+			if (steamFriendsStates.ContainsKey(friendName)){
+				steamFriendsStates[friendName] = friendState;
+			}
+			//if the friend + their state is not already stored, add them to the dictionary
+			else {
+				steamFriendsStates.Add (friendName, friendState);
+			}
+		}
     }
 
     // MELODIE: TODO
