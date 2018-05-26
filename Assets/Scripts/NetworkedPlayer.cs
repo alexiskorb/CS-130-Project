@@ -18,30 +18,64 @@ public class InputCallbacks {
 }
 
 public class NetworkedPlayer : MonoBehaviour {
-	public float horizontalCameraSensitivity_ = 15f;
-	public float verticalCameraSensitivity_ = 5f;
-	public float movementSpeed_ = 5;
-	public GameObject primaryWeapon;
-	protected Rigidbody rigidbody_;
-	private InputCallbacks commandCallbacks_ = new InputCallbacks();
+    public float horizontalCameraSensitivity_ = 15f;
+    public float verticalCameraSensitivity_ = 5f;
+    public float movementSpeed_ = 5;
+    public float lostLifeBufferTime = 1f;
+    public GameObject primaryWeapon;
+    public Canvas displayUI;
+    public int maxLife = 5;
+    private int m_currentLife = 5;
+    private float m_timeSinceLifeLost = 0f;
+    protected Rigidbody rigidbody_;
+    private InputCallbacks commandCallbacks_ = new InputCallbacks();
 
-	public void Start()
-	{
-		rigidbody_ = GetComponent<Rigidbody>();
-		commandCallbacks_.Add(Netcode.InputBit.PRIMARY_WEAPON, FireWeapon);
-	}
+    public void Start()
+    {
+        rigidbody_ = GetComponent<Rigidbody>();
+        commandCallbacks_.Add(Netcode.InputBit.PRIMARY_WEAPON, FireWeapon);
+        displayUI.GetComponentInChildren<PlayerDisplay>().SetMaxLife(maxLife);
+    }
 
-	public void TakeCommands(Netcode.InputBit cmd)
-	{
-		for (int i = 0; i < (int)Netcode.InputBit.END; i++)
-			commandCallbacks_.Call(((Netcode.InputBit)((int)cmd & (1 << i))));
-	}
+    public void Update()
+    {
+        m_timeSinceLifeLost += Time.deltaTime;
+    }
 
-	public void FireWeapon()
+    public void TakeCommands(Netcode.InputBit cmd)
+    {
+        for (int i = 0; i < (int)Netcode.InputBit.END; i++)
+            commandCallbacks_.Call(((Netcode.InputBit)((int)cmd & (1 << i))));
+    }
+
+    public int CurrentLife
+    {
+        get { return m_currentLife; }
+        set
+        {
+            m_currentLife = value;
+            displayUI.GetComponentInChildren<PlayerDisplay>().SetCurrentLife(m_currentLife);
+        }
+    }
+
+    void OnTriggerEnter(Collider col)
+    {
+        if (col.gameObject.tag == "bullet")
+        {
+            //Destroy(col.gameObject);
+            if (m_timeSinceLifeLost > lostLifeBufferTime)
+            {
+                CurrentLife = (CurrentLife + 5) % 6;
+                m_timeSinceLifeLost = 0f;
+            }
+        }
+    }
+
+        public void FireWeapon()
 	{
 		Gun gun = primaryWeapon.GetComponent<Gun>();
 		gun.Fire();
-	}
+    }
 
 	public void Move(float verticalAxis, float horizontalAxis, float mouseX, float mouseY)
 	{

@@ -252,6 +252,7 @@ namespace Netcode {
 		public Vector3 m_position;
 		public Vector3 m_eulerAngles;
 		public int m_serverHash;
+        public int m_currentLives;
 
 		public Snapshot() { }
 		// @doc Constructor must take this form or you'll get compiler errors. 
@@ -266,18 +267,22 @@ namespace Netcode {
 		{
 			gameObject.transform.position = m_position;
 			gameObject.transform.eulerAngles = m_eulerAngles;
-		}
+            gameObject.GetComponentInChildren<NetworkedPlayer>().CurrentLife = m_currentLives;
+
+        }
 
 		public override void FromObject(GameObject gameObject)
 		{
 			m_position = gameObject.transform.position;
 			m_eulerAngles = gameObject.transform.eulerAngles;
-		}
+            m_currentLives = gameObject.GetComponentInChildren<NetworkedPlayer>().CurrentLife;
+        }
 
 		public override bool Equals(Snapshot other)
 		{
 			return (m_position == other.m_position) &&
-				(m_eulerAngles == other.m_eulerAngles);
+				(m_eulerAngles == other.m_eulerAngles) &&
+                (m_currentLives == other.m_currentLives);
 		}
 	}
 
