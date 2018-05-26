@@ -11,7 +11,7 @@ public class SteamJoinMatchUI : MonoBehaviour {
 	// Singleton instance of the GameClient.
 	private static SteamJoinMatchUI m_instance = null;
 
-	// Get instance of the GameClient. 
+	// Get instance of the SteamJoinMatchUI. 
 	public static SteamJoinMatchUI Instance
 	{
 		get

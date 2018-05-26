@@ -60,7 +60,6 @@ public class StartMatchUI : MonoBehaviour {
         // Update steam friends list
         if (steamFriendsListActive)
         {
-            // MELODIE: TOOD
             // Get list of steam friends from the client
 			List<string> steamFriends = new List<string>(steamFriendsStates.Keys);
 

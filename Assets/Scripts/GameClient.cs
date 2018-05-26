@@ -25,6 +25,9 @@ namespace FpsClient {
         public string gameSceneName = "MainScene";
         public string startingSceneName = "MainMenu";
 
+		//used for Steam invites
+		public string m_invitedLobby = "";
+
         //Prefabs for players 
         public GameObject playerPrefab;
 		public GameObject bulletPrefab;
@@ -246,6 +249,14 @@ namespace FpsClient {
             Debug.Log(packet.m_type);
             QueuePacket(packet);
         }
+		// @func SendJoinLobbyFromInvite
+		// @desc Request the server to join the lobby that the player was invited to. This is called by the UI.
+		public void SendJoinLobbyFromInvite()
+		{
+			Netcode.JoinLobby packet = new Netcode.JoinLobby(null, m_invitedLobby, MainPlayerName);
+			Debug.Log(packet.m_type);
+			QueuePacket(packet);
+		}
 
 		// @func ProcessInvitePlayer
 		// @desc Server will send a INVITE_PLAYER packet when another player asks to invite 
@@ -253,9 +264,10 @@ namespace FpsClient {
 		{
 			Debug.Log("Receieved InvitePlayer packet");
 			Netcode.InvitePlayer invitation = Netcode.Serializer.Deserialize<Netcode.InvitePlayer>(buf);
-			//TODO: trigger the popup UI to display invitation
-			string text = invitation.m_hostSteamName + " has invited you to join a match with them.";
+			string text = "User " + invitation.m_hostSteamName + " has invited you to join a match with them.";
 			SteamJoinMatchUI.Instance.SetMatchText(text);
+			MainMenuUI.Instance.OpenSteamJoinMatchPopup ();
+			m_invitedLobby = invitation.m_lobbyName;
 		}
 		public void SendInvitePlayer(string invitedPlayer)
 		{

@@ -13,8 +13,28 @@ public class MainMenuUI : MonoBehaviour {
     public Canvas joinMatchMenu;
     public Canvas steamJoinMatchCanvas;
 
+	private static MainMenuUI m_instance = null;
     private bool m_isMatchCreator = true;
     private bool m_inMatchLobby = false;
+
+	public static MainMenuUI Instance
+	{
+		get
+		{
+			if (m_instance == null)
+			{
+				m_instance = FindObjectOfType<MainMenuUI>();
+				if (m_instance == null)
+				{
+					GameObject gm = new GameObject();
+					gm.name = "MainMenuUI";
+					m_instance = gm.AddComponent<MainMenuUI>();
+					DontDestroyOnLoad(gm);
+				}
+			}
+			return m_instance;
+		}
+	}
 
     // Use this for initialization
     void Start()
@@ -96,7 +116,25 @@ public class MainMenuUI : MonoBehaviour {
     // Join a lobby from the Steam join match invite
     public void JoinLobbyFromInvite()
     {
-        // Called by popup menu join button
+		if (FpsClient.GameClient.Instance.NamesSet())
+		{
+			m_isMatchCreator = false;
+			FpsClient.GameClient.Instance.SendJoinLobbyFromInvite();
+			ShowStartMatchMenu();
+		}
+		else
+		{
+			joinMatchMenu.GetComponent<JoinMatchUI>().ShowJoinMatchError();
+		}
+		/* TODO: Possibly handle lobby joining failure
+        if ()
+        {
+        }
+        else
+        {
+            joinMatchMenu.GetComponent<JoinMatchUI>().ShowJoinMatchError();
+        }
+        */
     }
    
 
@@ -129,19 +167,17 @@ public class MainMenuUI : MonoBehaviour {
     }
 
 
-    // MELODIE: TODO
+    // Called by GameClient when an invite arrives from the server
     public void OpenSteamJoinMatchPopup()
     {
         steamJoinMatchCanvas.enabled = true;
-        // Presumably, you'll change this text based on the user doing the invite
-        //steamJoinMatchCanvas.GetComponent<SteamJoinMatchUI>().SetMatchText("User XXXX would like you to to invite you to a match:");
     }
 
-    // MELODIE: TODO
+    // Rejects invitation, just close menu and reset GameClient's invitedLobby to empty
     public void CloseSteamJoinMatchPopup()
-    {
-        // Called by popup menu decline button
+	{
         steamJoinMatchCanvas.enabled = false;
+		FpsClient.GameClient.Instance.m_invitedLobby = "";
     }
 
 
