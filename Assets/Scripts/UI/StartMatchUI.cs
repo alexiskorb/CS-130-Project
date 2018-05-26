@@ -15,6 +15,7 @@ public class StartMatchUI : MonoBehaviour {
     public GameObject steamFriendButtonPrefab;
 
     private Text m_playerLobbyText;
+	private string m_playerSteamName;
 
     private bool steamFriendsListActive = false;
 	private Dictionary<string, EPersonaState> steamFriendsStates = new Dictionary<string, EPersonaState>();
@@ -27,8 +28,8 @@ public class StartMatchUI : MonoBehaviour {
         HideSteamFriendsList();
 
 		if (SteamManager.Initialized) {
-			string name = SteamFriends.GetPersonaName ();
-			Debug.Log (name);
+			m_playerSteamName = SteamFriends.GetPersonaName ();
+			Debug.Log (m_playerSteamName);
 		} else {
 			//TODO: handle error when Steamworks isn't working/Steam Manager didn't get initialized
 		}
@@ -39,7 +40,6 @@ public class StartMatchUI : MonoBehaviour {
 			string friendName = SteamFriends.GetFriendPersonaName(friendSteamId);
 			EPersonaState friendState = SteamFriends.GetFriendPersonaState(friendSteamId);
 
-			Debug.Log ("Friend " + friendName + " is " + friendState);
 			//Add friend and their current state to the dictionary
 			steamFriendsStates.Add (friendName, friendState);
 		}
@@ -83,6 +83,18 @@ public class StartMatchUI : MonoBehaviour {
                     steamFriendsObjects.Add(friend, steamFriendButton);
                 }
             }
+
+			//TODO: for testing, display player's own steam name so they can invite themselves and hopefully receive a popup
+			if (!steamFriendsObjects.ContainsKey(m_playerSteamName))
+			{
+				GameObject steamFriendButton = (GameObject)Instantiate(steamFriendButtonPrefab);
+				steamFriendButton.transform.SetParent(steamFriendsLobby.transform);
+				Button inviteButton = steamFriendButton.GetComponentInChildren<Button>();
+				inviteButton.onClick.AddListener(() => { InviteSteamFriend(m_playerSteamName); });
+				Text matchText = steamFriendButton.GetComponentInChildren<Text>();
+				matchText.text = m_playerSteamName;
+				steamFriendsObjects.Add(m_playerSteamName, steamFriendButton);
+			}
 
             // Delete old friends
             List<string> steamFriendsObjectsKeys = new List<string>(steamFriendsObjects.Keys);
@@ -137,6 +149,7 @@ public class StartMatchUI : MonoBehaviour {
     // MELODIE: TODO
     public void InviteSteamFriend(string friend)
     {
-        Debug.Log("Invite " + friend);
+		FpsClient.GameClient.Instance.SendInvitePlayer (friend);
+		Debug.Log("Invite " + friend);
     }
 }
