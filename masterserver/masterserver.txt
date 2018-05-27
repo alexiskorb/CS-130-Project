@@ -29,13 +29,16 @@ Masterserver Interface
 	- updates masterservers' playerlist for specified lobby
 - get list of servers
 	- pslis
-	- masterserver sends back packet with just'ip:port'
+	- masterserver sends back packet with 'servername:servername:servername:'
 - get list of lobbies on server
 	- pllis
 	- masterserver sends back packet with '[lobbyname:][lobbyname:]' (there is a : after every lobbyname, even last)
 - join lobby
 	- pjoin [username]:[servername]:[lobbyname]
+	- add username to specified lobby, masterserver sends pack 'ip:port'
 - quit lobby
+	- pquit [username]
+	- notifies masterserver that user has left the lobby they were in
 
 -------------------------------------------------------------
 -------------------------------------------------------------
