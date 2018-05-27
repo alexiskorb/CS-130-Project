@@ -25,7 +25,8 @@ namespace Netcode {
     public abstract class IMultiplayerGame : MonoBehaviour {
 		public abstract void NetEvent(Snapshot snapshot);
 		public abstract void NetEvent(BulletSnapshot bulletSnapshot);
-		public abstract void NetEvent(PlayerInput playerInput);
+        public abstract void NetEvent(PlayerSnapshot playerSnapshot);
+        public abstract void NetEvent(PlayerInput playerInput);
 		public abstract void NetEvent(ClientAddress clientAddr, PacketType packetType, byte[] buf);
 
 		private InputBit inputBits_ = 0; // Bitmask for buttons pressed. 
@@ -101,6 +102,7 @@ namespace Netcode {
 		START_GAME,
 		SNAPSHOT,
 		BULLET_SNAPSHOT,
+        PLAYER_SNAPSHOT,
 		PLAYER_INPUT,
 		INVITE_PLAYER
 	}
@@ -143,7 +145,36 @@ namespace Netcode {
 		}
 	}
 
-	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public class PlayerSnapshot : ISnapshot<PlayerSnapshot>
+    {
+        public int m_currentLife;
+
+        public PlayerSnapshot()
+        {
+            m_type = PacketType.PLAYER_SNAPSHOT;
+        }
+
+        public PlayerSnapshot(uint seqno, int serverId, int serverHash, GameObject gameObject)
+            : base(serverId, PacketType.PLAYER_SNAPSHOT, seqno, gameObject) { }
+
+        public override void Apply(ref GameObject gameObject)
+        {
+            gameObject.GetComponentInChildren<NetworkedPlayer>().CurrentLife = m_currentLife;
+        }
+
+        public override void FromObject(GameObject gameObject)
+        {
+            m_currentLife = gameObject.GetComponentInChildren<NetworkedPlayer>().CurrentLife;
+        }
+
+        public override bool Equals(PlayerSnapshot other)
+        {
+            return (m_currentLife == other.m_currentLife);
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class PlayerInput : Packet {
 		public int serverId_;
 		public uint seqno_;
@@ -272,7 +303,6 @@ namespace Netcode {
 		public Vector3 m_position;
 		public Vector3 m_eulerAngles;
 		public int m_serverHash;
-        public int m_currentLives;
 
 		public Snapshot() { }
 		// @doc Constructor must take this form or you'll get compiler errors. 
@@ -287,22 +317,19 @@ namespace Netcode {
 		{
 			gameObject.transform.position = m_position;
 			gameObject.transform.eulerAngles = m_eulerAngles;
-            gameObject.GetComponentInChildren<NetworkedPlayer>().CurrentLife = m_currentLives;
-
+       
         }
 
 		public override void FromObject(GameObject gameObject)
 		{
 			m_position = gameObject.transform.position;
 			m_eulerAngles = gameObject.transform.eulerAngles;
-            m_currentLives = gameObject.GetComponentInChildren<NetworkedPlayer>().CurrentLife;
         }
 
 		public override bool Equals(Snapshot other)
 		{
-			return (m_position == other.m_position) &&
-				(m_eulerAngles == other.m_eulerAngles) &&
-                (m_currentLives == other.m_currentLives);
+            return (m_position == other.m_position) &&
+                (m_eulerAngles == other.m_eulerAngles);
 		}
 	}
 

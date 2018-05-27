@@ -38,6 +38,7 @@ namespace FpsClient {
 		{
 			RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
 			RegisterPacket(Netcode.PacketType.BULLET_SNAPSHOT, ProcessBulletSnapshot);
+            RegisterPacket(Netcode.PacketType.PLAYER_SNAPSHOT, ProcessPlayerSnapshot);
 
 			InitNetworking(m_game);
 
@@ -85,10 +86,16 @@ namespace FpsClient {
 			m_game.NetEvent(bulletSnapshot);
 		}
 
-		// @func ProcessSnapshot
-		// @desc If the snapshot was intended for the main player, and the client and 
-		// server are in agreement, the Network Event is ignored.
-		void ProcessSnapshot(Netcode.ClientAddress clientAddr, byte[] buf)
+        void ProcessPlayerSnapshot(Netcode.ClientAddress clientAddress, byte[] buf)
+        {
+            Netcode.PlayerSnapshot playerSnapshot = Netcode.Serializer.Deserialize<Netcode.PlayerSnapshot>(buf);
+            m_game.NetEvent(playerSnapshot);
+        }
+
+        // @func ProcessSnapshot
+        // @desc If the snapshot was intended for the main player, and the client and 
+        // server are in agreement, the Network Event is ignored.
+        void ProcessSnapshot(Netcode.ClientAddress clientAddr, byte[] buf)
 		{
 			MySnapshot snapshot = Netcode.Serializer.Deserialize<MySnapshot>(buf);
 

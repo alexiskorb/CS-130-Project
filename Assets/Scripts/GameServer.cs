@@ -250,6 +250,11 @@ namespace FpsServer {
 		{
 			throw new System.NotImplementedException();
 		}
-	}
+
+        public override void NetEvent(Netcode.PlayerSnapshot player)
+        {
+            throw new System.NotImplementedException();
+        }
+    }
 }
 

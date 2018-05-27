@@ -373,9 +373,20 @@ namespace FpsClient {
 			}
 		}
 
-		// @func NetEvent.Snapshot
-		// @desc If this is called, the game has received a snapshot. 
-		public override void NetEvent(Netcode.Snapshot snapshot)
+        public override void NetEvent(Netcode.PlayerSnapshot player)
+        {
+            GameObject gameObject;
+
+            if (m_objects.ContainsKey(player.m_serverId))
+            {
+                gameObject = GetEntity(player.m_serverId);
+                player.Apply(ref gameObject);
+            }
+        }
+
+        // @func NetEvent.Snapshot
+        // @desc If this is called, the game has received a snapshot. 
+        public override void NetEvent(Netcode.Snapshot snapshot)
 		{
 			GameObject gameObject;
 

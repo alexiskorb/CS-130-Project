@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 
 namespace FpsServer {
@@ -67,6 +67,7 @@ namespace FpsServer {
                 SendPacket(packet.m_clientAddr, packet.m_packet);
 
 			SendState<Bullet, Netcode.BulletSnapshot>();
+            SendState<NetworkedPlayer, Netcode.PlayerSnapshot>();
 		}
 
 		private void SendState<G, T>() where G : MonoBehaviour where T : Netcode.ISnapshot<T>, new()
