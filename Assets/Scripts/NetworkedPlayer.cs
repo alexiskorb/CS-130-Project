@@ -22,6 +22,7 @@ public class NetworkedPlayer : MonoBehaviour {
     public float verticalCameraSensitivity_ = 5f;
     public float movementSpeed_ = 5;
     public float lostLifeBufferTime = 1f;
+    public GameObject verticalRotationParent;
     public GameObject primaryWeapon;
     public Canvas displayUI;
     public int maxLife = 5;
@@ -79,11 +80,12 @@ public class NetworkedPlayer : MonoBehaviour {
 
 	public void Move(float verticalAxis, float horizontalAxis, float mouseX, float mouseY)
 	{
-		float xRotation = transform.eulerAngles.x;
+		float xRotation = verticalRotationParent.transform.eulerAngles.x;
 		float yRotation = transform.eulerAngles.y;
 		xRotation -= verticalCameraSensitivity_ * mouseY;
 		yRotation -= horizontalCameraSensitivity_ * mouseX;
-		transform.eulerAngles = new Vector3(xRotation, yRotation, 0);
+		transform.eulerAngles = new Vector3(0, yRotation, 0);
+        verticalRotationParent.transform.eulerAngles = new Vector3(xRotation, yRotation, 0);
 
 		ChangeVelocity(verticalAxis, horizontalAxis);
 	}

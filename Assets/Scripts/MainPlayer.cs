@@ -1,6 +1,7 @@
-﻿using UnityEngine;
+using UnityEngine;
 
-public class MainPlayer : NetworkedPlayer { 
+public class MainPlayer : NetworkedPlayer {
+
 	new void Start()
 	{
 		base.Start();
