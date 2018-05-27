@@ -5,11 +5,11 @@ using UnityEngine.UI;
 
 public class JoinMatchUI : MonoBehaviour {
 
-    public GameObject playerNameInput;
+    public GameObject playerNameText;
     public GameObject joinMatchError;
     public GameObject matchLobby;
     public GameObject matchButtonPrefab;
-    public GameObject matchTextPrefab;
+    public GameObject inputPlayerNameText;
 
 
     private Dictionary<string, GameObject> openMatchTexts;
@@ -19,7 +19,8 @@ public class JoinMatchUI : MonoBehaviour {
     {
         joinMatchError.SetActive(false);
         openMatchTexts = new Dictionary<string, GameObject>();
-	}
+        playerNameText.GetComponent<Text>().text = FpsClient.GameClient.Instance.MainPlayerName;
+    }
 
     // Update is called once per frame
     void Update ()
@@ -59,12 +60,6 @@ public class JoinMatchUI : MonoBehaviour {
         FpsClient.GameClient.Instance.SendRefreshLobbyList();
     }
 
-    public void SubmitMainPlayerName()
-    {
-        string name = playerNameInput.GetComponent<InputField>().text;
-        FpsClient.GameClient.Instance.MainPlayerName = name;
-    }
-
     public void SubmitMatchName(string name)
     {
         FpsClient.GameClient.Instance.CurrentLobby = name;
@@ -77,7 +72,11 @@ public class JoinMatchUI : MonoBehaviour {
 
     public void ResetMenu()
     {
-        playerNameInput.GetComponent<InputField>().text = "";
         joinMatchError.SetActive(false);
+    }
+
+    public void SubmitPlayerName()
+    {
+        FpsClient.GameClient.Instance.MainPlayerName = inputPlayerNameText.GetComponent<Text>().text;
     }
 }

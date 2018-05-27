@@ -27,12 +27,8 @@ public class StartMatchUI : MonoBehaviour {
         steamFriendsObjects = new Dictionary<string, GameObject>();
         HideSteamFriendsList();
 
-		if (SteamManager.Initialized) {
-			m_playerSteamName = SteamFriends.GetPersonaName ();
-			Debug.Log (m_playerSteamName);
-		} else {
-			//TODO: handle error when Steamworks isn't working/Steam Manager didn't get initialized
-		}
+
+        m_playerSteamName = FpsClient.GameClient.Instance.MainPlayerName;
 
 		int friendCount = SteamFriends.GetFriendCount(EFriendFlags.k_EFriendFlagImmediate);
 		for (int i = 0; i < friendCount; ++i) {

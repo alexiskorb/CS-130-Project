@@ -1,3 +1,4 @@
+using Steamworks;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -12,6 +13,7 @@ public class MainMenuUI : MonoBehaviour {
     public Canvas startMatchMenu;
     public Canvas joinMatchMenu;
     public Canvas steamJoinMatchCanvas;
+    public Canvas steamInitializationErrorCanvas;
 
 	private static MainMenuUI m_instance = null;
     private bool m_isMatchCreator = true;
@@ -41,6 +43,16 @@ public class MainMenuUI : MonoBehaviour {
     {
         ShowMainMenu();
         m_inMatchLobby = false;
+
+        // Check if Steam Initialized
+        if (SteamManager.Initialized)
+        {
+            steamInitializationErrorCanvas.enabled = false;
+        }
+        else
+        {
+            steamInitializationErrorCanvas.enabled = false;
+        }
     }
 
     void Update()

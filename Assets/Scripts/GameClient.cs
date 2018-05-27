@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine.SceneManagement;
 using System.Text.RegularExpressions;
+using Steamworks;
 
 namespace FpsClient {
 	struct GameInput {
@@ -40,14 +41,7 @@ namespace FpsClient {
         public string MainPlayerName
         {
             get { return m_mainPlayerName;  }
-            set
-            {
-                Regex alphanumericRegex = new Regex("^[a-zA-Z0-9]*$");
-                if (value != "" && alphanumericRegex.IsMatch(value))
-                {
-                    m_mainPlayerName = value;
-                }
-            }
+            set { m_mainPlayerName = value; }
         }
         //String name of the lobby the main player is in
         private string m_currentLobby = "";
@@ -123,12 +117,25 @@ namespace FpsClient {
             {
                 Destroy(gameObject);
             }
+
         }
 
 		private void Start()
 		{
 			input_.Add(new GameInput(KeyCode.Mouse0, Netcode.InputBit.PRIMARY_WEAPON));
-		}
+
+            // Initialize Steam Name
+            if (SteamManager.Initialized)
+            {
+                string playerSteamName = SteamFriends.GetPersonaName();
+                Debug.Log(playerSteamName);
+                m_mainPlayerName = playerSteamName;
+            }
+            else
+            {
+                // Possibly handle steam initialization error
+            }
+        }
 
 		public void Update()
 		{
@@ -339,7 +346,6 @@ namespace FpsClient {
             Debug.Log("Sending leave lobby packet");
             Netcode.LeaveLobby packet = new Netcode.LeaveLobby(null, CurrentLobby, MainPlayerName);
             QueuePacket(packet);
-            m_mainPlayerName = "";
             m_currentLobby = "";
         }
 

@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 public class CreateMatchUI : MonoBehaviour {
 
-    public GameObject playerNameInput;
+    public GameObject playerNameText;
     public GameObject matchNameInput;
     public GameObject createMatchError;
 
@@ -15,18 +15,12 @@ public class CreateMatchUI : MonoBehaviour {
     void Start ()
     {
         createMatchError.SetActive(false);
+        playerNameText.GetComponent<Text>().text = FpsClient.GameClient.Instance.MainPlayerName;
     }
 	
 	// Update is called once per frame
 	void Update ()
     {
-		
-	}
-
-    public void SubmitMainPlayerName()
-    {
-        string name = playerNameInput.GetComponent<InputField>().text;
-        FpsClient.GameClient.Instance.MainPlayerName = name;
     }
 
     public void SubmitMatchName()
@@ -42,7 +36,6 @@ public class CreateMatchUI : MonoBehaviour {
 
     public void ResetMenu()
     {
-        playerNameInput.GetComponent<InputField>().text = "";
         matchNameInput.GetComponent<InputField>().text = "";
         createMatchError.SetActive(false);
     }
