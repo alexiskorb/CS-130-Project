@@ -5,20 +5,23 @@ namespace Netcode {
 	// @desc Maintains the client's history of snapshots for client-side prediction and delta compression. 
 	public class SnapshotHistory<T> where T : ISnapshot<T>, new() {
 		public static uint CLIENT_TIMEOUT = 5;
-		private static uint MAX_SNAPSHOTS = 10;
 
-		private T[] m_snapshots = new T[MAX_SNAPSHOTS];
+		private uint m_predictionBufSize;
+		private T[] m_snapshots;
 		private uint m_seqno = 0;
 		private float m_timeSinceLastAck = 0f;
-
-		public SnapshotHistory()
+		
+		public SnapshotHistory(uint predictionBufSize)
 		{
+			m_predictionBufSize = predictionBufSize;
+			m_snapshots = new T[predictionBufSize];
 			PutSnapshot(new T());
 		}
 
-		public SnapshotHistory(T initialPlayerState)
+		public SnapshotHistory(uint predictionBufSize, T initialPlayerState)
 		{
-			m_seqno = initialPlayerState.m_seqno;
+			m_predictionBufSize = predictionBufSize;
+			m_snapshots = new T[predictionBufSize];
 			PutSnapshot(initialPlayerState);
 		}
 
@@ -42,7 +45,7 @@ namespace Netcode {
 			m_timeSinceLastAck = 0f;
 			if (snapshot.m_seqno > m_seqno)
 				m_seqno = snapshot.m_seqno;
-			m_snapshots[snapshot.m_seqno % MAX_SNAPSHOTS] = snapshot;
+			m_snapshots[snapshot.m_seqno % m_snapshots.Length] = snapshot;
 		}
 
 		// @func GetSnapshot
@@ -52,7 +55,7 @@ namespace Netcode {
 		// always match.
 		private T GetSnapshot(uint seqno)
 		{
-			T snapshot = m_snapshots[seqno % MAX_SNAPSHOTS];
+			T snapshot = m_snapshots[seqno % m_predictionBufSize];
 			if (snapshot.m_seqno != seqno)
 				Debug.Log("<SnapshotHistory> Seqnos don't match.");
 			return snapshot;
@@ -84,7 +87,7 @@ namespace Netcode {
 		// @desc Gets the index into the circular buffer of the most recent snapshot.
 		private uint GetSnapshotIndex()
 		{
-			return GetSeqno() % MAX_SNAPSHOTS;
+			return GetSeqno() % m_predictionBufSize;
 		}
 	}
 }

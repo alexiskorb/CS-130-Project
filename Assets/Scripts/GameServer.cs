@@ -9,7 +9,8 @@ namespace FpsServer {
 	// The game objects on the server side are hashed by their Unity instance IDs. 
 	public class GameServer : Game {
 		public GameObject spawnPlayerPrefab;
-        private Dictionary<string, List<string>> m_listOfMatches = new Dictionary<string, List<string>>();
+		public uint PREDICTION_BUFFER_SIZE = 20;
+		private Dictionary<string, List<string>> m_listOfMatches = new Dictionary<string, List<string>>();
         private Dictionary<string, Netcode.ClientAddress> m_clientAddresses= new Dictionary<string, Netcode.ClientAddress>();
         public Server m_server;
         public List<string> activeMatchPlayers = new List<string>();
@@ -40,7 +41,7 @@ namespace FpsServer {
                 Netcode.ClientAddress clientAddress = m_clientAddresses[client];
                 int serverId = SpawnPlayer();
                 m_server.ServerIds[clientAddress] = serverId;
-                m_server.Clients[clientAddress] = new Netcode.SnapshotHistory<Netcode.Snapshot>();
+                m_server.Clients[clientAddress] = new Netcode.SnapshotHistory<Netcode.Snapshot>(PREDICTION_BUFFER_SIZE);
                 Netcode.StartGame game = new Netcode.StartGame(activeMatchName, serverId, activeHostIp, activeHostPort);
                 QueuePacket(clientAddress, game);
             }

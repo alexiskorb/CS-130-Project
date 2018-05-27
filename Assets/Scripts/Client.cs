@@ -10,16 +10,16 @@ namespace FpsClient {
 	public class Client : Netcode.MultiplayerNetworking {
 		public const string MASTER_SERVER_IP = "127.0.0.1";
 		public const int MASTER_SERVER_PORT = 9001;
+		public uint PREDICTION_BUFFER_SIZE = 20;
+		public float TICK_RATE = 0f; // The rate in seconds at which updates are sent to the server.
 
-		// The rate at which updates are sent to the server. 
-		public const float TICK_RATE = 0f;
 		// Address of the server. Initially, we talk to the master server. The server address changes to the 
 		// game server that the master connects us to.
 		public Netcode.ClientAddress m_serverAddr = new Netcode.ClientAddress(MASTER_SERVER_IP, MASTER_SERVER_PORT);
 		// The client-side game logic.
 		public GameClient m_game;
 		// Client snapshots. 
-		private Netcode.SnapshotHistory<MySnapshot> m_snapshotHistory = new Netcode.SnapshotHistory<MySnapshot>();
+		private Netcode.SnapshotHistory<MySnapshot> m_snapshotHistory;
 		// The tick function sends client commands at the specified tick rate.
 		private Netcode.PeriodicFunction m_tick;
         public Netcode.PeriodicFunction Tick
@@ -39,11 +39,18 @@ namespace FpsClient {
 			RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
 			RegisterPacket(Netcode.PacketType.BULLET_SNAPSHOT, ProcessBulletSnapshot);
             RegisterPacket(Netcode.PacketType.PLAYER_SNAPSHOT, ProcessPlayerSnapshot);
-
 			InitNetworking(m_game);
 
-			m_tick = new Netcode.PeriodicFunction(() => { }, 2f);
+			m_tick = new Netcode.PeriodicFunction(() => { }, 0f);
 			m_newSeqno = new NewSeqnoDel(GetSeqno);
+			m_snapshotHistory = new Netcode.SnapshotHistory<MySnapshot>(PREDICTION_BUFFER_SIZE);
+		}
+
+
+		public void BeginSnapshots()
+		{
+			Tick = new Netcode.PeriodicFunction(SnapshotTick, TICK_RATE);
+			m_newSeqno = NewSeqno;
 		}
 
         public void OnEnable()
@@ -101,7 +108,7 @@ namespace FpsClient {
 
 			if (snapshot.m_serverId == m_game.ServerId) {
 				if (!m_snapshotHistory.Reconcile(snapshot)) {
-					ClientLog("Client is out of sync with the server -- reconciling");
+					Debug.Log("Client is out of sync with the server -- reconciling");
 					m_game.NetEvent(snapshot);
 				}
 			} else
@@ -121,11 +128,6 @@ namespace FpsClient {
 		uint GetSeqno()
 		{
 			return m_seqno;
-		}
-
-		void ClientLog(string message)
-		{
-			Debug.Log("<Client> " + message);
 		}
 
 		// @func ShouldDiscard

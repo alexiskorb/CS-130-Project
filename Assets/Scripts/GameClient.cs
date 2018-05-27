@@ -295,9 +295,7 @@ namespace FpsClient {
             Debug.Log("Connecting to IP " + MatchHostIp + " at port " + MatchHostPort);
             EnterMatch(ServerId);
 
-            //These two functions makes the client send its snapshots periodically to the server.
-            m_client.Tick = new Netcode.PeriodicFunction(m_client.SnapshotTick, 0);
-            m_client.m_newSeqno = m_client.NewSeqno;
+			m_client.BeginSnapshots();
         }
         // @func SendStartGame
         // @desc Tell the server to start the match. Called by the UI.
@@ -361,7 +359,6 @@ namespace FpsClient {
 		{
 			throw new System.NotImplementedException();
 		}
-
 
 		public override void NetEvent(Netcode.BulletSnapshot bullet)
 		{

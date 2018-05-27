@@ -43,7 +43,6 @@ namespace Netcode {
 
         public void QueuePacket<T>(ClientAddress clientAddr, T packet) where T : Packet
         {
-            Debug.Log("Sending packet type: " + packet.m_type);
             byte[] buf = Serializer.Serialize(packet);
             m_packetQueueForClient.Enqueue(new PacketForClient(clientAddr, buf));
         }
@@ -67,7 +66,7 @@ namespace Netcode {
 			return inputBits;
 		}
 
-		// @func RetrievePackets
+		// @func GetPacketQueue
 		// @desc Clears the packet queue and returns the packets. Used by the client to
 		// send game-related packets.
 		public Queue<byte[]> GetPacketQueue()
@@ -77,7 +76,8 @@ namespace Netcode {
 			return packetQueue;
 		}
 
-		// Finds all game objects in the scene with type T. 
+		// @func FindNetworkObjects
+		// @desc Finds all game objects in the scene with type T. 
 		public List<GameObject> FindNetworkObjects<T>() where T : MonoBehaviour
 		{
 			List<GameObject> networkObjects = new List<GameObject>();

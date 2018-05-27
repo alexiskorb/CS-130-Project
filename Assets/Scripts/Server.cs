@@ -14,6 +14,10 @@ namespace FpsServer {
 	public class Server : Netcode.MultiplayerNetworking {
 		private const int SERVER_PORT = 9001;
 
+		public uint PREDICTION_BUFFER_SIZE = 20;
+		public float TICK_RATE = 0f;
+		public bool m_enablePerformanceLog = true;
+
 		// The server-side game manager.
 		public GameServer m_game;
 		// Snapshots sent by all clients. 
@@ -29,20 +33,38 @@ namespace FpsServer {
             get { return m_serverIds; }
         }
 
+		private Netcode.PeriodicFunction m_tick;
+
+		private System.TimeSpan timeProcessingPackets;
+
         void Start()
 		{
 			RegisterPacket(Netcode.PacketType.PLAYER_INPUT, ProcessPlayerInput);
 			RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
-
 			InitNetworking(m_game, SERVER_PORT);
+
+			m_tick = new Netcode.PeriodicFunction(MainServerLoop, TICK_RATE);
 		}
 
 		// @func Update
 		// @desc Every update we do all the work in the work queue, then propagate updates to all connected clients.
 		void Update()
 		{
-			ProcessPacketsInQueue();
+			if (m_enablePerformanceLog) {
+				Debug.Log("% time spent processing packets: " + (timeProcessingPackets.Milliseconds / (Time.deltaTime * 1000)));
+				var watch = System.Diagnostics.Stopwatch.StartNew();
+				ProcessPacketsInQueue();
+				watch.Stop();
+				timeProcessingPackets = watch.Elapsed;
+			} else {
+				ProcessPacketsInQueue();
+			}
 
+			m_tick.Run();
+		}
+
+		private void MainServerLoop()
+		{
 			foreach (var client in m_clients) {
 				Netcode.SnapshotHistory<MySnapshot> history = client.Value;
 				Netcode.ClientAddress clientAddr = client.Key;
@@ -50,7 +72,7 @@ namespace FpsServer {
 				history.IncrTimeSinceLastAck(Time.deltaTime);
 
 				if (history.GetTimeSinceLastAck() >= Netcode.SnapshotHistory<MySnapshot>.CLIENT_TIMEOUT) {
-					ServerLog("Disconnecting Client. " + clientAddr.Print());
+					Debug.Log("Disconnecting Client. " + clientAddr.Print());
 					break;
 				}
 
@@ -58,16 +80,16 @@ namespace FpsServer {
 				BroadcastPacket(snapshot);
 			}
 
-            var packetQueue = m_game.GetPacketQueue();
-            foreach (var packet in packetQueue)
-                BroadcastPacket(packet);
+			var packetQueue = m_game.GetPacketQueue();
+			foreach (var packet in packetQueue)
+				BroadcastPacket(packet);
 
-            var packetsForClient = m_game.GetPacketsForClient();
-            foreach (var packet in packetsForClient)
-                SendPacket(packet.m_clientAddr, packet.m_packet);
+			var packetsForClient = m_game.GetPacketsForClient();
+			foreach (var packet in packetsForClient)
+				SendPacket(packet.m_clientAddr, packet.m_packet);
 
 			SendState<Bullet, Netcode.BulletSnapshot>();
-            SendState<NetworkedPlayer, Netcode.PlayerSnapshot>();
+			SendState<NetworkedPlayer, Netcode.PlayerSnapshot>();
 		}
 
 		private void SendState<G, T>() where G : MonoBehaviour where T : Netcode.ISnapshot<T>, new()
@@ -98,7 +120,7 @@ namespace FpsServer {
 
 			// Check the seqno, discarding old snapshots.
 			if (snapshot.m_seqno < history.GetSeqno()) {
-				ServerLog("Snapshot with seqno " + snapshot.m_seqno + " was received out of order.");
+				Debug.Log("Snapshot with seqno " + snapshot.m_seqno + " was received out of order.");
 				return;
 			}
 
@@ -114,11 +136,6 @@ namespace FpsServer {
 			foreach (var clientAddr in m_clients.Keys) {
 				SendPacket(clientAddr, buf);
 			}
-		}
-
-		public void ServerLog(string message)
-		{
-			Debug.Log("<Server> " + message);
 		}
 
 		public override bool ShouldDiscard(Netcode.ClientAddress clientAddr, Netcode.Packet header)
