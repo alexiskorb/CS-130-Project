@@ -302,7 +302,8 @@ namespace Netcode {
 	public class Snapshot : ISnapshot<Snapshot> {
 		public Vector3 m_position;
 		public Vector3 m_eulerAngles;
-		public int m_serverHash;
+        public Vector3 m_childEulerAngles;
+        public int m_serverHash;
 
 		public Snapshot() { }
 		// @doc Constructor must take this form or you'll get compiler errors. 
@@ -317,19 +318,27 @@ namespace Netcode {
 		{
 			gameObject.transform.position = m_position;
 			gameObject.transform.eulerAngles = m_eulerAngles;
-       
+            if(gameObject.transform.GetChild(0) != null)
+            {
+                gameObject.transform.GetChild(0).eulerAngles = m_childEulerAngles;
+            }
         }
 
 		public override void FromObject(GameObject gameObject)
 		{
 			m_position = gameObject.transform.position;
 			m_eulerAngles = gameObject.transform.eulerAngles;
+            if (gameObject.transform.GetChild(0) != null)
+            {
+                m_childEulerAngles = gameObject.transform.GetChild(0).eulerAngles;
+            }
         }
 
 		public override bool Equals(Snapshot other)
 		{
             return (m_position == other.m_position) &&
-                (m_eulerAngles == other.m_eulerAngles);
+                (m_eulerAngles == other.m_eulerAngles) &&
+                (m_childEulerAngles== other.m_childEulerAngles);
 		}
 	}
 

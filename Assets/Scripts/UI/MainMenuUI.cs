@@ -51,7 +51,7 @@ public class MainMenuUI : MonoBehaviour {
         }
         else
         {
-            steamInitializationErrorCanvas.enabled = false;
+            steamInitializationErrorCanvas.enabled = true;
         }
     }
 
