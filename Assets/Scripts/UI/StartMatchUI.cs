@@ -6,7 +6,10 @@ using Steamworks;
 
 public class StartMatchUI : MonoBehaviour {
 
-    public GameObject matchName;
+	//Change this to be the app id of your game, matching that in steam_appid
+	public static CGameID APP_ID = (CGameID) 480;
+
+	public GameObject matchName;
     public GameObject playerLobbyName;
     public GameObject playerLobby;
     public GameObject inviteSteamFriendsButton;
@@ -19,6 +22,7 @@ public class StartMatchUI : MonoBehaviour {
 
     private bool steamFriendsListActive = false;
 	private Dictionary<string, EPersonaState> steamFriendsStates = new Dictionary<string, EPersonaState>();
+	private Dictionary<string, CSteamID> steamFriendsIDs = new Dictionary<string, CSteamID> ();
     private Dictionary<string, GameObject> steamFriendsObjects;
 
     // Use this for initialization
@@ -26,7 +30,6 @@ public class StartMatchUI : MonoBehaviour {
         m_playerLobbyText = playerLobbyName.GetComponent<Text>();
         steamFriendsObjects = new Dictionary<string, GameObject>();
         HideSteamFriendsList();
-
 
         m_playerSteamName = FpsClient.GameClient.Instance.MainPlayerName;
 
@@ -38,6 +41,7 @@ public class StartMatchUI : MonoBehaviour {
 
 			//Add friend and their current state to the dictionary
 			steamFriendsStates.Add (friendName, friendState);
+			steamFriendsIDs.Add (friendName, friendSteamId);
 		}
     }
 
@@ -66,6 +70,19 @@ public class StartMatchUI : MonoBehaviour {
 				if (steamFriendsStates [friend] != EPersonaState.k_EPersonaStateOnline && steamFriendsStates [friend] != EPersonaState.k_EPersonaStateLookingToPlay)
 					continue;
 
+				//if the friend is not currently playing this game, don't display them
+				FriendGameInfo_t pFriendGameInfo = new FriendGameInfo_t();
+				if (SteamFriends.GetFriendGamePlayed(steamFriendsIDs[friend], out pFriendGameInfo))
+				{
+					Debug.Log ("Game Info: " + pFriendGameInfo.m_gameID);
+					//if the friend is playing a game other than this game, don't display them
+					if (pFriendGameInfo.m_gameID != APP_ID)
+						continue;
+				}
+				//friend is not in game, don't display
+				else 
+					continue;
+
 				//otherwise, display them in the list of friends to invite
                 if (!steamFriendsObjects.ContainsKey(friend))
                 {
@@ -78,18 +95,6 @@ public class StartMatchUI : MonoBehaviour {
                     steamFriendsObjects.Add(friend, steamFriendButton);
                 }
             }
-
-			//TODO: for testing, display player's own steam name so they can invite themselves and hopefully receive a popup
-			if (!steamFriendsObjects.ContainsKey(m_playerSteamName))
-			{
-				GameObject steamFriendButton = (GameObject)Instantiate(steamFriendButtonPrefab);
-				steamFriendButton.transform.SetParent(steamFriendsLobby.transform);
-				Button inviteButton = steamFriendButton.GetComponentInChildren<Button>();
-				inviteButton.onClick.AddListener(() => { InviteSteamFriend(m_playerSteamName); });
-				Text matchText = steamFriendButton.GetComponentInChildren<Text>();
-				matchText.text = m_playerSteamName;
-				steamFriendsObjects.Add(m_playerSteamName, steamFriendButton);
-			}
 
             // Delete old friends
             List<string> steamFriendsObjectsKeys = new List<string>(steamFriendsObjects.Keys);
@@ -138,10 +143,19 @@ public class StartMatchUI : MonoBehaviour {
 			else {
 				steamFriendsStates.Add (friendName, friendState);
 			}
+
+			//if the friend is already stored, update their CSteamID
+			if (steamFriendsIDs.ContainsKey(friendName)){
+				steamFriendsIDs[friendName] = friendSteamId;
+			}
+			//if the friend + their CSteamID is not already stored, add them to the dictionary
+			else {
+				steamFriendsIDs.Add (friendName, friendSteamId);
+			}
 		}
     }
 
-    // MELODIE: TODO
+    // Called when invite button is pressed
     public void InviteSteamFriend(string friend)
     {
 		FpsClient.GameClient.Instance.SendInvitePlayer (friend);
