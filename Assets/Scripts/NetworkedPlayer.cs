@@ -61,9 +61,9 @@ public class NetworkedPlayer : MonoBehaviour {
 
     void OnTriggerEnter(Collider col)
     {
-        if (col.gameObject.tag == "bullet")
+        if (col.gameObject.tag == "bullet" && col.gameObject.GetComponent<Bullet>().IsActive)
         {
-            //Destroy(col.gameObject);
+            col.gameObject.GetComponent<Bullet>().IsActive = false;
             if (m_timeSinceLifeLost > lostLifeBufferTime)
             {
                 CurrentLife = (CurrentLife + 5) % 6;

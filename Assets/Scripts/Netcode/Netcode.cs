@@ -136,7 +136,8 @@ namespace Netcode {
 		{
 			position_ = gameObject.transform.position;
 			eulerAngles_ = gameObject.transform.eulerAngles;
-		}
+
+        }
 
 		public override bool Equals(BulletSnapshot other)
 		{
