@@ -21,9 +21,10 @@ namespace FpsServer {
 		// The server-side game manager.
 		public GameServer m_game;
 		// Snapshots sent by all clients. 
-		private ClientHistoryMapping m_clients = new ClientHistoryMapping();
+		public ClientHistoryMapping m_clients = new ClientHistoryMapping();
 		// Mapping from address to server ID. 
-		private ServerIdMapping m_serverIds = new ServerIdMapping();
+		public ServerIdMapping m_serverIds = new ServerIdMapping();
+
         public ClientHistoryMapping Clients
         {
             get { return m_clients; }
@@ -51,7 +52,7 @@ namespace FpsServer {
 		void Update()
 		{
 			if (m_enablePerformanceLog) {
-				Debug.Log("% time spent processing packets: " + (timeProcessingPackets.Milliseconds / (Time.deltaTime * 1000)));
+				Debug.Log("% time spent processing packets: " + (timeProcessingPackets.Milliseconds / (Time.deltaTime * 10)));
 				var watch = System.Diagnostics.Stopwatch.StartNew();
 				ProcessPacketsInQueue();
 				watch.Stop();

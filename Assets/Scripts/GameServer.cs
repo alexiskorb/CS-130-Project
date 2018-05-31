@@ -20,6 +20,13 @@ namespace FpsServer {
 
         public string gameSceneName = "ServerMainScene";
 
+		public List<Vector3> m_spawnPoints = new List<Vector3> {
+			new Vector3(-1.0f, 0f, -1.0f),
+			new Vector3(-1.0f, 0f, 1.0f),
+			new Vector3(1.0f, 0f, 1.0f),
+			new Vector3(1.0f, 0f, -1.0f)
+		};
+
         public void Update() {}
         public void OnEnable()
         {
@@ -216,8 +223,14 @@ namespace FpsServer {
         {
             Debug.Log("Spawning Player");
             GameObject gameObject = Instantiate(spawnPlayerPrefab);
-            gameObject.transform.position = new Vector3(0, 1, 0);
-            int serverId = gameObject.GetInstanceID();
+			if (m_spawnPoints.Count > 0) {
+				gameObject.transform.position = m_spawnPoints[0];
+				m_spawnPoints.RemoveAt(0);
+			} else {
+				gameObject.transform.position = new Vector3(0f, 1f, 0f);
+			}
+
+			int serverId = gameObject.GetInstanceID();
             PutEntity(serverId, gameObject);
             return serverId;
         }

@@ -140,6 +140,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90dca5b0b17d56449907d010755f27f1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  PREDICTION_BUFFER_SIZE: 20
+  TICK_RATE: 0
+  m_enablePerformanceLog: 1
   m_game: {fileID: 1751232226}
 --- !u!4 &51616474
 Transform:
@@ -183,6 +186,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   spawnPlayerPrefab: {fileID: 1868695881446178, guid: c9a5d70276cf59a4d880ce358d50e705,
     type: 2}
+  PREDICTION_BUFFER_SIZE: 20
   m_server: {fileID: 51616473}
   activeMatchPlayers: []
   activeMatchName: 

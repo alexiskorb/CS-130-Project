@@ -7,31 +7,28 @@ using System.Collections.Generic;
 // @desc Netcode contains the packet data structures used by the client and server. 
 // All packets must have a default constructor in order for serialization to work. 
 namespace Netcode {
-	public delegate void MainThreadWork();
+	public struct PacketForClient {
+		public ClientAddress m_clientAddr;
+		public byte[] m_packet;
+		public PacketForClient(ClientAddress clientAddr, byte[] packet)
+		{
+			m_clientAddr = clientAddr;
+			m_packet = packet;
+		}
+	}
 
-    public struct PacketForClient
-    {
-        public ClientAddress m_clientAddr;
-        public byte[] m_packet;
-        public PacketForClient(ClientAddress clientAddr, byte[] packet)
-        {
-            m_clientAddr = clientAddr;
-            m_packet = packet;
-        }
-    }
-
-    // @class MultiplayerGame
-    // @desc Games should implement this interface in order to be alerted to network events. 
-    public abstract class IMultiplayerGame : MonoBehaviour {
+	// @class MultiplayerGame
+	// @desc Games should implement this interface in order to be alerted to network events. 
+	public abstract class IMultiplayerGame : MonoBehaviour {
 		public abstract void NetEvent(Snapshot snapshot);
 		public abstract void NetEvent(BulletSnapshot bulletSnapshot);
-        public abstract void NetEvent(PlayerSnapshot playerSnapshot);
-        public abstract void NetEvent(PlayerInput playerInput);
+		public abstract void NetEvent(PlayerSnapshot playerSnapshot);
+		public abstract void NetEvent(PlayerInput playerInput);
 		public abstract void NetEvent(ClientAddress clientAddr, PacketType packetType, byte[] buf);
 
 		private InputBit inputBits_ = 0; // Bitmask for buttons pressed. 
 		private Queue<byte[]> m_packetQueue = new Queue<byte[]>();
-        private Queue<PacketForClient> m_packetQueueForClient = new Queue<PacketForClient>();
+		private Queue<PacketForClient> m_packetQueueForClient = new Queue<PacketForClient>();
 
 		// @func QueuePacket
 		// @desc Queue a packet for the client to send. 
@@ -41,18 +38,18 @@ namespace Netcode {
 			m_packetQueue.Enqueue(buf);
 		}
 
-        public void QueuePacket<T>(ClientAddress clientAddr, T packet) where T : Packet
-        {
-            byte[] buf = Serializer.Serialize(packet);
-            m_packetQueueForClient.Enqueue(new PacketForClient(clientAddr, buf));
-        }
+		public void QueuePacket<T>(ClientAddress clientAddr, T packet) where T : Packet
+		{
+			byte[] buf = Serializer.Serialize(packet);
+			m_packetQueueForClient.Enqueue(new PacketForClient(clientAddr, buf));
+		}
 
-        public Queue<PacketForClient> GetPacketsForClient()
-        {
-            Queue<PacketForClient> packetsForClient = new Queue<PacketForClient>(m_packetQueueForClient);
-            m_packetQueueForClient.Clear();
-            return packetsForClient;
-        }
+		public Queue<PacketForClient> GetPacketsForClient()
+		{
+			Queue<PacketForClient> packetsForClient = new Queue<PacketForClient>(m_packetQueueForClient);
+			m_packetQueueForClient.Clear();
+			return packetsForClient;
+		}
 
 		public void QueueInput(InputBit cmd)
 		{
@@ -84,7 +81,7 @@ namespace Netcode {
 			var gos = Resources.FindObjectsOfTypeAll<T>();
 
 			foreach (var go in gos) {
-				if (go.hideFlags == HideFlags.None) {
+				if (go.hideFlags == HideFlags.None && go.gameObject.scene.name != null) {
 					networkObjects.Add(go.gameObject);
 					continue;
 				}
@@ -98,11 +95,11 @@ namespace Netcode {
 		CREATE_LOBBY,
 		REFRESH_LOBBY_LIST,
 		JOIN_LOBBY,
-        LEAVE_LOBBY,
+		LEAVE_LOBBY,
 		START_GAME,
 		SNAPSHOT,
 		BULLET_SNAPSHOT,
-        PLAYER_SNAPSHOT,
+		PLAYER_SNAPSHOT,
 		PLAYER_INPUT,
 		INVITE_PLAYER
 	}
@@ -145,36 +142,35 @@ namespace Netcode {
 		}
 	}
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public class PlayerSnapshot : ISnapshot<PlayerSnapshot>
-    {
-        public int m_currentLife;
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+	public class PlayerSnapshot : ISnapshot<PlayerSnapshot> {
+		public int m_currentLife;
 
-        public PlayerSnapshot()
-        {
-            m_type = PacketType.PLAYER_SNAPSHOT;
-        }
+		public PlayerSnapshot()
+		{
+			m_type = PacketType.PLAYER_SNAPSHOT;
+		}
 
-        public PlayerSnapshot(uint seqno, int serverId, int serverHash, GameObject gameObject)
-            : base(serverId, PacketType.PLAYER_SNAPSHOT, seqno, gameObject) { }
+		public PlayerSnapshot(uint seqno, int serverId, int serverHash, GameObject gameObject)
+			: base(serverId, PacketType.PLAYER_SNAPSHOT, seqno, gameObject) { }
 
-        public override void Apply(ref GameObject gameObject)
-        {
-            gameObject.GetComponentInChildren<NetworkedPlayer>().CurrentLife = m_currentLife;
-        }
+		public override void Apply(ref GameObject gameObject)
+		{
+			gameObject.GetComponentInChildren<NetworkedPlayer>().CurrentLife = m_currentLife;
+		}
 
-        public override void FromObject(GameObject gameObject)
-        {
-            m_currentLife = gameObject.GetComponentInChildren<NetworkedPlayer>().CurrentLife;
-        }
+		public override void FromObject(GameObject gameObject)
+		{
+			m_currentLife = gameObject.GetComponentInChildren<NetworkedPlayer>().CurrentLife;
+		}
 
-        public override bool Equals(PlayerSnapshot other)
-        {
-            return (m_currentLife == other.m_currentLife);
-        }
-    }
+		public override bool Equals(PlayerSnapshot other)
+		{
+			return (m_currentLife == other.m_currentLife);
+		}
+	}
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class PlayerInput : Packet {
 		public int serverId_;
 		public uint seqno_;
@@ -191,10 +187,10 @@ namespace Netcode {
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class CreateLobby : Packet {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
-        public string m_lobbyName;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
-        public string m_hostPlayerName;
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+		public string m_lobbyName;
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+		public string m_hostPlayerName;
 		public CreateLobby() : base(PacketType.CREATE_LOBBY) { }
 		public CreateLobby(string lobbyname, string hostPlayerName)
 			: base(PacketType.CREATE_LOBBY)
@@ -204,10 +200,10 @@ namespace Netcode {
 		}
 	}
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class RefreshLobbyList : Packet {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-        public string m_listOfGames;
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+		public string m_listOfGames;
 		public RefreshLobbyList() : base(PacketType.REFRESH_LOBBY_LIST) { }
 		public RefreshLobbyList(string[] listOfGames)
 			: base(PacketType.REFRESH_LOBBY_LIST)
@@ -218,63 +214,62 @@ namespace Netcode {
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class JoinLobby : Packet {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 140)]
-        public string m_listOfPlayers;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
-        public string m_lobbyName;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
-        public string m_playerName;
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 140)]
+		public string m_listOfPlayers;
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+		public string m_lobbyName;
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+		public string m_playerName;
 		public JoinLobby() : base(PacketType.JOIN_LOBBY) { }
 		public JoinLobby(string[] playerList, string lobbyName, string playerName)
 			: base(PacketType.JOIN_LOBBY)
 		{
-            m_listOfPlayers = Serializer.Serialize(playerList);
-            m_lobbyName = lobbyName;
-            m_playerName = playerName;
+			m_listOfPlayers = Serializer.Serialize(playerList);
+			m_lobbyName = lobbyName;
+			m_playerName = playerName;
 		}
 	}
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public class LeaveLobby : Packet
-    {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 140)]
-        public string m_listOfPlayers;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
-        public string m_lobbyName;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
-        public string m_playerName;
-        public LeaveLobby() : base(PacketType.LEAVE_LOBBY) { }
-        public LeaveLobby(string[] playerList, string lobbyName, string playerName)
-            : base(PacketType.LEAVE_LOBBY)
-        {
-            m_listOfPlayers = Serializer.Serialize(playerList);
-            m_lobbyName = lobbyName;
-            m_playerName = playerName;
-        }
-    }
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+	public class LeaveLobby : Packet {
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 140)]
+		public string m_listOfPlayers;
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+		public string m_lobbyName;
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+		public string m_playerName;
+		public LeaveLobby() : base(PacketType.LEAVE_LOBBY) { }
+		public LeaveLobby(string[] playerList, string lobbyName, string playerName)
+			: base(PacketType.LEAVE_LOBBY)
+		{
+			m_listOfPlayers = Serializer.Serialize(playerList);
+			m_lobbyName = lobbyName;
+			m_playerName = playerName;
+		}
+	}
 
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class StartGame : Packet {
 		public int m_serverId;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
-        public string m_hostIP;
-        public int m_hostPort;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
-        public string m_matchName;
-        public StartGame() : base(PacketType.START_GAME) { }
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+		public string m_hostIP;
+		public int m_hostPort;
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+		public string m_matchName;
+		public StartGame() : base(PacketType.START_GAME) { }
 		public StartGame(string lobbyName)
-            : base(PacketType.START_GAME)
-        {
-            m_matchName = lobbyName;
-        }
+			: base(PacketType.START_GAME)
+		{
+			m_matchName = lobbyName;
+		}
 		public StartGame(string lobbyName, int serverId, string hostIP, int hostPort)
 			: base(PacketType.START_GAME)
 		{
-            m_matchName = lobbyName;
+			m_matchName = lobbyName;
 			m_serverId = serverId;
-            m_hostIP = hostIP;
-            m_hostPort = hostPort;
+			m_hostIP = hostIP;
+			m_hostPort = hostPort;
 		}
 	}
 
@@ -317,19 +312,19 @@ namespace Netcode {
 		{
 			gameObject.transform.position = m_position;
 			gameObject.transform.eulerAngles = m_eulerAngles;
-       
-        }
+
+		}
 
 		public override void FromObject(GameObject gameObject)
 		{
 			m_position = gameObject.transform.position;
 			m_eulerAngles = gameObject.transform.eulerAngles;
-        }
+		}
 
 		public override bool Equals(Snapshot other)
 		{
-            return (m_position == other.m_position) &&
-                (m_eulerAngles == other.m_eulerAngles);
+			return (m_position == other.m_position) &&
+				(m_eulerAngles == other.m_eulerAngles);
 		}
 	}
 
@@ -443,25 +438,23 @@ namespace Netcode {
 			return buf;
 		}
 
-        // Serialization of arrays in a class causes issues. For string arrays, it is necessary
-        // to manually serialize the string, and this is called by the constructor when a class
-        // has a string[] parameter in its constructor
-        //TODO: Extend serialize so that it will automatically serialize all array types
-        public static string Serialize(string[] stringArray)
-        {
-            if(stringArray != null && stringArray.Length > 0)
-            {
-                string serialized = stringArray[0];
-                for (int i = 1; i < stringArray.Length; i++)
-                {
-                    serialized += "|" + stringArray[i];
-                }
-                return serialized;
-            }
-            return null;
-        }
+		// Serialization of arrays in a class causes issues. For string arrays, it is necessary
+		// to manually serialize the string, and this is called by the constructor when a class
+		// has a string[] parameter in its constructor
+		//TODO: Extend serialize so that it will automatically serialize all array types
+		public static string Serialize(string[] stringArray)
+		{
+			if (stringArray != null && stringArray.Length > 0) {
+				string serialized = stringArray[0];
+				for (int i = 1; i < stringArray.Length; i++) {
+					serialized += "|" + stringArray[i];
+				}
+				return serialized;
+			}
+			return null;
+		}
 
-        public static T Deserialize<T>(byte[] buf) where T : new()
+		public static T Deserialize<T>(byte[] buf) where T : new()
 		{
 			object obj = new T();
 			int length = Marshal.SizeOf(obj);
@@ -472,19 +465,19 @@ namespace Netcode {
 			return (T)obj;
 		}
 
-        // Deserializes string[]. If a class contains an array[] parameter in its
-        // constructor, this must be called on the string it is serialized to.
-        public static string[] Deserialize(string msg)
-        {
-            string[] deserializedString = msg.Split('|');
-            return deserializedString;
-        }
+		// Deserializes string[]. If a class contains an array[] parameter in its
+		// constructor, this must be called on the string it is serialized to.
+		public static string[] Deserialize(string msg)
+		{
+			string[] deserializedString = msg.Split('|');
+			return deserializedString;
+		}
 
-        // @func Malloc
-        // @desc Allocate sizeof(obj) bytes. 
-        public static byte[] Malloc<T>(T obj)
+		// @func Malloc
+		// @desc Allocate sizeof(obj) bytes. 
+		public static byte[] Malloc<T>(T obj)
 		{
 			return new byte[Marshal.SizeOf(obj)];
 		}
-    }
+	}
 }

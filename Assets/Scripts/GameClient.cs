@@ -297,6 +297,7 @@ namespace FpsClient {
 
 			m_client.BeginSnapshots();
         }
+
         // @func SendStartGame
         // @desc Tell the server to start the match. Called by the UI.
         public void SendStartGame()
