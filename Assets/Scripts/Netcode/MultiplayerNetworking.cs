@@ -3,13 +3,14 @@ using UnityEngine;
 using System.Net;
 using System.Net.Sockets;
 using System;
-using System.Collections;
 
 namespace Netcode {
 	// @class MultiplayerNetworking
 	// @desc Contains code shared by the client and server. 
 	public abstract class MultiplayerNetworking : MonoBehaviour {
+		public delegate void MainThreadWork();
 		public delegate void PacketHandler(ClientAddress clientAddr, byte[] buf);
+
 		public Queue<MainThreadWork> m_mainWork = new Queue<MainThreadWork>();
 		private UdpClient m_udp;
 		private TcpClient m_tcp; // TODO: TpcClient is bad. Use the C# socket library for sending reliable messages. 
@@ -27,7 +28,7 @@ namespace Netcode {
 		{
 			// Process the packets in the incoming queue.
 			while (m_mainWork.Count > 0) {
-				Netcode.MainThreadWork work = m_mainWork.Dequeue();
+				MainThreadWork work = m_mainWork.Dequeue();
 				if (work != null)
 					work.Invoke();
 			}
@@ -42,16 +43,11 @@ namespace Netcode {
 			m_udp.BeginReceive(ReceiveCallback, m_udp);
 			ClientAddress clientAddr = new ClientAddress(remoteEndPoint.Address.ToString(), remoteEndPoint.Port);
            
-
             MainThreadWork work = () => {
                 HandlePacket(clientAddr, buf);
 			};
 
 			m_mainWork.Enqueue(work);
-        }
-        IEnumerator Waitf()
-        {
-            yield return new WaitForSeconds(5);
         }
 
         // @func RegisterPacket
@@ -66,7 +62,6 @@ namespace Netcode {
 		// the appropriate packet handler. 
 		public void HandlePacket(ClientAddress clientAddr, byte[] buf)
 		{
-
             Packet header;
 			try {
 				header = Serializer.Deserialize<Packet>(buf);
@@ -80,10 +75,9 @@ namespace Netcode {
 
             Debug.Log("Packet type is" + header.m_type);
 
-            if (m_packetCallbacks.ContainsKey(header.m_type))
+			if (m_packetCallbacks.ContainsKey(header.m_type)) {
 				m_packetCallbacks[header.m_type].Invoke(clientAddr, buf);
-			else {
-                // Pass the net event to the game.
+			} else {
 				m_multiplayerGame.NetEvent(clientAddr, header.m_type, buf);
 			}
 		}

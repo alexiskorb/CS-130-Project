@@ -33,6 +33,7 @@ namespace FpsClient {
 		public NewSeqnoDel m_newSeqno;
 
 		private int m_serverHash = 0;
+		private uint m_serverSeqno = 0;
 
 		void Start()
 		{
@@ -106,9 +107,15 @@ namespace FpsClient {
 		{
 			MySnapshot snapshot = Netcode.Serializer.Deserialize<MySnapshot>(buf);
 
+			if (snapshot.m_seqno < m_serverSeqno) {
+				Debug.Log("Snapshot from server received out of order.");
+				return;
+			}
+
 			if (snapshot.m_serverId == m_game.ServerId) {
 				if (!m_snapshotHistory.Reconcile(snapshot)) {
 					Debug.Log("Client is out of sync with the server -- reconciling");
+					m_serverSeqno = snapshot.m_seqno;
 					m_game.NetEvent(snapshot);
 				}
 			} else
