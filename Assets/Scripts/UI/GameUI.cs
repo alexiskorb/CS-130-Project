@@ -29,8 +29,10 @@ public class GameUI : MonoBehaviour {
 
     public void DropMatch()
     {
-        //TODO
-        //GameManager.Instance.DropMatch(endGameScenePath);
+		//send packet to server to drop from other games
+		FpsClient.GameClient.Instance.SendDropMatch();
+
+		SceneManager.LoadScene("MainMenu");
     }
 
     public void ResumeGame()

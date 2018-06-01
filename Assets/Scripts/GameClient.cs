@@ -341,12 +341,23 @@ namespace FpsClient {
         }
 
         public void LeaveLobby()
-        {
-            Debug.Log("Sending leave lobby packet");
-            Netcode.LeaveLobby packet = new Netcode.LeaveLobby(null, CurrentLobby, MainPlayerName);
-            QueuePacket(packet);
-            m_currentLobby = "";
-        }
+		{
+			Debug.Log ("Sending leave lobby packet");
+			Netcode.LeaveLobby packet = new Netcode.LeaveLobby (null, CurrentLobby, MainPlayerName);
+			QueuePacket (packet);
+			m_currentLobby = "";
+		}
+
+
+		// @func SendDropMatch
+		// @desc When player wants to drop match, send DISCONNECT packet to server. Called by UI.
+
+		public void SendDropMatch()
+		{
+			Debug.Log ("Sending disconnect packet");
+			Netcode.Disconnect packet = new Netcode.Disconnect (mainPlayerServerId, m_mainPlayerName);
+			QueuePacket (packet);
+		}
 
 		private GameObject SpawnBullet(Netcode.BulletSnapshot bulletState)
 		{

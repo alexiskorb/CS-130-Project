@@ -5,7 +5,8 @@ public class MainPlayer : NetworkedPlayer {
 	new void Start()
 	{
 		base.Start();
-		Transform cameraTransform = transform.Find("Main Camera");
+		GameObject camera = GameObject.Find("Main Camera");
+		Transform cameraTransform = camera.transform;
 		cameraTransform.eulerAngles = transform.eulerAngles;
 	}
 

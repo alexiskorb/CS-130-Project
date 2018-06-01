@@ -104,7 +104,8 @@ namespace Netcode {
 		BULLET_SNAPSHOT,
         PLAYER_SNAPSHOT,
 		PLAYER_INPUT,
-		INVITE_PLAYER
+		INVITE_PLAYER,
+		DISCONNECT
 	}
 
 	public enum InputBit : int {
@@ -161,7 +162,9 @@ namespace Netcode {
 
         public override void Apply(ref GameObject gameObject)
         {
-            gameObject.GetComponentInChildren<NetworkedPlayer>().CurrentLife = m_currentLife;
+			if (gameObject == null)
+				return;
+			gameObject.GetComponentInChildren<NetworkedPlayer>().CurrentLife = m_currentLife;
         }
 
         public override void FromObject(GameObject gameObject)
@@ -298,6 +301,22 @@ namespace Netcode {
 		}
 	}
 
+
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+	public class Disconnect : Packet {
+		public int m_serverId;
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+		public string m_playerName;
+		public Disconnect() : base(PacketType.DISCONNECT) { }
+		public Disconnect(int serverId, string playerName)
+			: base(PacketType.DISCONNECT)
+		{
+			m_playerName = playerName;
+			m_serverId = serverId;
+		}
+	}
+
+
 	// @doc A Snapshot is the state that is synchronized among clients and server.
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class Snapshot : ISnapshot<Snapshot> {
@@ -327,6 +346,8 @@ namespace Netcode {
 
 		public override void FromObject(GameObject gameObject)
 		{
+			if (gameObject == null)
+				return;
 			m_position = gameObject.transform.position;
 			m_eulerAngles = gameObject.transform.eulerAngles;
             if (gameObject.transform.GetChild(0) != null)
