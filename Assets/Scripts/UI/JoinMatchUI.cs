@@ -3,18 +3,21 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+// @class JoinMatchUI
+// @desc Controls the UI for the Join Match screen
 public class JoinMatchUI : MonoBehaviour {
 
+    // UI elements
     public GameObject playerNameText;
     public GameObject joinMatchError;
     public GameObject matchLobby;
     public GameObject matchButtonPrefab;
     public GameObject inputPlayerNameText;
 
-
+    // Maps open matches to the game object representing it in the scrollable match list
     private Dictionary<string, GameObject> openMatchTexts;
 
-    // Use this for initialization
+
     void Start ()
     {
         joinMatchError.SetActive(false);
@@ -22,7 +25,6 @@ public class JoinMatchUI : MonoBehaviour {
         playerNameText.GetComponent<Text>().text = FpsClient.GameClient.Instance.MainPlayerName;
     }
 
-    // Update is called once per frame
     void Update ()
     {
         // Get list of open matches from the client
@@ -43,7 +45,7 @@ public class JoinMatchUI : MonoBehaviour {
             }
         }
 
-        // Delete old matches
+        // Remove old matches
         List<string> openMatchTextKeys = new List<string>(openMatchTexts.Keys);
         foreach (string match in openMatchTextKeys)
         {
@@ -58,6 +60,11 @@ public class JoinMatchUI : MonoBehaviour {
     public void RefreshOpenMatches()
     {
         FpsClient.GameClient.Instance.SendRefreshLobbyList();
+    }
+
+    public void SubmitPlayerName()
+    {
+        FpsClient.GameClient.Instance.MainPlayerName = inputPlayerNameText.GetComponent<Text>().text;
     }
 
     public void SubmitMatchName(string name)
@@ -75,8 +82,4 @@ public class JoinMatchUI : MonoBehaviour {
         joinMatchError.SetActive(false);
     }
 
-    public void SubmitPlayerName()
-    {
-        FpsClient.GameClient.Instance.MainPlayerName = inputPlayerNameText.GetComponent<Text>().text;
-    }
 }
