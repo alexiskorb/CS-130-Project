@@ -3,18 +3,22 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+// @class PlayerDisplay
+// @desc Controls the overhead UI display
 public class PlayerDisplay : MonoBehaviour {
 
     // Sprite for displaying life
     public Sprite lifeSprite;
-    // Sprite for displaying a lost life
+    // Sprite for displaying a lost life. Should be the same size as lifeSprite.
     public Sprite lostLifeSprite;
 
+    // Game objects for each life sprite
     private List<GameObject> m_lifeSpriteObjects;
+    // Maximum life
     private int m_maxLife;
 
-
-	void Awake () {
+	void Awake ()
+    {
         m_lifeSpriteObjects = new List<GameObject>();
 	}
 
@@ -23,7 +27,6 @@ public class PlayerDisplay : MonoBehaviour {
         SetMaxLife(m_maxLife);
     }
 
-    // Update is called once per frame
     void Update () {
         // Set the player display to look at the main camera
         Camera camera = Camera.main;
@@ -70,6 +73,7 @@ public class PlayerDisplay : MonoBehaviour {
         return false;
     }
 
+    // Sets the current life to the chosen value if it is valid
     public bool SetCurrentLife(int life)
     {
        if (life >= 0 && life <= m_maxLife)

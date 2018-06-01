@@ -17,15 +17,24 @@ public class InputCallbacks {
 	}
 }
 
+// @class NetworkedPlayer
+// @desc Code for each player character
 public class NetworkedPlayer : MonoBehaviour {
+    
+    // Camera sensitivity
 	public float horizontalCameraSensitivity_ = 15f;
 	public float verticalCameraSensitivity_ = 5f;
+    // Player move speed
 	public float movementSpeed_ = 5;
+    // Time that player is invulnerable to damage after being hit with a bullet
 	public float lostLifeBufferTime = 1f;
+    // Game object controlling rotation of player arms and camera
 	public GameObject verticalRotationParent;
 	public GameObject primaryWeapon;
+    // Overhead UI display
 	public Canvas displayUI;
 	public int maxLife = 5;
+
 	private int m_currentLife = 5;
 	private float m_timeSinceLifeLost = 0f;
 	protected Rigidbody rigidbody_;
@@ -57,6 +66,7 @@ public class NetworkedPlayer : MonoBehaviour {
 		}
 	}
 
+    // If an active bullet hits the player, make the bullet inactive and remove a life
     void OnTriggerEnter(Collider col)
     {
         if (col.gameObject.tag == "bullet" && col.gameObject.GetComponent<Bullet>().IsActive)
@@ -96,20 +106,4 @@ public class NetworkedPlayer : MonoBehaviour {
 		rigidbody_.velocity = movementSpeed_ * (zDirection * verticalAxis + xDirection * horizontalAxis);
 	}
 
-	public void OnCollisionEnter(Collision collision)
-	{
-		if (collision.gameObject.GetComponent<Bullet>() != null) {
-			if (m_timeSinceLifeLost > lostLifeBufferTime) {
-				CurrentLife = (CurrentLife + 5) % 6;
-				m_timeSinceLifeLost = 0f;
-			}
-
-			//var gameServer = GameObject.Find("GameServer");
-			//if (gameServer != null) {
-			//	var game = gameServer.GetComponent<FpsServer.GameServer>();
-			//	game.KillEntity(gameObject.GetInstanceID());
-			//	return;
-			//}
-		}
-	}
 }
