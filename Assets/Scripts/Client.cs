@@ -54,6 +54,11 @@ namespace FpsClient {
 			m_newSeqno = NewSeqno;
 		}
 
+		public void StopSnapshots()
+		{
+
+		}
+
         public void OnEnable()
         {
             DontDestroyOnLoad(this.gameObject);

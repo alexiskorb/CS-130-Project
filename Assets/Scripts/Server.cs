@@ -116,6 +116,8 @@ namespace FpsServer {
 
 		public void ProcessSnapshot(Netcode.ClientAddress clientAddr, byte[] buf)
 		{
+			if (!m_clients.ContainsKey (clientAddr))
+				return;
 			MySnapshot snapshot = Netcode.Serializer.Deserialize<MySnapshot>(buf);
 			Netcode.SnapshotHistory<MySnapshot> history = m_clients[clientAddr];
 
@@ -142,6 +144,19 @@ namespace FpsServer {
 		public override bool ShouldDiscard(Netcode.ClientAddress clientAddr, Netcode.Packet header)
 		{
 			return false;
+		}
+
+		public void RemoveClient(Netcode.ClientAddress clientAddr)
+		{
+			List<Netcode.ClientAddress> clients = new List<Netcode.ClientAddress> (m_clients.Keys);
+			foreach(Netcode.ClientAddress address in clients)
+			{
+				if (address.m_ipAddress == clientAddr.m_ipAddress && address.m_port == clientAddr.m_port) 
+				{
+					m_clients.Remove (address);
+					m_serverIds.Remove (address);
+				}
+			}
 		}
 	}
 

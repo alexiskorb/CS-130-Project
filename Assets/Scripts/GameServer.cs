@@ -90,6 +90,9 @@ namespace FpsServer {
 				case Netcode.PacketType.INVITE_PLAYER:
 					ProcessInvitePlayer (buf);
 					break;
+				case Netcode.PacketType.DISCONNECT:
+					ProcessDisconnect (buf);
+					break;
             }
         }
 
@@ -212,6 +215,23 @@ namespace FpsServer {
 			Debug.Log("Sending InvitePlayer packet");
 			Netcode.InvitePlayer packet = new Netcode.InvitePlayer(lobbyName, hostPlayer, invitedPlayer);
 			QueuePacket(m_clientAddresses[invitedPlayer], packet);
+		}
+
+		// @func ProcessDisconnect
+		// @desc A client wants to drop the game and disconnect.
+		public void ProcessDisconnect(byte[] buf)
+		{
+			Debug.Log("Received Disconnect");
+			Netcode.Disconnect disconnect = Netcode.Serializer.Deserialize<Netcode.Disconnect>(buf);
+			if (activeMatchPlayers.Contains (disconnect.m_playerName)) 
+			{
+				Netcode.ClientAddress addr = m_clientAddresses [disconnect.m_playerName];
+				KillEntity (disconnect.m_serverId);
+				m_clientAddresses.Remove (disconnect.m_playerName);
+				activeMatchPlayers.Remove (disconnect.m_playerName);
+
+				m_server.RemoveClient (addr);
+			}
 		}
 
         //********************************
