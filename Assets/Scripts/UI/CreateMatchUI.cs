@@ -3,24 +3,19 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+// @class CreateMatchUI
+// @desc Controls the UI for the Create Match screen
 public class CreateMatchUI : MonoBehaviour {
 
+    // UI elements
     public GameObject playerNameText;
     public GameObject matchNameInput;
     public GameObject createMatchError;
 
-
-
-    // Use this for initialization
     void Start ()
     {
         createMatchError.SetActive(false);
         playerNameText.GetComponent<Text>().text = FpsClient.GameClient.Instance.MainPlayerName;
-    }
-	
-	// Update is called once per frame
-	void Update ()
-    {
     }
 
     public void SubmitMatchName()

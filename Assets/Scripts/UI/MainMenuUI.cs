@@ -5,9 +5,12 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+// @class MainMenuUI
+// @desc Controls all of the menu screens in the MainMenu scene
+// and calls matchmaking functions when triggered by UI input.
 public class MainMenuUI : MonoBehaviour {
 
-    public string gameScenePath;
+    // Canvases for each menu screen
     public Canvas mainMenu;
     public Canvas createMatchMenu;
     public Canvas startMatchMenu;
@@ -15,10 +18,14 @@ public class MainMenuUI : MonoBehaviour {
     public Canvas steamJoinMatchCanvas;
     public Canvas steamInitializationErrorCanvas;
 
+    // Singleton instance of the MainMenuUI
 	private static MainMenuUI m_instance = null;
+
+    // Menu state variables
     private bool m_isMatchCreator = true;
     private bool m_inMatchLobby = false;
 
+    // Gets singleton instance of the MainMenuUI
 	public static MainMenuUI Instance
 	{
 		get
@@ -38,13 +45,13 @@ public class MainMenuUI : MonoBehaviour {
 		}
 	}
 
-    // Use this for initialization
     void Start()
     {
+        // Start off in the Main Menu screen
         ShowMainMenu();
         m_inMatchLobby = false;
 
-        // Check if Steam Initialized
+        // Display error if Steam is initialized incorrectly
         if (SteamManager.Initialized)
         {
             steamInitializationErrorCanvas.enabled = false;
@@ -55,10 +62,6 @@ public class MainMenuUI : MonoBehaviour {
         }
     }
 
-    void Update()
-    {
-    }
-
     public void GoToCreateMatchMenu()
     {
         ShowCreateMatchMenu();
@@ -67,16 +70,15 @@ public class MainMenuUI : MonoBehaviour {
     public void GoToJoinMatchMenu()
     {
         ShowJoinMatchMenu();
-    }
+    } 
 
-    // Start a match
     public void StartMatch()
     {
         FpsClient.GameClient.Instance.SendStartGame();
         startMatchMenu.enabled = false;
     }
 
-    // Create a match
+    // Create a match lobby if all necesssary input data has been given. Display an error otherwise.
     public void CreateMatch()
     {
         if (FpsClient.GameClient.Instance.NamesSet())
@@ -89,18 +91,10 @@ public class MainMenuUI : MonoBehaviour {
         {
             createMatchMenu.GetComponent<CreateMatchUI>().ShowCreateMatchError();
         }
-        /* TODO: Possibly handle match creation error
-        if ()
-        {
-            ShowStartMatchMenu();
-        }
-        else
-        {
-        }
-        */
+        // TODO: Possibly handle match creation error
     }
 
-    // Join a match
+    // Join a lobby if all necesssary input data has been given. Display an error otherwise.
     public void JoinLobby()
     {
         if (FpsClient.GameClient.Instance.NamesSet())
@@ -113,18 +107,9 @@ public class MainMenuUI : MonoBehaviour {
         {
             joinMatchMenu.GetComponent<JoinMatchUI>().ShowJoinMatchError();
         }
-        /* TODO: Possibly handle lobby joining failure
-        if ()
-        {
-        }
-        else
-        {
-            joinMatchMenu.GetComponent<JoinMatchUI>().ShowJoinMatchError();
-        }
-        */
+        // TODO: Possibly handle lobby joining failure
     }
 
-    // MELODIE: TODO
     // Join a lobby from the Steam join match invite
     public void JoinLobbyFromInvite()
     {
@@ -138,19 +123,11 @@ public class MainMenuUI : MonoBehaviour {
 		{
 			joinMatchMenu.GetComponent<JoinMatchUI>().ShowJoinMatchError();
 		}
-		/* TODO: Possibly handle lobby joining failure
-        if ()
-        {
-        }
-        else
-        {
-            joinMatchMenu.GetComponent<JoinMatchUI>().ShowJoinMatchError();
-        }
-        */
+		// TODO: Possibly handle lobby joining failure
     }
    
 
-    // Leave player lobby
+    // Leave player lobby and return to the previous screen
     public void CancelMatch()
     {
         FpsClient.GameClient.Instance.LeaveLobby();
@@ -166,7 +143,7 @@ public class MainMenuUI : MonoBehaviour {
         }
     }
 
-    // Return to main menu
+    // Return to Main Menu screen and reset menu state
     public void ReturnToMainMenu()
     {
         if(m_inMatchLobby)
@@ -185,13 +162,14 @@ public class MainMenuUI : MonoBehaviour {
         steamJoinMatchCanvas.enabled = true;
     }
 
-    // Rejects invitation, just close menu and reset GameClient's invitedLobby to empty
+    // Rejects invitation by closing the popup menu and resetting the GameClient's invitedLobby to empty
     public void CloseSteamJoinMatchPopup()
 	{
         steamJoinMatchCanvas.enabled = false;
 		FpsClient.GameClient.Instance.m_invitedLobby = "";
     }
 
+    // The following functions display the chosen menu screen and hide other menu screens
 
     private void ShowMainMenu()
     {
@@ -233,6 +211,4 @@ public class MainMenuUI : MonoBehaviour {
         joinMatchMenu.GetComponent<JoinMatchUI>().RefreshOpenMatches();
         m_inMatchLobby = false;
     }
-
-
 }

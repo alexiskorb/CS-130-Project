@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+// @class SteamJoinMatchUI
+// @desc Controls the UI for the Steam join match popup
 public class SteamJoinMatchUI : MonoBehaviour {
 
+    // UI elements
     public GameObject joinMatchTextObject;
     private Text m_joinMatchText;
 
-	// Singleton instance of the GameClient.
+	// Singleton instance of the SteamJoinMatchUI
 	private static SteamJoinMatchUI m_instance = null;
 
 	// Get instance of the SteamJoinMatchUI. 
@@ -31,16 +34,12 @@ public class SteamJoinMatchUI : MonoBehaviour {
 		}
 	}
 
-    // Use this for initialization
-    void Start () {
+    void Start ()
+    {
         m_joinMatchText = joinMatchTextObject.GetComponent<Text>();
     }
 	
-	// Update is called once per frame
-	void Update () {
-		
-	}
-
+    // Set display text shown in popup
     public void SetMatchText(string text)
     {
         m_joinMatchText.text = text;
