@@ -56,7 +56,8 @@ namespace FpsClient {
 
 		public void StopSnapshots()
 		{
-
+			Tick = new Netcode.PeriodicFunction(()=>{}, 0f);
+			m_seqno = 0;
 		}
 
         public void OnEnable()

@@ -140,6 +140,12 @@ namespace FpsServer {
 				SendPacket(clientAddr, buf);
 			}
 		}
+		void BroadcastPacket(byte[] buf)
+		{
+			foreach (var clientAddr in m_clients.Keys) {
+				SendPacket(clientAddr, buf);
+			}
+		}
 
 		public override bool ShouldDiscard(Netcode.ClientAddress clientAddr, Netcode.Packet header)
 		{

@@ -221,6 +221,9 @@ namespace FpsClient {
 				case Netcode.PacketType.INVITE_PLAYER:
 					ProcessInvitePlayer (buf);
 					break;
+				case Netcode.PacketType.DISCONNECT:
+					ProcessDisconnect (buf);
+					break;
             }
         }
 
@@ -351,12 +354,28 @@ namespace FpsClient {
 
 		// @func SendDropMatch
 		// @desc When player wants to drop match, send DISCONNECT packet to server. Called by UI.
-
 		public void SendDropMatch()
 		{
 			Debug.Log ("Sending disconnect packet");
 			Netcode.Disconnect packet = new Netcode.Disconnect (mainPlayerServerId, m_mainPlayerName);
 			QueuePacket (packet);
+		}
+
+		// @func ProcessDisconnect
+		// @desc When player wants to drop match, send DISCONNECT packet to server. Called by UI.
+		public void ProcessDisconnect(byte[] buf)
+		{
+			Debug.Log ("Received disconnect packet");
+			Netcode.Disconnect disconnect = Netcode.Serializer.Deserialize<Netcode.Disconnect> (buf);
+			if (mainPlayerServerId == disconnect.m_serverId && m_mainPlayerName == disconnect.m_playerName)
+			{
+				KillEntity (mainPlayerServerId);
+				m_client.StopSnapshots ();
+				SceneManager.LoadScene ("MainMenu");
+			} else
+			{
+				KillEntity (disconnect.m_serverId);
+			}
 		}
 
 		private GameObject SpawnBullet(Netcode.BulletSnapshot bulletState)

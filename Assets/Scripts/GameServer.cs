@@ -223,6 +223,8 @@ namespace FpsServer {
 		{
 			Debug.Log("Received Disconnect");
 			Netcode.Disconnect disconnect = Netcode.Serializer.Deserialize<Netcode.Disconnect>(buf);
+			SendDisconnect (disconnect.m_serverId, disconnect.m_playerName);
+
 			if (activeMatchPlayers.Contains (disconnect.m_playerName)) 
 			{
 				Netcode.ClientAddress addr = m_clientAddresses [disconnect.m_playerName];
@@ -232,6 +234,12 @@ namespace FpsServer {
 
 				m_server.RemoveClient (addr);
 			}
+		}
+		public void SendDisconnect(int serverId, string name)
+		{
+			Debug.Log ("Sending Disconnect packet");
+			Netcode.Disconnect packet = new Netcode.Disconnect (serverId, name);
+			QueuePacket(packet);
 		}
 
         //********************************
