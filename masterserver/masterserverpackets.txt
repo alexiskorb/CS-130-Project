@@ -1,0 +1,39 @@
+Sent by client to master server
+	Createlobby
+	Refreshserverlist steamid
+	joinlobby
+	Refreshlobbylist
+
+Sent by server to masterserver
+	Close
+	RegisterServer 
+	Updatelistofplayers(sent periodically)
+	Playerquit
+
+Sent by masterserver to client
+	linfo IP:Port 
+
+Sent by masterserver to server
+	stlob region:lobby
+	registerserverack server/regionname
+	pjoin username:IP:Port regionname/server
+
+ack sent from masterserver to client:
+	createlobby
+	joinlobby
+
+ack sent from masterserver to server:
+	close
+	registerserver
+	playerquit
+
+ack sent from server to masterserver:
+	stlob
+	pjoin
+
+
+player is responsible for creating lobby, then joining it
+joining: username:regionname:lobby
+
+additional commands:
+inviteplayer 

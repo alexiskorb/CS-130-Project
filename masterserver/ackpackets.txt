@@ -1,0 +1,93 @@
+stser region 	   			-- ssack region
+stlob region:lobby 			-- slack region:lobby
+close region:lobby 		   	-- clack region:lobby
+lobup region:lobby:player1:player2:player3... (no ACK)
+pslis SteamID    			-- psack region1:region2:region3
+pllis region	  		   	-- plack lobby1:lobby2:lobby3
+pjoin SteamID:region:lobby 	-- pjack SteamID:region:lobby (from server)		 				       -- pjack SteamID:IP:port(to client)
+pquit SteamID				-- pqack SteamID
+pinvi FromSteamID:ToSteamID 			 (sender to master)
+pinvi FromSteamID:ToSteamID:region:lobby (master to receiver)
+piack FromSteamID:ToSteamID:region:lobby (receiver to master)
+piack FromSteamID:ToSteamID 			 (master to sender)
+
+
+startlobby
+invite
+join
+create
+
+
+---------------------------------------------------------------------------
+stser 
+-----------
+client             masterserver <--stser--- server || stser region
+++ add server to serverlist
+client             masterserver ---ssack--> server || ssack region
+     -----------  server registered ------------
+
+
+stlob
+-----------
+     -----------  server registered ------------
+client ---stlob--> masterserver             server || stlob region:lobby
+client             masterserver ---stlob--> server || stlob region:lobby
+---slack---
+client             masterserver <--slack--- server || slack region:lobby	++ add lobby to list of lobbies ++
+client <--slack--- masterserver             server || slack region:lobby
+     -----------  lobby created    ------------
+
+
+close
+-----------
+client             masterserver <--close--- server || close region:lobby
+client             masterserver ---clack--> server || clack region:lobby
+
+
+lobup
+-----------
+client             masterserver <--lobup--- server || lobup region:lobby:player1:player2:player3
+
+
+pslis
+-----------
+client ---pslis--> masterserver             server || pslis SteamID
+client <--psack--- masterserver             server || psack region1:region2:region3
+
+pllis
+-----------
+client ---pllis--> masterserver             server || pllis region
+client <--plack--- masterserver             server || plack lobby1:lobby2:lobby3
+
+
+pjoin
+-----------
+     -----------  lobby created    ------------
+client ---pjoin--> masterserver             server || pjoin SteamID:region:lobby
+client             masterserver ---pjoin--> server || pjoin SteamID:region:lobby
+---pjack---
+client             masterserver <--pjack--- server || pjack SteamID:region:lobby	++ add player to lobby's playerlist ++
+client <--pjack--- masterserver             server || pjack SteamID:IP:port
+     -----   player connects to server --------
+
+pquit
+-----------
+     -----   player connects to server --------
+client             masterserver <--pquit--- server || pquit SteamID
+client             masterserver ---pqack--> server || pqack SteamID
+     --------   player left server   ----------
+
+
+pinvi
+-----------
+client ---pinvi--> masterserver             client2 || pinvi FromSteamID:ToSteamID
+client             masterserver ---pinvi--> client2 || pinvi FromSteamID:ToSteamID:region:lobby
+---piack---
+client             masterserver <--piack--- client2 || piack FromSteamID:ToSteamID:region:lobby
+client <--piack--- masterserver             client2 || piack FromSteamID:ToSteamID
+
+to accept invite, client2 sends pjoin ToSteamID:region:lobby
+
+
+
+---------------------------------------------------------------------
