@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine.SceneManagement;
-
+using System;
 namespace FpsServer {
 	// @class Game
 	// @desc Simulates the game state on the server side.
@@ -10,15 +10,12 @@ namespace FpsServer {
 	public class GameServer : Game {
 		public GameObject spawnPlayerPrefab;
 		public uint PREDICTION_BUFFER_SIZE = 20;
-		private Dictionary<string, List<string>> m_listOfMatches = new Dictionary<string, List<string>>();
-        private Dictionary<string, Netcode.ClientAddress> m_clientAddresses= new Dictionary<string, Netcode.ClientAddress>();
+        private Dictionary<string, Netcode.ClientAddress?> m_clientAddresses= new Dictionary<string, Netcode.ClientAddress?>();
         public Server m_server;
-        public List<string> activeMatchPlayers = new List<string>();
-        public string activeMatchName;
-        public string activeHostIp;
-        public int activeHostPort;
 
         public string gameSceneName = "ServerMainScene";
+        public string RegionServerName { get; set; }
+        public string CurrentLobby { get; set; }
 
 		public List<Vector3> m_spawnPoints = new List<Vector3> {
 			new Vector3(-1.0f, 0f, -1.0f),
@@ -27,7 +24,7 @@ namespace FpsServer {
 			new Vector3(1.0f, 0f, -1.0f)
 		};
 
-        public void Update() {}
+        public void Update() { }
         public void OnEnable()
         {
             DontDestroyOnLoad(this.gameObject);
@@ -40,16 +37,21 @@ namespace FpsServer {
             SceneManager.sceneLoaded -= OnSceneLoaded;
         }
 
+        private void OnApplicationQuit()
+        {
+            // SendClose();
+        }
+
         // Used to call relevant functions after the scene loads since scene loads complete in the frame after they're called
         void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            foreach (string client in activeMatchPlayers)
+            foreach (string client in m_clientAddresses.Keys)
             {
-                Netcode.ClientAddress clientAddress = m_clientAddresses[client];
+                Netcode.ClientAddress clientAddress = m_clientAddresses[client].Value;
                 int serverId = SpawnPlayer();
                 m_server.ServerIds[clientAddress] = serverId;
                 m_server.Clients[clientAddress] = new Netcode.SnapshotHistory<Netcode.Snapshot>(PREDICTION_BUFFER_SIZE);
-                Netcode.StartGame game = new Netcode.StartGame(activeMatchName, serverId, activeHostIp, activeHostPort);
+                Netcode.StartGame game = new Netcode.StartGame(CurrentLobby, serverId, m_server.SERVER_IP, m_server.SERVER_PORT);
                 QueuePacket(clientAddress, game);
             }
         }
@@ -62,9 +64,6 @@ namespace FpsServer {
 			snapshot.Apply(ref gameObject);
 		}
 
-        //*******************************
-        //TODO: The functions below will likely be called by the Master server eventually.
-
         // @func NetEvent.PacketType 
         // @desc If this is called, the game has received a packet, that is not a snapshot
         // The function analyzes the packet type and responds accordingly.
@@ -72,11 +71,8 @@ namespace FpsServer {
 		{
             switch (type)
             {
-                case Netcode.PacketType.REFRESH_LOBBY_LIST:
-                    ProcessRefreshLobbyList(clientAddr);
-                    break;
-                case Netcode.PacketType.CREATE_LOBBY:
-                    ProcessCreateLobby(clientAddr, buf);
+                case Netcode.PacketType.REFRESH_PLAYER_LIST:
+                    ProcessRefreshPlayerList(clientAddr);
                     break;
                 case Netcode.PacketType.JOIN_LOBBY:
                     ProcessJoinLobby(clientAddr, buf);
@@ -95,24 +91,12 @@ namespace FpsServer {
 
         // @func RefreshLobbyList
         // @desc A client asked for LobbyList. Sends the packet to the client.
-        public void ProcessRefreshLobbyList(Netcode.ClientAddress clientAddr)
+        public void ProcessRefreshPlayerList(Netcode.ClientAddress clientAddr)
         {
-            Debug.Log("Received RefreshLobby packet");
-            string[] lobbyList = m_listOfMatches.Keys.ToArray();
-            Netcode.RefreshLobbyList packet = new Netcode.RefreshLobbyList(lobbyList);
+            Debug.Log("Received RefreshPlayerList packet");
+            string[] lobbyList = m_clientAddresses.Keys.ToArray();
+            Netcode.RefreshPlayerList packet = new Netcode.RefreshPlayerList(lobbyList);
             QueuePacket(clientAddr, packet);
-        }
-
-        // @func ProcessCreateLobby
-        // @desc Client wants to create a lobby. Add it to the list of lobbies, then reply back 
-        // to the client with a JoinLobby confirmation packet.
-        public void ProcessCreateLobby(Netcode.ClientAddress clientAddr, byte[] buf)
-        {
-            Debug.Log("Received CreateLobby packet");
-            Netcode.CreateLobby lobby = Netcode.Serializer.Deserialize<Netcode.CreateLobby>(buf);
-            m_listOfMatches.Add(lobby.m_lobbyName, new List<string> { lobby.m_hostPlayerName });
-            m_clientAddresses[lobby.m_hostPlayerName] = clientAddr;
-            SendJoinLobby(lobby.m_lobbyName);
         }
 
         // @func ProcessJoinLobby
@@ -123,20 +107,17 @@ namespace FpsServer {
         {
             Debug.Log("Received JoinLobby packet");
             Netcode.JoinLobby lobby = Netcode.Serializer.Deserialize<Netcode.JoinLobby>(buf);
-            if(m_listOfMatches.ContainsKey(lobby.m_lobbyName))
+            if(m_clientAddresses.ContainsKey(lobby.m_playerName) && !m_clientAddresses[lobby.m_playerName].HasValue)
             {
-                m_listOfMatches[lobby.m_lobbyName].Add(lobby.m_playerName);
                 m_clientAddresses[lobby.m_playerName] = clientAddr;
-                SendJoinLobby(lobby.m_lobbyName);
-            }
-        }
-        public void SendJoinLobby(string lobbyName)
-        {
-            Debug.Log("Sending JoinLobby packet");
-            Netcode.JoinLobby packet = new Netcode.JoinLobby(m_listOfMatches[lobbyName].ToArray(), lobbyName, "");
-            foreach (string player in m_listOfMatches[lobbyName])
-            {
-                QueuePacket(m_clientAddresses[player], packet);
+                ProcessRefreshPlayerList(clientAddr);
+                foreach(string player in m_clientAddresses.Keys)
+                {
+                    if(m_clientAddresses[player].HasValue)
+                    {
+                        ProcessRefreshPlayerList(m_clientAddresses[player].Value);
+                    }
+                }
             }
         }
 
@@ -149,27 +130,30 @@ namespace FpsServer {
         {
             Debug.Log("Received LeaveLobby packet");
             Netcode.LeaveLobby lobby = Netcode.Serializer.Deserialize<Netcode.LeaveLobby>(buf);
-            if (m_listOfMatches[lobby.m_lobbyName].Contains(lobby.m_playerName))
+            if (m_clientAddresses.ContainsKey(lobby.m_playerName))
             {
-                m_listOfMatches[lobby.m_lobbyName].Remove(lobby.m_playerName);
-                if (m_listOfMatches[lobby.m_lobbyName].Any())
+                m_clientAddresses.Remove(lobby.m_playerName);
+                if (m_clientAddresses.Count != 0)
                 {
-                    SendLeaveLobby(lobby.m_lobbyName);
+                    SendLeaveLobby(lobby.m_playerName);
+                    SendPlayerQuit(lobby.m_playerName);
                 }
                 else
                 {
-                    Debug.Log("Removing Lobby " + lobby.m_lobbyName);
-                    m_listOfMatches.Remove(lobby.m_lobbyName);
+                    Debug.Log("Closing Lobby");
+                    m_clientAddresses.Clear();
+                    SendClose();
                 }
             }
         }
-        public void SendLeaveLobby(string lobbyName)
+        public void SendLeaveLobby(string playerName)
         {
             Debug.Log("Sending LeaveLobby packet");
-            Netcode.LeaveLobby packet = new Netcode.LeaveLobby(m_listOfMatches[lobbyName].ToArray(), lobbyName, "");
-            foreach (string player in m_listOfMatches[lobbyName])
+            Netcode.LeaveLobby packet = new Netcode.LeaveLobby(playerName);
+            foreach (string player in m_clientAddresses.Keys)
             {
-                QueuePacket(m_clientAddresses[player], packet);
+                if(m_clientAddresses[player].HasValue)
+                    QueuePacket(m_clientAddresses[player].Value, packet);
             }
         }
 
@@ -180,15 +164,7 @@ namespace FpsServer {
         {
             Netcode.StartGame game = Netcode.Serializer.Deserialize<Netcode.StartGame>(buf);
             string matchName = game.m_matchName;
-            List<string> matchPlayers = m_listOfMatches[matchName];
-            //TODO: Find IP and Port of server hosting
-            string hostIP = "127.0.0.1";
-            int hostPort = 9001;
-            //Send list of names and IP to new server
-            activeHostIp = hostIP;
-            activeHostPort = hostPort;
-            activeMatchPlayers = matchPlayers;
-            activeMatchName = matchName;
+            CurrentLobby = matchName;
             EnterMatch();
         }
 
@@ -199,23 +175,18 @@ namespace FpsServer {
 		{
 			Debug.Log("Received InvitePlayer packet");
 			Netcode.InvitePlayer invitation = Netcode.Serializer.Deserialize<Netcode.InvitePlayer>(buf);
-			if(m_listOfMatches.ContainsKey(invitation.m_lobbyName))
+			if (m_clientAddresses.ContainsKey(invitation.m_invitedSteamName))
 			{
-				if (m_clientAddresses.ContainsKey(invitation.m_invitedSteamName))
-				{
-					SendInvitePlayer (invitation.m_lobbyName, invitation.m_hostSteamName, invitation.m_invitedSteamName);
-				}
+				SendInvitePlayer (invitation.m_lobbyName, invitation.m_hostSteamName, invitation.m_invitedSteamName);
 			}
+			
 		}
 		public void SendInvitePlayer(string lobbyName, string hostPlayer, string invitedPlayer)
 		{
 			Debug.Log("Sending InvitePlayer packet");
 			Netcode.InvitePlayer packet = new Netcode.InvitePlayer(lobbyName, hostPlayer, invitedPlayer);
-			QueuePacket(m_clientAddresses[invitedPlayer], packet);
+			QueuePacket(m_clientAddresses[invitedPlayer].Value, packet);
 		}
-
-        //********************************
-        //This will be called by the server running the instance of the match
 
         // @func SpawnPlayer
         // @desc Spawns a new player and returns it
@@ -234,41 +205,183 @@ namespace FpsServer {
             PutEntity(serverId, gameObject);
             return serverId;
         }
-/*
-        // @func RunMatch
-        // @desc The match server will initialize a gameobject for each client, and send every client in the match
-        // their unique ServerID, and the hostIP and hostPort to start communicating with.
-        public void RunMatch(string matchName, List<string> players)
-        {
-            string hostIP;
-            int hostPort;
-            
-        }
-        */
 
         public void EnterMatch()
-        {
+        { 
+            foreach (string player in m_clientAddresses.Keys)
+            {
+                if(!m_clientAddresses[player].HasValue)
+                {
+                    m_clientAddresses.Remove(player);
+                    Debug.Log(player + " removed for not joining before match start");
+                }
+            }
             SceneManager.LoadScene(gameSceneName);
         }
 
-		public override void NetEvent(Netcode.PlayerInput playerInput)
-		{
-			GameObject gameObject = GetEntity(playerInput.serverId_);
-			if (gameObject == null)
-				return;
-			NetworkedPlayer networkedPlayer = gameObject.GetComponent<NetworkedPlayer>();
-			networkedPlayer.TakeCommands(playerInput.cmdBits_);
-		}
+        public override void MasterServerEvent(byte[] buf)
+        {
+            string message = System.Text.Encoding.UTF8.GetString(buf, 0, buf.Length);
+            string com = message.Substring(0, 5);
+            string arg = message.Substring(6, message.Length - 6);
+            Debug.Log(message);
+            switch (com)
+            {
+                case "ssack":
+                    ReceiveRegisterServer(arg);
+                    break;
+                case "stlob":
+                    ReceieveCreateLobby(arg);
+                    break;
+                case "pjoin":
+                    ReceivePlayerJoin(arg);
+                    break;
+                case "clack":
+                    ReceiveClose(arg);
+                    break;
+                case "pqack":
+                    ReceivePlayerQuit(arg);
+                    break;
+                default:
+                    Debug.Log("Unrecognized command from masterserver. Dropping...");
+                    break;
+            }
+        }
+        // @func ReceiveRegisterServer
+        // @desc An ACK message from the masterserver that the server was registered.
+        public void ReceiveRegisterServer(string buf)
+        {
+            string message = "stser " + buf;
+            if (WaitingForAck(message))
+                RemoveReliablePacket(message);
+        }
+        // @func ReceiveCreateLobby
+        // @desc Lobby was created on the server. Send an ACK to masterserver for confirmation of the packet.
+        public void ReceieveCreateLobby(string buf)
+        {
+            Debug.Log("Received CreateLobby from masterserver");
+            if(CurrentLobby != null)
+            {
+                //Send ACK
+                string buffer = "slack " + buf;
+                QueuePacket(m_server.MasterServer, buffer);
+            }
+            else
+            {
+                string[] data = buf.Split(':');
+                if (RegionServerName == data[0])
+                    CurrentLobby = data[1];
+                else
+                    Debug.Log("CreateLobby received wrong region name");
+                string buffer = "slack " + buf;
+                QueuePacket(m_server.MasterServer, buffer);
+            }      
+        }
+        // @func ReceivePlayerJoin
+        // @desc Masterserver notified a player has joined the lobby. Send an ACK for confirmation.
+        public void ReceivePlayerJoin(string buf)
+        {
+            string[] data = buf.Split(':');
+            if (m_clientAddresses.ContainsKey(data[0]))
+            {
+                //SendAck
+                QueuePacket(m_server.MasterServer, "pjack " + buf);
+            }
+            else
+            {
+                if (RegionServerName == data[1] && CurrentLobby == data[2])
+                {
+                    m_clientAddresses[data[0]] = null;
+                }
+                else
+                    Debug.Log("PlayerJoin received wrong lobby name");
+                QueuePacket(m_server.MasterServer, "pjack " + buf);
 
-		public override void NetEvent(Netcode.BulletSnapshot bulletSnapshot)
-		{
-			throw new System.NotImplementedException();
-		}
+            }
+
+        }
+        // @func ReceiveClose
+        // @desc The lobby was closed. Process Acks from masterserver.
+        public void ReceiveClose(string buf)
+        {
+            string message = "close " + buf;
+            if (WaitingForAck(message))
+            {
+                CurrentLobby = null;
+                RemoveReliablePacket(message);
+            }
+        }
+        // @func ReceivePlayerQuit
+        // @desc ACK by the masterserver after SendPlayerQuit.
+        public void ReceivePlayerQuit(string buf)
+        {
+            string message = "pquit " + buf;
+            if (WaitingForAck(message))
+            {
+                RemoveReliablePacket(message);
+            }
+        }
+        // @func SendRegisterServer
+        // @desc When server starts, send the name of the region the server is located in. Called by the UI.
+        public void SendRegisterServer()
+        {
+            string commandName = "stser ";
+            string buffer = commandName + RegionServerName;
+            AddReliablePacket(buffer, m_server.MasterServer, buffer);
+        }
+        /*
+        // @func SendUpdateListOfPlayers
+        // @desc Packet sent periodically to the masterserver to update the players currently in the lobby.
+        public void SendUpdateListOfPlayers()
+        {
+            string commandName = "lobup ";
+            string serverName = RegionServerName + ":" + CurrentLobby;
+            string playerList = "";
+            foreach (string player in activeMatchPlayers)
+            {
+                playerList += player;
+                playerList += ":";
+            }
+            byte[] buffer = System.Text.Encoding.UTF8.GetBytes(commandName + serverName + ":" + playerList);
+            AddReliablePacket("", m_server.MasterServer, buffer);
+        }
+        */
+        // @func SendPlayerQuit
+        // @desc When a client leaves, notify masterserver. 
+        public void SendPlayerQuit(string playerName)
+        {
+            string commandName = "pquit ";
+            string buffer = commandName + playerName;
+            AddReliablePacket(buffer, m_server.MasterServer, buffer);
+        }
+        // @func SendClose
+        // @desc A player closed the lobby. Notify the masterserver
+        public void SendClose()
+        {
+            string commandName = "close ";
+            string regionLobby = RegionServerName + ":" + CurrentLobby;
+            string buffer = commandName + regionLobby;
+            AddReliablePacket(buffer, m_server.MasterServer, buffer);
+        }
+        public override void NetEvent(Netcode.PlayerInput playerInput)
+        {
+            GameObject gameObject = GetEntity(playerInput.serverId_);
+            if (gameObject == null)
+                return;
+            NetworkedPlayer networkedPlayer = gameObject.GetComponent<NetworkedPlayer>();
+            networkedPlayer.TakeCommands(playerInput.cmdBits_);
+        }
+
+        public override void NetEvent(Netcode.BulletSnapshot bulletSnapshot)
+        {
+            throw new System.NotImplementedException();
+        }
 
         public override void NetEvent(Netcode.PlayerSnapshot player)
         {
             throw new System.NotImplementedException();
         }
+
     }
 }
 

@@ -29,8 +29,7 @@ public class GameUI : MonoBehaviour {
 
     public void DropMatch()
     {
-        //TODO
-        //GameManager.Instance.DropMatch(endGameScenePath);
+        FpsClient.GameClient.Instance.LeaveLobby();
     }
 
     public void ResumeGame()

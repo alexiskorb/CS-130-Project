@@ -12,11 +12,16 @@ namespace FpsServer {
 	// @class Server
 	// @desc The authoritative server.
 	public class Server : Netcode.MultiplayerNetworking {
-		private const int SERVER_PORT = 9001;
+        public string SERVER_IP = "127.0.0.1";
+        public int SERVER_PORT = 9001;
+
+        public string MasterServerIp;
+        public int MasterServerPort;
 
 		public uint PREDICTION_BUFFER_SIZE = 20;
 		public float TICK_RATE = 0f;
 		public bool m_enablePerformanceLog = true;
+        public float RELIABLE_TICK_RATE = 1.0f;
 
 		// The server-side game manager.
 		public GameServer m_game;
@@ -35,18 +40,19 @@ namespace FpsServer {
         }
 
 		private Netcode.PeriodicFunction m_tick;
+        private Netcode.PeriodicFunction m_reliablePacketTick;
 
 		private System.TimeSpan timeProcessingPackets;
 
         void Start()
-		{
-			RegisterPacket(Netcode.PacketType.PLAYER_INPUT, ProcessPlayerInput);
-			RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
-			InitNetworking(m_game, SERVER_PORT);
+        {
+            RegisterPacket(Netcode.PacketType.PLAYER_INPUT, ProcessPlayerInput);
+            RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
+            InitNetworking(m_game, MasterServerIp, MasterServerPort, SERVER_PORT);
 
-			m_tick = new Netcode.PeriodicFunction(MainServerLoop, TICK_RATE);
-		}
-
+            m_tick = new Netcode.PeriodicFunction(MainServerLoop, TICK_RATE);
+            m_reliablePacketTick = new Netcode.PeriodicFunction(SendReliablePackets, RELIABLE_TICK_RATE);
+        }
 		// @func Update
 		// @desc Every update we do all the work in the work queue, then propagate updates to all connected clients.
 		void Update()
@@ -86,10 +92,14 @@ namespace FpsServer {
 				BroadcastPacket(packet);
 
 			var packetsForClient = m_game.GetPacketsForClient();
-			foreach (var packet in packetsForClient)
-				SendPacket(packet.m_clientAddr, packet.m_packet);
+            foreach (Netcode.PacketForClient packet in packetsForClient)
+            {
+                SendPacket(packet.m_clientAddr, packet.m_packet);
+            }
 
-			SendState<Bullet, Netcode.BulletSnapshot>();
+            //m_reliablePacketTick.Run();
+
+            SendState<Bullet, Netcode.BulletSnapshot>();
 			SendState<NetworkedPlayer, Netcode.PlayerSnapshot>();
 		}
 
@@ -138,6 +148,14 @@ namespace FpsServer {
 				SendPacket(clientAddr, buf);
 			}
 		}
+        void SendReliablePackets()
+        {
+            var reliableQueue = m_game.GetReliablePackets();
+            foreach (var packet in reliableQueue.Values)
+            {
+                SendPacket(packet.m_clientAddr, packet.m_packet);
+            }
+        }
 
 		public override bool ShouldDiscard(Netcode.ClientAddress clientAddr, Netcode.Packet header)
 		{

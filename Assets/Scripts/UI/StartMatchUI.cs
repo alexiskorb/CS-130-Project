@@ -158,7 +158,12 @@ public class StartMatchUI : MonoBehaviour {
     // Called when invite button is pressed
     public void InviteSteamFriend(string friend)
     {
-		FpsClient.GameClient.Instance.SendInvitePlayer (friend);
+		FpsClient.GameClient.Instance.SendPlayerInvite(friend);
 		Debug.Log("Invite " + friend);
+    }
+    public void RefreshPlayerList()
+    {
+        Debug.Log("Refreshing list of players in lobby");
+        FpsClient.GameClient.Instance.SendRefreshPlayerList();
     }
 }

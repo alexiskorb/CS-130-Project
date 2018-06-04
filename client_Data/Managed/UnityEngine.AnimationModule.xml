@@ -2003,7 +2003,7 @@
     </member>
     <member name="T:UnityEngine.AvatarMask">
       <summary>
-        <para>AvatarMask are used to mask out humanoid body parts and transforms.</para>
+        <para>AvatarMask is used to mask out humanoid body parts and transforms.</para>
       </summary>
     </member>
     <member name="P:UnityEngine.AvatarMask.transformCount">

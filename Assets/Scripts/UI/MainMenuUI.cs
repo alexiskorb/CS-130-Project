@@ -61,6 +61,7 @@ public class MainMenuUI : MonoBehaviour {
 
     public void GoToCreateMatchMenu()
     {
+        FpsClient.GameClient.Instance.SendRefreshServerList();
         ShowCreateMatchMenu();
     }
 
@@ -82,8 +83,8 @@ public class MainMenuUI : MonoBehaviour {
         if (FpsClient.GameClient.Instance.NamesSet())
         {
             m_isMatchCreator = true;
-            FpsClient.GameClient.Instance.CreateLobby();
-            ShowStartMatchMenu();
+            FpsClient.GameClient.Instance.SendCreateLobby();
+            ShowJoinMatchMenu();
         }
         else
         {
@@ -106,7 +107,7 @@ public class MainMenuUI : MonoBehaviour {
         if (FpsClient.GameClient.Instance.NamesSet())
         {
             m_isMatchCreator = false;
-            FpsClient.GameClient.Instance.SendJoinLobby();
+            FpsClient.GameClient.Instance.SendPlayerJoin();
             ShowStartMatchMenu();
         }
         else
@@ -230,7 +231,7 @@ public class MainMenuUI : MonoBehaviour {
         startMatchMenu.enabled = false;
         joinMatchMenu.enabled = true;
         steamJoinMatchCanvas.enabled = false;
-        joinMatchMenu.GetComponent<JoinMatchUI>().RefreshOpenMatches();
+        //joinMatchMenu.GetComponent<JoinMatchUI>().RefreshOpenMatches();
         m_inMatchLobby = false;
     }
 

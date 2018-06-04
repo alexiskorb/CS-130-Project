@@ -28,14 +28,17 @@ namespace Netcode {
         public abstract void NetEvent(PlayerSnapshot playerSnapshot);
         public abstract void NetEvent(PlayerInput playerInput);
 		public abstract void NetEvent(ClientAddress clientAddr, PacketType packetType, byte[] buf);
+        public abstract void MasterServerEvent(byte[] buf);
 
-		private InputBit inputBits_ = 0; // Bitmask for buttons pressed. 
+        private InputBit inputBits_ = 0; // Bitmask for buttons pressed. 
 		private Queue<byte[]> m_packetQueue = new Queue<byte[]>();
         private Queue<PacketForClient> m_packetQueueForClient = new Queue<PacketForClient>();
 
-		// @func QueuePacket
-		// @desc Queue a packet for the client to send. 
-		public void QueuePacket<T>(T packet) where T : Packet
+        private Dictionary<string, PacketForClient> m_reliablePackets = new Dictionary<string, PacketForClient>();
+
+        // @func QueuePacket
+        // @desc Queue a packet for the client to send. 
+        public void QueuePacket<T>(T packet) where T : Packet
 		{
 			byte[] buf = Serializer.Serialize(packet);
 			m_packetQueue.Enqueue(buf);
@@ -45,6 +48,39 @@ namespace Netcode {
         {
             byte[] buf = Serializer.Serialize(packet);
             m_packetQueueForClient.Enqueue(new PacketForClient(clientAddr, buf));
+        }
+        public void QueuePacket(ClientAddress clientAddr, string message)
+        {
+            byte[] buf = System.Text.Encoding.UTF8.GetBytes(message);
+            m_packetQueueForClient.Enqueue(new PacketForClient(clientAddr, buf));
+        }
+        public void AddReliablePacket(string key, ClientAddress clientAddr, string message)
+        {
+            byte[] buf = System.Text.Encoding.UTF8.GetBytes(message);
+            string com = key.Substring(0, 5);
+            Debug.Log("Adding " + com + "to ReliablePackets");
+            /*
+            PacketForClient packet = new PacketForClient(clientAddr, buf);
+            m_reliablePackets[key] = packet; */
+            QueuePacket(clientAddr, message);
+        }
+        public void RemoveReliablePacket(string key)
+        {
+            /*
+            string com = key.Substring(0, 5);
+            Debug.Log("Removing " + com + "from ReliablePackets");
+            m_reliablePackets.Remove(key);
+            */
+        }
+        public bool WaitingForAck(string key)
+        {
+            /*
+            if (m_reliablePackets.ContainsKey(key))
+                return true;
+            else
+                return false;
+                */
+            return true;
         }
 
         public Queue<PacketForClient> GetPacketsForClient()
@@ -75,10 +111,15 @@ namespace Netcode {
 			m_packetQueue.Clear();
 			return packetQueue;
 		}
+        public Dictionary<string, PacketForClient> GetReliablePackets()
+        {
+            return m_reliablePackets;
+        }
 
-		// @func FindNetworkObjects
-		// @desc Finds all game objects in the scene with type T. 
-		public List<GameObject> FindNetworkObjects<T>() where T : MonoBehaviour
+
+        // @func FindNetworkObjects
+        // @desc Finds all game objects in the scene with type T. 
+        public List<GameObject> FindNetworkObjects<T>() where T : MonoBehaviour
 		{
 			List<GameObject> networkObjects = new List<GameObject>();
 			var gos = Resources.FindObjectsOfTypeAll<T>();
@@ -96,7 +137,7 @@ namespace Netcode {
 
 	public enum PacketType : int {
 		CREATE_LOBBY,
-		REFRESH_LOBBY_LIST,
+		REFRESH_PLAYER_LIST,
 		JOIN_LOBBY,
         LEAVE_LOBBY,
 		START_GAME,
@@ -206,31 +247,25 @@ namespace Netcode {
 	}
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-	public class RefreshLobbyList : Packet {
+	public class RefreshPlayerList : Packet {
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-        public string m_listOfGames;
-		public RefreshLobbyList() : base(PacketType.REFRESH_LOBBY_LIST) { }
-		public RefreshLobbyList(string[] listOfGames)
-			: base(PacketType.REFRESH_LOBBY_LIST)
+        public string m_listOfPlayers;
+		public RefreshPlayerList() : base(PacketType.REFRESH_PLAYER_LIST) { }
+		public RefreshPlayerList(string[] listOfPlayers)
+			: base(PacketType.REFRESH_PLAYER_LIST)
 		{
-			m_listOfGames = Serializer.Serialize(listOfGames);
+			m_listOfPlayers = Serializer.Serialize(listOfPlayers);
 		}
 	}
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class JoinLobby : Packet {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 140)]
-        public string m_listOfPlayers;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
-        public string m_lobbyName;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
         public string m_playerName;
 		public JoinLobby() : base(PacketType.JOIN_LOBBY) { }
-		public JoinLobby(string[] playerList, string lobbyName, string playerName)
+		public JoinLobby(string playerName)
 			: base(PacketType.JOIN_LOBBY)
 		{
-            m_listOfPlayers = Serializer.Serialize(playerList);
-            m_lobbyName = lobbyName;
             m_playerName = playerName;
 		}
 	}
@@ -238,18 +273,12 @@ namespace Netcode {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public class LeaveLobby : Packet
     {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 140)]
-        public string m_listOfPlayers;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
-        public string m_lobbyName;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
         public string m_playerName;
         public LeaveLobby() : base(PacketType.LEAVE_LOBBY) { }
-        public LeaveLobby(string[] playerList, string lobbyName, string playerName)
+        public LeaveLobby(string playerName)
             : base(PacketType.LEAVE_LOBBY)
         {
-            m_listOfPlayers = Serializer.Serialize(playerList);
-            m_lobbyName = lobbyName;
             m_playerName = playerName;
         }
     }
@@ -396,7 +425,7 @@ namespace Netcode {
 		public string m_ipAddress;
 		public int m_port;
 
-		public ClientAddress(string ipAddress, int port)
+        public ClientAddress(string ipAddress, int port)
 		{
 			m_ipAddress = ipAddress;
 			m_port = port;
