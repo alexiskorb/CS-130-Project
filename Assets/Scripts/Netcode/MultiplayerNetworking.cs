@@ -8,15 +8,23 @@ namespace Netcode {
 	// @class MultiplayerNetworking
 	// @desc Contains code shared by the client and server. 
 	public abstract class MultiplayerNetworking : MonoBehaviour {
-		public delegate void MainThreadWork();
+		// Packet handlers take this form. clientAddr is the address of the sender, 
+		// buf is the bytes received.
 		public delegate void PacketHandler(ClientAddress clientAddr, byte[] buf);
 
-		public Queue<MainThreadWork> m_mainWork = new Queue<MainThreadWork>();
+		// The work queue.
+		private Queue<MainThreadWork> m_mainWork = new Queue<MainThreadWork>();
+		// UdpClient class for sending
 		private UdpClient m_udp;
-		private TcpClient m_tcp; // TODO: TpcClient is bad. Use the C# socket library for sending reliable messages. 
+		// If a reliable layer is ever added to the netcode, it's probably best to use the C# socket library. 
+		private TcpClient m_tcp; 
+		// Contains the packet callbacks for each packet type.
 		private Dictionary<PacketType, PacketHandler> m_packetCallbacks = new Dictionary<PacketType, PacketHandler>();
+		// Reference to the Multiplayer Game interface so the netcode can pass messages up to the game. 
 		private IMultiplayerGame m_multiplayerGame;
 
+		// @func InitNetworking
+		// @desc Initialize the netcode with port number, and begin listening for UDP packets. 
 		public void InitNetworking(IMultiplayerGame game, int portno = 0)
 		{
 			m_multiplayerGame = game;
@@ -24,9 +32,10 @@ namespace Netcode {
 			m_udp.BeginReceive(ReceiveCallback, m_udp);
 		}
 
+		// @func ProcessPacketsInQueue
+		// @desc Calls the packet handlers that were set by the asynchronous read callback. 
 		public void ProcessPacketsInQueue()
 		{
-			// Process the packets in the incoming queue.
 			while (m_mainWork.Count > 0) {
 				MainThreadWork work = m_mainWork.Dequeue();
 				if (work != null)

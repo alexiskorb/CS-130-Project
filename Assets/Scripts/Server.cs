@@ -12,33 +12,37 @@ namespace FpsServer {
 	// @class Server
 	// @desc The authoritative server.
 	public class Server : Netcode.MultiplayerNetworking {
+		// Hardcoded server port. 
 		private const int SERVER_PORT = 9001;
-
+		// Size of the prediction buffer.
 		public uint PREDICTION_BUFFER_SIZE = 20;
+		// Rate at which updates are sent to the server.
 		public float TICK_RATE = 0f;
+		// Enables performance logging.
 		public bool m_enablePerformanceLog = true;
-
 		// The server-side game manager.
 		public GameServer m_game;
 		// Snapshots sent by all clients. 
 		public ClientHistoryMapping m_clients = new ClientHistoryMapping();
 		// Mapping from address to server ID. 
 		public ServerIdMapping m_serverIds = new ServerIdMapping();
-
-        public ClientHistoryMapping Clients
-        {
-            get { return m_clients; }
-        }
-        public ServerIdMapping ServerIds
-        {
-            get { return m_serverIds; }
-        }
-
+		// The function that gets called every tick, where tick is 
+		// the rate at which updates are sent to the server.
 		private Netcode.PeriodicFunction m_tick;
-
+		// The time spent processing packets in one frame. 
 		private System.TimeSpan timeProcessingPackets;
+		// m_clients getter.
+		public ClientHistoryMapping Clients {
+			get { return m_clients; }
+		}
+		// m_serverIds getter.
+		public ServerIdMapping ServerIds {
+			get { return m_serverIds; }
+		}
 
-        void Start()
+		// @func Start
+		// @desc Initialize networking.
+		void Start()
 		{
 			RegisterPacket(Netcode.PacketType.PLAYER_INPUT, ProcessPlayerInput);
 			RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
@@ -52,7 +56,9 @@ namespace FpsServer {
 		void Update()
 		{
 			if (m_enablePerformanceLog) {
-				Debug.Log("% time spent processing packets: " + (timeProcessingPackets.Milliseconds / (Time.deltaTime * 10)));
+				var time = (timeProcessingPackets.Milliseconds / (Time.deltaTime * 10));
+				if (time > 0f)
+					Debug.Log("% time spent processing packets: " + time);
 				var watch = System.Diagnostics.Stopwatch.StartNew();
 				ProcessPacketsInQueue();
 				watch.Stop();
@@ -64,6 +70,8 @@ namespace FpsServer {
 			m_tick.Run();
 		}
 
+		// @func MainServerLoop
+		// @desc Runs every tick. Sends snapshots, game state, and packets requested by the client.
 		private void MainServerLoop()
 		{
 			foreach (var client in m_clients) {
@@ -71,11 +79,6 @@ namespace FpsServer {
 				Netcode.ClientAddress clientAddr = client.Key;
 
 				history.IncrTimeSinceLastAck(Time.deltaTime);
-
-				if (history.GetTimeSinceLastAck() >= Netcode.SnapshotHistory<MySnapshot>.CLIENT_TIMEOUT) {
-					Debug.Log("Disconnecting Client. " + clientAddr.Print());
-					break;
-				}
 
 				MySnapshot snapshot = history.GetMostRecentSnapshot();
 				BroadcastPacket(snapshot);
@@ -93,6 +96,8 @@ namespace FpsServer {
 			SendState<NetworkedPlayer, Netcode.PlayerSnapshot>();
 		}
 
+		// @func SendState
+		// @desc Send the state of game object G with snapshot packet T. 
 		private void SendState<G, T>() where G : MonoBehaviour where T : Netcode.ISnapshot<T>, new()
 		{
 			var gameObjects = m_game.FindNetworkObjects<G>();
@@ -104,24 +109,28 @@ namespace FpsServer {
 		}
 
 		public void OnEnable()
-        {
-            DontDestroyOnLoad(this.gameObject);
-        }
+		{
+			DontDestroyOnLoad(this.gameObject);
+		}
 
+		// @func ProcessPlayerInput
+		// @desc Inform the game that a PlayerInput netevent has occurred.
 		public void ProcessPlayerInput(Netcode.ClientAddress clientAddr, byte[] buf)
 		{
 			Netcode.PlayerInput playerInput = Netcode.Serializer.Deserialize<Netcode.PlayerInput>(buf);
 			m_game.NetEvent(playerInput);
 		}
 
+		// @func ProcessSnapshot
+		// @desc Process snapshots, checking the seqno to discard old snapshots.
 		public void ProcessSnapshot(Netcode.ClientAddress clientAddr, byte[] buf)
 		{
-			if (!m_clients.ContainsKey (clientAddr))
+			if (!m_clients.ContainsKey(clientAddr))
 				return;
+
 			MySnapshot snapshot = Netcode.Serializer.Deserialize<MySnapshot>(buf);
 			Netcode.SnapshotHistory<MySnapshot> history = m_clients[clientAddr];
 
-			// Check the seqno, discarding old snapshots.
 			if (snapshot.m_seqno < history.GetSeqno()) {
 				Debug.Log("Snapshot with seqno " + snapshot.m_seqno + " was received out of order.");
 				return;
@@ -132,14 +141,16 @@ namespace FpsServer {
 		}
 
 		// @func BroadcastPacket
-		// @desc Broadcasts the packet to all connected clients.
+		// @desc Takes a packet structure, serializes, and broadcasts it to all connected clients.
 		void BroadcastPacket<T>(T packet)
 		{
 			byte[] buf = Netcode.Serializer.Serialize(packet);
-			foreach (var clientAddr in m_clients.Keys) {
+			foreach (var clientAddr in m_clients.Keys)
 				SendPacket(clientAddr, buf);
-			}
 		}
+
+		// @func BroadcastPacket
+		// @desc Broadcasts the packet to all connected 
 		void BroadcastPacket(byte[] buf)
 		{
 			foreach (var clientAddr in m_clients.Keys) {
@@ -147,20 +158,23 @@ namespace FpsServer {
 			}
 		}
 
+		// @func ShouldDiscard
+		// @desc If we're the server, accept packets from anyone. When the master server transfers control
+		// to the game server, we should probably 
 		public override bool ShouldDiscard(Netcode.ClientAddress clientAddr, Netcode.Packet header)
 		{
 			return false;
 		}
 
+		// @func RemoveClient
+		// @desc Removes all client data from the server.
 		public void RemoveClient(Netcode.ClientAddress clientAddr)
 		{
-			List<Netcode.ClientAddress> clients = new List<Netcode.ClientAddress> (m_clients.Keys);
-			foreach(Netcode.ClientAddress address in clients)
-			{
-				if (address.m_ipAddress == clientAddr.m_ipAddress && address.m_port == clientAddr.m_port) 
-				{
-					m_clients.Remove (address);
-					m_serverIds.Remove (address);
+			List<Netcode.ClientAddress> clients = new List<Netcode.ClientAddress>(m_clients.Keys);
+			foreach (Netcode.ClientAddress address in clients) {
+				if (address.m_ipAddress == clientAddr.m_ipAddress && address.m_port == clientAddr.m_port) {
+					m_clients.Remove(address);
+					m_serverIds.Remove(address);
 				}
 			}
 		}

@@ -21,13 +21,12 @@ namespace FpsServer {
         public string gameSceneName = "ServerMainScene";
 
 		public List<Vector3> m_spawnPoints = new List<Vector3> {
-			new Vector3(-1.0f, 0f, -1.0f),
-			new Vector3(-1.0f, 0f, 1.0f),
-			new Vector3(1.0f, 0f, 1.0f),
-			new Vector3(1.0f, 0f, -1.0f)
+			new Vector3(-10.0f, 1f, -10.0f),
+			new Vector3(-10.0f, 1f, 10.0f),
+			new Vector3(10.0f, 1f, 10.0f),
+			new Vector3(10.0f, 1f, -10.0f)
 		};
 
-        public void Update() {}
         public void OnEnable()
         {
             DontDestroyOnLoad(this.gameObject);

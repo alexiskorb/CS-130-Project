@@ -30,11 +30,16 @@ namespace FpsClient {
 		// Client's current seqno.
 		private uint m_seqno = 0;
 		public delegate uint NewSeqnoDel();
+		// Call this delegate to increment the sequence number.
 		public NewSeqnoDel m_newSeqno;
-
+		// Last received hash ("password") from the server.
 		private int m_serverHash = 0;
+		// Last received server sequence number.
 		private uint m_serverSeqno = 0;
 
+		// @func Start
+		// @desc Initialize the networking and snapshot history. At first, don't send updates or increment 
+		// seqnos.
 		void Start()
 		{
 			RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
@@ -47,13 +52,17 @@ namespace FpsClient {
 			m_snapshotHistory = new Netcode.SnapshotHistory<MySnapshot>(PREDICTION_BUFFER_SIZE);
 		}
 
-
+		// @func BeginSnapshots
+		// @desc Tells the client to start sending snapshots to the server.
 		public void BeginSnapshots()
 		{
 			Tick = new Netcode.PeriodicFunction(SnapshotTick, TICK_RATE);
 			m_newSeqno = NewSeqno;
 		}
 
+		// @func StopSnapshots
+		// @desc Tells the client to stop sending snapshots. Used when the game client 
+		// transitions back to the main screen. 
 		public void StopSnapshots()
 		{
 			Tick = new Netcode.PeriodicFunction(()=>{}, 0f);
@@ -65,6 +74,8 @@ namespace FpsClient {
             DontDestroyOnLoad(this.gameObject);
         }
 
+		// @func SnapshotTick
+		// @desc This tick function sends player input and snapshots.
         public void SnapshotTick()
 		{
 			uint newSeqno = m_newSeqno();
@@ -80,14 +91,14 @@ namespace FpsClient {
 			SendPacket(m_serverAddr, playerInput);
 		}
 
+		// @func Update
+		// @desc Process packets in the incoming queue, send tick to server, and send outgoing packets.
 		void Update()
 		{
 			ProcessPacketsInQueue();
 
-			// Send tick to server.
 			m_tick.Run();
 
-			// Send the packets in the outgoing queue (the packets that the game requested us to send). 
 			Queue<byte[]> packetQueue = m_game.GetPacketQueue();
 			foreach (byte[] packet in packetQueue) {
 				SendPacket(m_serverAddr, packet);

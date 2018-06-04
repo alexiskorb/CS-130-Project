@@ -5,6 +5,8 @@ using UnityEngine;
 // @desc Contains game logic code that is shared between the client game and the 
 // server game. 
 public abstract class Game : Netcode.IMultiplayerGame {
+	// GameServer hashes GameObjects by the Unity instance ID; GameClient hashes them by 
+	// the server's Unity instance IDs.
 	protected Dictionary<int, GameObject> m_objects = new Dictionary<int, GameObject>();
 
 	// @func GetEntity

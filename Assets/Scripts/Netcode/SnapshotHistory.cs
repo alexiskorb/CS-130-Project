@@ -4,11 +4,16 @@ namespace Netcode {
 	// @class SnapshotHistory
 	// @desc Maintains the client's history of snapshots for client-side prediction and delta compression. 
 	public class SnapshotHistory<T> where T : ISnapshot<T>, new() {
+		// Time, in seconds, that the server should drop a client if it hasn't received a response from it.
 		public static uint CLIENT_TIMEOUT = 5;
 
+		// Size of the snapshot buffer.
 		private uint m_predictionBufSize;
+		// Snapshot buffer.
 		private T[] m_snapshots;
+		// Current sequence number.
 		private uint m_seqno = 0;
+		// Time elapsed since the last ack. 
 		private float m_timeSinceLastAck = 0f;
 		
 		public SnapshotHistory(uint predictionBufSize)
@@ -61,16 +66,22 @@ namespace Netcode {
 			return snapshot;
 		}
 
+		// @func GetMostRecentSnapshot
+		// @desc Returns the snapshot that was inserted last.
 		public T GetMostRecentSnapshot()
 		{
 			return m_snapshots[GetSnapshotIndex()];
 		}
 
+		// @func GetTimeSinceLastAck
+		// @desc Returns the time since the last ack from the client associated with this snapshot history.
 		public float GetTimeSinceLastAck()
 		{
 			return m_timeSinceLastAck;
 		}
 
+		// @func GetSeqno
+		// @desc Get the current seqno.
 		public uint GetSeqno()
 		{
 			return m_seqno;
