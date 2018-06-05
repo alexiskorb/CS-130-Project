@@ -29,6 +29,8 @@ namespace Netcode {
 		END
 	}
 
+	// @class BulletSnapshot
+	// @desc Game state of the bullet. 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class BulletSnapshot : ISnapshot<BulletSnapshot> {
 		public Vector3 position_;
@@ -62,6 +64,8 @@ namespace Netcode {
 		}
 	}
 
+	// @class PlayerSnapshot
+	// @desc Game state of the player.
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public class PlayerSnapshot : ISnapshot<PlayerSnapshot>
     {
@@ -93,6 +97,9 @@ namespace Netcode {
         }
     }
 
+	// @class PlayerInput
+	// @desc Packet containing the input pressed by the player. This is sent by the client
+	// every frame, and processed by the server.
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class PlayerInput : Packet {
 		public int serverId_;
@@ -232,7 +239,8 @@ namespace Netcode {
 	}
 
 
-	// @doc A Snapshot is the state that is synchronized among clients and server.
+	// @doc A Snapshot is the game state predicted by the player, like position
+	// and rotation. 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class Snapshot : ISnapshot<Snapshot> {
 		public Vector3 m_position;
@@ -241,8 +249,7 @@ namespace Netcode {
         public int m_serverHash;
 
 		public Snapshot() { }
-		// @doc Constructor must take this form or you'll get compiler errors. 
-		// Static errors are better than runtime errors :)  
+		// Constructor must take this form or you'll get compiler errors. 
 		public Snapshot(uint seqno, int serverId, int serverHash, GameObject gameObject)
 			: base(serverId, PacketType.SNAPSHOT, seqno, gameObject)
 		{
@@ -279,6 +286,10 @@ namespace Netcode {
 		}
 	}
 
+	// *****************************************************************************************
+	//		@doc Everything after this is game-independent and shouldn't really be touched 
+	// *****************************************************************************************
+
 	// @class SnapshotInterface
 	// @desc Implement this interface to have snapshots integrated with the rest of the server.
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -295,6 +306,9 @@ namespace Netcode {
 			FromObject(gameObject);
 		}
 
+		// @func Create
+		// @desc Used by the client and server to create packets. Developers
+		// should stick to instantiating objects with constructors.
 		public void Create(uint seqno, int serverId, GameObject gameObject)
 		{
 			m_seqno = seqno;
@@ -302,20 +316,17 @@ namespace Netcode {
 			FromObject(gameObject);
 		}
 
-		// @interface Equals
-		// @desc Performs an equality test. 
+		// @func Equals
+		// @desc Performs an equality test between the same type of packets. C# is a managed language,
+		// so it can't compare classes by value unless this method is overridden. 
 		public abstract bool Equals(T other);
-		// @interface FromObject
+		// @func FromObject
 		// @desc Initialize the snapshot with a Game Object.
 		public abstract void FromObject(GameObject gameObject);
-		// @interface Apply
+		// @func Apply
 		// @desc Applies the snapshot to the Game Object.
 		public abstract void Apply(ref GameObject gameObject);
 	}
-
-	// *****************************************************************************************
-	//		@doc Everything after this is game-independent and shouldn't really be touched 
-	// *****************************************************************************************
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class Packet {
