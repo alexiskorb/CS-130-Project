@@ -34,6 +34,7 @@ public class GameUI : MonoBehaviour {
 		FpsClient.GameClient.Instance.SendDropMatch();
 
 		SceneManager.LoadScene("MainMenu");
+        FpsClient.GameClient.Instance.LeaveLobby();
     }
 
     public void ResumeGame()

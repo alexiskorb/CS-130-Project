@@ -12,14 +12,19 @@ namespace FpsServer {
 	// @class Server
 	// @desc The authoritative server.
 	public class Server : Netcode.MultiplayerNetworking {
-		// Hardcoded server port. 
-		private const int SERVER_PORT = 9001;
-		// Size of the prediction buffer.
-		public uint PREDICTION_BUFFER_SIZE = 20;
+        public string SERVER_IP = "127.0.0.1";
+        public int SERVER_PORT = 9001;
+
+        public string MasterServerIp;
+        public int MasterServerPort;
+
+        public uint PREDICTION_BUFFER_SIZE = 20;
 		// Rate at which updates are sent to the server.
 		public float TICK_RATE = 0f;
 		// Enables performance logging.
 		public bool m_enablePerformanceLog = true;
+        public float RELIABLE_TICK_RATE = 1.0f;
+
 		// The server-side game manager.
 		public GameServer m_game;
 		// Snapshots sent by all clients. 
@@ -29,8 +34,9 @@ namespace FpsServer {
 		// The function that gets called every tick, where tick is 
 		// the rate at which updates are sent to the server.
 		private Netcode.PeriodicFunction m_tick;
-		// The time spent processing packets in one frame. 
-		private System.TimeSpan timeProcessingPackets;
+        private Netcode.PeriodicFunction m_reliablePacketTick;
+        // The time spent processing packets in one frame. 
+        private System.TimeSpan timeProcessingPackets;
 		// m_clients getter.
 		public ClientHistoryMapping Clients {
 			get { return m_clients; }
@@ -46,11 +52,11 @@ namespace FpsServer {
 		{
 			RegisterPacket(Netcode.PacketType.PLAYER_INPUT, ProcessPlayerInput);
 			RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
-			InitNetworking(m_game, SERVER_PORT);
+            InitNetworking(m_game, MasterServerIp, MasterServerPort, SERVER_PORT);
 
-			m_tick = new Netcode.PeriodicFunction(MainServerLoop, TICK_RATE);
-		}
-
+            m_tick = new Netcode.PeriodicFunction(MainServerLoop, TICK_RATE);
+            m_reliablePacketTick = new Netcode.PeriodicFunction(SendReliablePackets, RELIABLE_TICK_RATE);
+        }
 		// @func Update
 		// @desc Every update we do all the work in the work queue, then propagate updates to all connected clients.
 		void Update()
@@ -89,10 +95,14 @@ namespace FpsServer {
 				BroadcastPacket(packet);
 
 			var packetsForClient = m_game.GetPacketsForClient();
-			foreach (var packet in packetsForClient)
-				SendPacket(packet.m_clientAddr, packet.m_packet);
+            foreach (Netcode.PacketForClient packet in packetsForClient)
+            {
+                SendPacket(packet.m_clientAddr, packet.m_packet);
+            }
 
-			SendState<Bullet, Netcode.BulletSnapshot>();
+            //m_reliablePacketTick.Run();
+
+            SendState<Bullet, Netcode.BulletSnapshot>();
 			SendState<NetworkedPlayer, Netcode.PlayerSnapshot>();
 		}
 
@@ -157,6 +167,14 @@ namespace FpsServer {
 				SendPacket(clientAddr, buf);
 			}
 		}
+        void SendReliablePackets()
+        {
+            var reliableQueue = m_game.GetReliablePackets();
+            foreach (var packet in reliableQueue.Values)
+            {
+                SendPacket(packet.m_clientAddr, packet.m_packet);
+            }
+        }
 
 		// @func ShouldDiscard
 		// @desc If we're the server, accept packets from anyone. When the master server transfers control

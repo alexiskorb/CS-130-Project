@@ -8,20 +8,24 @@ namespace FpsClient {
 	// @class Client
 	// @desc Performs client-side prediction and server synchronization. 
 	public class Client : Netcode.MultiplayerNetworking {
-		public const string MASTER_SERVER_IP = "127.0.0.1";
-		public const int MASTER_SERVER_PORT = 9001;
+		public string MasterServerIp = "127.0.0.1";
+		public int MasterServerPort = 9001;
 		public uint PREDICTION_BUFFER_SIZE = 20;
 		public float TICK_RATE = 0f; // The rate in seconds at which updates are sent to the server.
+        public float RELIABLE_TICK_RATE = 0.5f;
 
-		// Address of the server. Initially, we talk to the master server. The server address changes to the 
-		// game server that the master connects us to.
-		public Netcode.ClientAddress m_serverAddr = new Netcode.ClientAddress(MASTER_SERVER_IP, MASTER_SERVER_PORT);
-		// The client-side game logic.
-		public GameClient m_game;
+        // Address of the server. Initially, we talk to the master server. The server address changes to the 
+        // game server that the master connects us to.
+        public Netcode.ClientAddress m_lobbyServerAddr;
+
+        // The client-side game logic.
+        public GameClient m_game;
 		// Client snapshots. 
 		private Netcode.SnapshotHistory<MySnapshot> m_snapshotHistory;
 		// The tick function sends client commands at the specified tick rate.
 		private Netcode.PeriodicFunction m_tick;
+        private Netcode.PeriodicFunction m_reliablePacketTick;
+
         public Netcode.PeriodicFunction Tick
         {
             get { return m_tick;  }
@@ -42,13 +46,14 @@ namespace FpsClient {
 		// seqnos.
 		void Start()
 		{
-			RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
+            RegisterPacket(Netcode.PacketType.SNAPSHOT, ProcessSnapshot);
 			RegisterPacket(Netcode.PacketType.BULLET_SNAPSHOT, ProcessBulletSnapshot);
             RegisterPacket(Netcode.PacketType.PLAYER_SNAPSHOT, ProcessPlayerSnapshot);
-			InitNetworking(m_game);
+			InitNetworking(m_game, MasterServerIp, MasterServerPort);
 
 			m_tick = new Netcode.PeriodicFunction(() => { }, 0f);
-			m_newSeqno = new NewSeqnoDel(GetSeqno);
+            m_reliablePacketTick = new Netcode.PeriodicFunction(SendReliablePackets, RELIABLE_TICK_RATE);
+            m_newSeqno = new NewSeqnoDel(GetSeqno);
 			m_snapshotHistory = new Netcode.SnapshotHistory<MySnapshot>(PREDICTION_BUFFER_SIZE);
 		}
 
@@ -83,12 +88,12 @@ namespace FpsClient {
 			GameObject mainPlayer = m_game.GetMainPlayer();
 			MySnapshot state = new MySnapshot(newSeqno, m_game.mainPlayerServerId, m_serverHash, mainPlayer);
 			m_snapshotHistory.PutSnapshot(state);
-			SendPacket(m_serverAddr, state);
+			SendPacket(m_lobbyServerAddr, state);
 
 			Netcode.InputBit inputBits = m_game.GetInput();
 			Netcode.PlayerInput playerInput = new Netcode.PlayerInput(newSeqno, m_game.mainPlayerServerId, inputBits);
 
-			SendPacket(m_serverAddr, playerInput);
+			SendPacket(m_lobbyServerAddr, playerInput);
 		}
 
 		// @func Update
@@ -101,9 +106,16 @@ namespace FpsClient {
 
 			Queue<byte[]> packetQueue = m_game.GetPacketQueue();
 			foreach (byte[] packet in packetQueue) {
-				SendPacket(m_serverAddr, packet);
+				SendPacket(m_lobbyServerAddr, packet);
 			}
-		}
+            var packetsForClient = m_game.GetPacketsForClient();
+            foreach (Netcode.PacketForClient packet in packetsForClient)
+            {
+                SendPacket(packet.m_clientAddr, packet.m_packet);
+            }
+
+            //m_reliablePacketTick.Run();
+        }
 
 		void ProcessBulletSnapshot(Netcode.ClientAddress clientAddress, byte[] buf)
 		{
@@ -138,10 +150,18 @@ namespace FpsClient {
 			} else
 				m_game.NetEvent(snapshot);
 		}
+        void SendReliablePackets()
+        {
+            var reliableQueue = m_game.GetReliablePackets();
+            foreach (var packet in reliableQueue.Values)
+            {
+                SendPacket(packet.m_clientAddr, packet.m_packet);
+            }
+        }
 
-		// @func NewSeqno
-		// @desc Returns the current seqno and increments it. 
-		public uint NewSeqno()
+        // @func NewSeqno
+        // @desc Returns the current seqno and increments it. 
+        public uint NewSeqno()
 		{
 			uint seqno = m_seqno++;
 			return seqno;
@@ -158,8 +178,8 @@ namespace FpsClient {
 		// @desc Drop UDP packets that aren't from the server. 
 		public override bool ShouldDiscard(Netcode.ClientAddress clientAddr, Netcode.Packet header)
 		{
-			return !(m_serverAddr.m_ipAddress == clientAddr.m_ipAddress &&
-				m_serverAddr.m_port == clientAddr.m_port);
+			return !(m_lobbyServerAddr.m_ipAddress == clientAddr.m_ipAddress &&
+				m_lobbyServerAddr.m_port == clientAddr.m_port);
 		}
 	}
 }

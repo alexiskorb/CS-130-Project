@@ -5,7 +5,7 @@ using System.Linq;
 using UnityEngine.SceneManagement;
 using System.Text.RegularExpressions;
 using Steamworks;
-
+using System;
 namespace FpsClient {
 	struct GameInput {
 		public KeyCode key_;
@@ -17,30 +17,32 @@ namespace FpsClient {
 		}
 	}
 
-	// @class Game
-	// @desc Simulates the game state on the client side. 
-	public class GameClient : Game
+    // @class Game
+    // @desc Simulates the game state on the client side. 
+    public class GameClient : Game
     {
         public int mainPlayerServerId;
         public Client m_client;
         public string gameSceneName = "MainScene";
         public string startingSceneName = "MainMenu";
 
-		//used for Steam invites
-		public string m_invitedLobby = "";
+        //used for Steam invites
+        public string m_invitedLobby = "";
+        public string m_invitedRegion = "";
 
         //Prefabs for players 
         public GameObject playerPrefab;
-		public GameObject bulletPrefab;
-		public GameObject m_mainPlayer;
-		private List<GameInput> input_ = new List<GameInput>();
-		// The server ID of the main player.
-		public int ServerId { get; set; }
+        public GameObject bulletPrefab;
+        public GameObject m_mainPlayer;
+        private List<GameInput> input_ = new List<GameInput>();
+        // The server ID of the main player.
+        public int ServerId { get; set; }
+        public string RegionServerName { get; set; }
         //String name of the main player.
         private string m_mainPlayerName = "";
         public string MainPlayerName
         {
-            get { return m_mainPlayerName;  }
+            get { return m_mainPlayerName; }
             set { m_mainPlayerName = value; }
         }
         //String name of the lobby the main player is in
@@ -58,13 +60,17 @@ namespace FpsClient {
             }
         }
 
-        //IP of the host server the client communicates to in a match
-        public string MatchHostIp { get; set; }
-        //Port number of the server hosting the match
-        public int MatchHostPort { get; set; }
+
         //State on whether the menu is open, used by the UI
         public bool MenuOpen { get; set; }
 
+
+        private List<string> m_listOfServers = new List<string>();
+        public List<string> ServerList
+        {
+            get { return m_listOfServers; }
+            set { m_listOfServers = value; }
+        }
         //List of lobby names 
         private List<string> m_listOfGames = new List<string>();
         public List<string> ListOfGames
@@ -83,7 +89,7 @@ namespace FpsClient {
 
         // Singleton instance of the GameClient.
         private static GameClient m_instance = null;
-       
+
         // Get instance of the GameClient. 
         public static GameClient Instance
         {
@@ -120,9 +126,9 @@ namespace FpsClient {
 
         }
 
-		private void Start()
-		{
-			input_.Add(new GameInput(KeyCode.Mouse0, Netcode.InputBit.PRIMARY_WEAPON));
+        private void Start()
+        {
+            input_.Add(new GameInput(KeyCode.Mouse0, Netcode.InputBit.PRIMARY_WEAPON));
 
             // Initialize Steam Name
             if (SteamManager.Initialized)
@@ -130,6 +136,7 @@ namespace FpsClient {
                 string playerSteamName = SteamFriends.GetPersonaName();
                 Debug.Log(playerSteamName);
                 m_mainPlayerName = playerSteamName;
+                // SendRefreshServerList();
             }
             else
             {
@@ -137,19 +144,19 @@ namespace FpsClient {
             }
         }
 
-		public void Update()
-		{
-			foreach (var input in input_) {
-				if (Input.GetKey(input.key_))
-					QueueInput(input.cmd_);
-			}
-		}
+        public void Update()
+        {
+            foreach (var input in input_) {
+                if (Input.GetKey(input.key_))
+                    QueueInput(input.cmd_);
+            }
+        }
 
         public void OnEnable()
         {
             // Load into main menu at start of game
             SceneManager.LoadScene(startingSceneName);
-			SceneManager.sceneLoaded += OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
         }
 
         // Unsubscribe from sceneLoaded event
@@ -206,11 +213,9 @@ namespace FpsClient {
         {
             switch (type)
             {
-                case Netcode.PacketType.REFRESH_LOBBY_LIST:
-                    ProcessRefreshLobbyList(buf);
-                    break;
-                case Netcode.PacketType.JOIN_LOBBY:
-                    ProcessJoinLobby(buf);
+                
+                case Netcode.PacketType.REFRESH_PLAYER_LIST:
+                    ProcessRefreshPlayerList(buf);
                     break;
                 case Netcode.PacketType.LEAVE_LOBBY:
                     ProcessLeaveLobby(buf);
@@ -226,66 +231,63 @@ namespace FpsClient {
 					break;
             }
         }
-
+        
         // @func ProcessResfreshLobbyList
         // @desc When a REFRESH_LOBBY_LIST packet is received, store the updated list of lobbies open.
-        public void ProcessRefreshLobbyList(byte[] buf)
+        public void ProcessRefreshPlayerList(byte[] buf)
         {
             Debug.Log("Receieved RefreshLobbyList packet");
-            Netcode.RefreshLobbyList list = Netcode.Serializer.Deserialize<Netcode.RefreshLobbyList>(buf);
-            ListOfGames = Netcode.Serializer.Deserialize(list.m_listOfGames).ToList();
+            Netcode.RefreshPlayerList list = Netcode.Serializer.Deserialize<Netcode.RefreshPlayerList>(buf);
+            LobbyPlayers = Netcode.Serializer.Deserialize(list.m_listOfPlayers).ToList();
         }
+        
         // @func SendRefreshLobbyList
         // @desc Sends a request to the server for an updated lobby list. Called by the UI.
-        public void SendRefreshLobbyList()
+        public void SendRefreshPlayerList()
         {
-            Netcode.RefreshLobbyList packet = new Netcode.RefreshLobbyList();
+            Netcode.RefreshPlayerList packet = new Netcode.RefreshPlayerList();
             QueuePacket(packet);
         }
-        // @func ProcessJoinLobby
-        // @desc Server will send a JOIN_LOBBY packet every time a new player joins the lobby. In that case, update local list of players in the lobby
-        public void ProcessJoinLobby(byte[] buf)
-        {
-            Debug.Log("Receieved JoinLobby packet");
-            Netcode.JoinLobby lobby = Netcode.Serializer.Deserialize<Netcode.JoinLobby>(buf);
-            CurrentLobby = lobby.m_lobbyName;
-            LobbyPlayers = Netcode.Serializer.Deserialize(lobby.m_listOfPlayers).ToList();
-        }
+        
         // @func SendJoinLobby
         // @desc Request the server to join a lobby. This function is called by the UI.
         public void SendJoinLobby()
         {
-            Netcode.JoinLobby packet = new Netcode.JoinLobby(null, CurrentLobby, MainPlayerName);
+            Netcode.JoinLobby packet = new Netcode.JoinLobby(MainPlayerName);
             Debug.Log(packet.m_type);
+            //TODO: Reliable
             QueuePacket(packet);
         }
-		// @func SendJoinLobbyFromInvite
-		// @desc Request the server to join the lobby that the player was invited to. This is called by the UI.
-		public void SendJoinLobbyFromInvite()
-		{
-			Netcode.JoinLobby packet = new Netcode.JoinLobby(null, m_invitedLobby, MainPlayerName);
-			Debug.Log(packet.m_type);
-			QueuePacket(packet);
-		}
+        /*
+        // @func SendJoinLobbyFromInvite
+        // @desc Request the server to join the lobby that the player was invited to. This is called by the UI.
+        public void SendJoinLobbyFromInvite()
+        {
+            Netcode.JoinLobby packet = new Netcode.JoinLobby(MainPlayerName);
+            Debug.Log(packet.m_type);
+            QueuePacket(packet);
+        }*/
 
-		// @func ProcessInvitePlayer
-		// @desc Server will send a INVITE_PLAYER packet when another player asks to invite 
-		public void ProcessInvitePlayer(byte[] buf)
-		{
-			Debug.Log("Receieved InvitePlayer packet");
-			Netcode.InvitePlayer invitation = Netcode.Serializer.Deserialize<Netcode.InvitePlayer>(buf);
-			string text = "User " + invitation.m_hostSteamName + " has invited you to join a match with them.";
-			SteamJoinMatchUI.Instance.SetMatchText(text);
-			MainMenuUI.Instance.OpenSteamJoinMatchPopup ();
-			m_invitedLobby = invitation.m_lobbyName;
-		}
-		public void SendInvitePlayer(string invitedPlayer)
-		{
-			Netcode.InvitePlayer packet = new Netcode.InvitePlayer (CurrentLobby, MainPlayerName, invitedPlayer);
-			Debug.Log (packet.m_type);
-			QueuePacket (packet);
-		}
-
+        /*
+        // @func ProcessInvitePlayer
+        // @desc Server will send a INVITE_PLAYER packet when another player asks to invite 
+        public void ProcessInvitePlayer(byte[] buf)
+        {
+            Debug.Log("Receieved InvitePlayer packet");
+            Netcode.InvitePlayer invitation = Netcode.Serializer.Deserialize<Netcode.InvitePlayer>(buf);
+            string text = "User " + invitation.m_hostSteamName + " has invited you to join a match with them.";
+            SteamJoinMatchUI.Instance.SetMatchText(text);
+            MainMenuUI.Instance.OpenSteamJoinMatchPopup();
+            m_invitedLobby = invitation.m_lobbyName;
+        }
+        /*
+        public void SendInvitePlayer(string invitedPlayer)
+        {
+            Netcode.InvitePlayer packet = new Netcode.InvitePlayer(CurrentLobby, MainPlayerName, invitedPlayer);
+            Debug.Log(packet.m_type);
+            QueuePacket(packet);
+        } */
+        
         // @func ProcessStartGame
         // @desc With the START_GAME packet, save the client's new ID, and IP/port of the match server to communicate with.
         public void ProcessStartGame(byte[] buf)
@@ -293,9 +295,6 @@ namespace FpsClient {
             Debug.Log("Received StartGame packet");
             Netcode.StartGame game = Netcode.Serializer.Deserialize<Netcode.StartGame>(buf);
             ServerId = game.m_serverId;
-            MatchHostIp = game.m_hostIP;
-            MatchHostPort = game.m_hostPort;
-            Debug.Log("Connecting to IP " + MatchHostIp + " at port " + MatchHostPort);
             EnterMatch(ServerId);
 
 			m_client.BeginSnapshots();
@@ -309,7 +308,6 @@ namespace FpsClient {
             Netcode.StartGame packet = new Netcode.StartGame(CurrentLobby);
             QueuePacket(packet);
         }
-
         // @func EnterMatch
         // @desc Loads the scene for the match. After it loads, OnSceneLoaded will be called,
         // where the player is spawned.
@@ -319,38 +317,175 @@ namespace FpsClient {
             mainPlayerServerId = serverId;
             SceneManager.LoadScene(gameSceneName);
         }
-
-        // @func CreateLobby
-        // @desc Ask the server to create a new lobby. Called by the UI. 
-        // The client will receive a JOIN_LOBBY response after it succeeds.
-        public void CreateLobby()
-        {
-            Debug.Log("Sending create lobby packet");
-            Netcode.CreateLobby packet = new Netcode.CreateLobby(CurrentLobby, MainPlayerName);
-            QueuePacket(packet);
-            //TODO: Possibly receive ACK for match creation
-        }
-
         // @func ProcessLeaveLobby
         // @desc Server will send a LEAVE_LOBBY packet every time a new player leaves the lobby. In that case, update local list of players in the lobby
         public void ProcessLeaveLobby(byte[] buf)
         {
             Debug.Log("Receieved LeaveLobby packet");
             Netcode.LeaveLobby lobby = Netcode.Serializer.Deserialize<Netcode.LeaveLobby>(buf);
-            if (CurrentLobby == lobby.m_lobbyName)
-            {
-                LobbyPlayers = Netcode.Serializer.Deserialize(lobby.m_listOfPlayers).ToList();
-            }
+            m_lobbyPlayers.Remove(lobby.m_playerName);
+        }
+    
+        public void LeaveLobby()
+        {
+            Debug.Log("Sending leave lobby packet");
+            Netcode.LeaveLobby packet = new Netcode.LeaveLobby(MainPlayerName);
+            QueuePacket(packet);
+            m_currentLobby = "";
         }
 
-        public void LeaveLobby()
-		{
-			Debug.Log ("Sending leave lobby packet");
-			Netcode.LeaveLobby packet = new Netcode.LeaveLobby (null, CurrentLobby, MainPlayerName);
-			QueuePacket (packet);
-			m_currentLobby = "";
-		}
+        public override void MasterServerEvent(byte[] buf)
+        {
+            string s = System.Text.Encoding.UTF8.GetString(buf, 0, buf.Length);
+            string com = s.Substring(0, 5);
+            string arg = s.Substring(6, s.Length - 6);
+            Debug.Log("Received packet from master");
+            Debug.Log(s);
+            switch (com)
+            {
+                case "pjack": 
+                    ReceivePlayerJoin(arg);
+                    break;
+                case "slack":
+                    ReceiveCreateLobby(arg);
+                    break;
+                case "plack":
+                    ReceiveLobbyList(arg);
+                    break;
+                case "psack":
+                    ReceiveServerList(arg);
+                    break;
+                case "piack":
+                    SendPlayerInviteAck(arg);
+                    break;
+                case "pinvi":
+                    ReceivePlayerInvite(arg);
+                    break;
+                default:
+                    break;
+            }
+        }
+        // @func ReceiveJoinLobby
+        // @desc Receive IP and Port info of the lobby player is joining.
+        public void ReceivePlayerJoin(string buf)
+        {
+            Debug.Log("Received Joinlobby ACK from masterserver");
+            string[] data = buf.Split(':');
+            if (MainPlayerName == data[0])
+            {
+                Debug.Log("Received Joinlobby ACK matched name");
+                if (WaitingForAck("pjoin " + buf))
+                    RemoveReliablePacket("pjoin " + buf);
+                Debug.Log(data[2]);
+                m_client.m_lobbyServerAddr = new Netcode.ClientAddress(data[1], Convert.ToInt32(data[2]));
+                Debug.Log(m_client.m_lobbyServerAddr.m_ipAddress);
+                Debug.Log(m_client.m_lobbyServerAddr.m_port);
+                SendJoinLobby();
+            }
+        }
+        // @func ReceiveCreateLobby
+        // @desc ACK for creating the lobby. 
+        public void ReceiveCreateLobby(string buf)
+        {
+            if (WaitingForAck("stlob " + buf))
+                RemoveReliablePacket("stlob " + buf);
+        }
+        public void ReceiveLobbyList(string buf)
+        {
+            Debug.Log("Refreshed Lobbies");
+            ListOfGames = new List<string>();
+            string[] data = buf.Split(':');
+            foreach (string entry in data)
+            {
+                if (entry != "")
+                {
+                    ListOfGames.Add(entry);
+                }
+            }
+        }
+        public void ReceiveServerList(string buf)
+        {
+            Debug.Log("Received Server List");
+            ServerList = new List<string>();
+            string[] data = buf.Split(':');
+            foreach (string entry in data)
+            {
+                if (entry != "")
+                {
+                    ServerList.Add(entry);
+                }
+            }
+            RegionServerName = "USW";
 
+        }
+        public void ReceivePlayerInvite(string buf)
+        {
+            string[] data = buf.Split(':');
+            string m_hostSteamName = data[0];
+            //Handle Invite
+            string text = "User " + m_hostSteamName + " has invited you to join a match with them.";
+            SteamJoinMatchUI.Instance.SetMatchText(text);
+            MainMenuUI.Instance.OpenSteamJoinMatchPopup();
+            //TODO: Additional playerinvite info
+            m_invitedRegion = data[2];
+            m_invitedLobby = data[3];
+            QueuePacket(m_client.MasterServer, "piack " + buf);
+        }
+
+        // @func SendCreateLobby
+        // @desc Player created a lobby. Send info to masterserver. Function called by UI.
+        public void SendCreateLobby()
+        {
+            string commandName = "stlob ";
+            string buffer = commandName + RegionServerName + ":" + CurrentLobby;
+            AddReliablePacket(buffer, m_client.MasterServer, buffer);
+        }
+        // @func SendRefreshServerList
+        // @desc Called by the client when they start the game, to get list of regional servers. 
+        public void SendRefreshServerList()
+        {
+            string commandName = "pslis ";
+            Debug.Log("Refreshing ServerList with masterserver");
+            //Send player steamID here
+            Debug.Log("Sending to " + m_client.MasterServer.m_ipAddress + " " + m_client.MasterServer.m_port);
+            QueuePacket(m_client.MasterServer, commandName + MainPlayerName);
+        }
+        // @func SendRefreshLobbyList
+        // @desc Called by the client to get list of lobbies in a server. Called by the UI.
+        public void SendRefreshLobbyList()
+        {
+            string commandName = "pllis ";
+            string message = commandName + RegionServerName;
+            QueuePacket(m_client.MasterServer, message);
+        }
+        // @func SendJoinLobby
+        // @desc Called when player wants to join the game. Called by the UI.
+        public void SendPlayerJoin()
+        {
+            string commandName = "pjoin ";
+            string buffer = commandName + MainPlayerName + ":" + RegionServerName + ":" + CurrentLobby;
+            AddReliablePacket(commandName + MainPlayerName, m_client.MasterServer, buffer);
+        }
+        public void SendPlayerInvite(string steamID)
+        {
+            string commandName = "pinvi ";
+            string buffer = commandName + MainPlayerName + steamID;
+            AddReliablePacket(buffer, m_client.MasterServer, buffer);
+        }
+        public void SendPlayerInviteAck(string buf)
+        {
+            if (WaitingForAck("pinvi " + buf))
+                RemoveReliablePacket("pinvi " + buf);
+        }
+
+
+        private GameObject SpawnBullet(Netcode.BulletSnapshot bulletState)
+        {
+            GameObject gameObject = Instantiate(bulletPrefab);
+            bulletState.Apply(ref gameObject);
+            PutEntity(bulletState.m_serverId, gameObject);
+            return gameObject;
+        }
 
 		// @func SendDropMatch
 		// @desc When player wants to drop match, send DISCONNECT packet to server. Called by UI.
@@ -386,14 +521,14 @@ namespace FpsClient {
 			return gameObject;
 		}
 
-		public override void NetEvent(Netcode.PlayerInput playerInput)
-		{
-			throw new System.NotImplementedException();
-		}
+        public override void NetEvent(Netcode.PlayerInput playerInput)
+        {
+            throw new System.NotImplementedException();
+        }
 
-		public override void NetEvent(Netcode.BulletSnapshot bullet)
-		{
-			GameObject gameObject;
+        public override void NetEvent(Netcode.BulletSnapshot bullet)
+        {
+            GameObject gameObject;
 
 			if (!m_objects.ContainsKey(bullet.m_serverId)) {
 				gameObject = SpawnBullet(bullet);
@@ -421,8 +556,8 @@ namespace FpsClient {
         // @func NetEvent.Snapshot
         // @desc If this is called, the game has received a snapshot. 
         public override void NetEvent(Netcode.Snapshot snapshot)
-		{
-			GameObject gameObject;
+        {
+            GameObject gameObject;
 
 			if (!m_objects.ContainsKey(snapshot.m_serverId)) {
 				gameObject = SpawnPlayer(snapshot);

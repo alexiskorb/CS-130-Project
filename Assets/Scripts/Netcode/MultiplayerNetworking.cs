@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using System.Net;
 using System.Net.Sockets;
@@ -23,12 +23,20 @@ namespace Netcode {
 		// Reference to the Multiplayer Game interface so the netcode can pass messages up to the game. 
 		private IMultiplayerGame m_multiplayerGame;
 
-		// @func InitNetworking
-		// @desc Initialize the netcode with port number, and begin listening for UDP packets. 
-		public void InitNetworking(IMultiplayerGame game, int portno = 0)
+        private string MASTER_SERVER_IP = "";
+        private int MASTER_SERVER_PORT = 0;
+        public ClientAddress MasterServer;
+        // @func InitNetworking
+        // @desc Initialize the netcode with port number, and begin listening for UDP packets. 
+        public void InitNetworking(IMultiplayerGame game, string masterServerIp, int masterServerPort, int portno = 0)
 		{
 			m_multiplayerGame = game;
-			m_udp = new UdpClient(portno);
+            MASTER_SERVER_IP = masterServerIp;
+            MASTER_SERVER_PORT = masterServerPort;
+            MasterServer = new ClientAddress(MASTER_SERVER_IP, MASTER_SERVER_PORT);
+            Debug.Log(MasterServer.m_ipAddress);
+            Debug.Log(MasterServer.m_port);
+            m_udp = new UdpClient(portno);
 			m_udp.BeginReceive(ReceiveCallback, m_udp);
 		}
 
@@ -71,6 +79,10 @@ namespace Netcode {
 		// the appropriate packet handler. 
 		public void HandlePacket(ClientAddress clientAddr, byte[] buf)
 		{
+            if (clientAddr.m_port == MasterServer.m_port && clientAddr.m_ipAddress == MasterServer.m_ipAddress)
+            {
+                m_multiplayerGame.MasterServerEvent(buf);
+            }
             Packet header;
 			try {
 				header = Serializer.Deserialize<Packet>(buf);
@@ -82,7 +94,7 @@ namespace Netcode {
 			if (ShouldDiscard(clientAddr, header))
 				return;
 
-            Debug.Log("Packet type is" + header.m_type);
+            //Debug.Log("Packet type is" + header.m_type);
 
 			if (m_packetCallbacks.ContainsKey(header.m_type)) {
 				m_packetCallbacks[header.m_type].Invoke(clientAddr, buf);
@@ -112,6 +124,8 @@ namespace Netcode {
 		{
 			m_udp.Send(buf, buf.Length, addr.m_ipAddress, addr.m_port);
 		}
+
+
 
 		// @func ShouldDiscard
 		// @desc Decides how packets are dropped. 
