@@ -51,15 +51,25 @@ namespace Netcode {
             byte[] buf = System.Text.Encoding.UTF8.GetBytes(message);
             m_packetQueueForClient.Enqueue(new PacketForClient(clientAddr, buf));
         }
+        public void QueuePacket(ClientAddress clientAddr, byte[] message)
+        {
+            m_packetQueueForClient.Enqueue(new PacketForClient(clientAddr, message));
+        }
         public void AddReliablePacket(string key, ClientAddress clientAddr, string message)
         {
             byte[] buf = System.Text.Encoding.UTF8.GetBytes(message);
-            string com = key.Substring(0, 5);
-            Debug.Log("Adding " + com + "to ReliablePackets");
+            Debug.Log("Adding " + message + " to ReliablePackets");
             
-            PacketForClient packet = new PacketForClient(clientAddr, buf);
-            m_reliablePackets[key] = packet; 
+            PacketForClient reliablePacket = new PacketForClient(clientAddr, buf);
+            m_reliablePackets[key] = reliablePacket; 
         }
+        public void AddReliablePacket<T>(string key, ClientAddress clientAddr, T packet) where T: Packet 
+        {
+            byte[] buf = Serializer.Serialize(packet);
+            PacketForClient reliablePacket = new PacketForClient(clientAddr, buf);
+            m_reliablePackets[key] = reliablePacket;
+        }
+
         public void RemoveReliablePacket(string key)
         {
             

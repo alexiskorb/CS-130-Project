@@ -278,6 +278,7 @@ MonoBehaviour:
   gameSceneName: MainScene
   startingSceneName: MainMenu
   m_invitedLobby: 
+  m_invitedRegion: 
   playerPrefab: {fileID: 1868695881446178, guid: c9a5d70276cf59a4d880ce358d50e705,
     type: 2}
   bulletPrefab: {fileID: 1533964733570946, guid: 20bd79850a7cb36439db1a92f22abc69,

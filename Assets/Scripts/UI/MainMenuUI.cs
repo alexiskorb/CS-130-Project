@@ -72,6 +72,10 @@ public class MainMenuUI : MonoBehaviour {
     {
         ShowJoinMatchMenu();
     } 
+    public void GoToStartMatchMenu()
+    {
+        ShowStartMatchMenu();
+    }
 
     public void StartMatch()
     {
@@ -86,7 +90,6 @@ public class MainMenuUI : MonoBehaviour {
         {
             m_isMatchCreator = true;
             FpsClient.GameClient.Instance.SendCreateLobby();
-            ShowJoinMatchMenu();
         }
         else
         {
@@ -131,7 +134,7 @@ public class MainMenuUI : MonoBehaviour {
     // Leave player lobby and return to the previous screen
     public void CancelMatch()
     {
-        FpsClient.GameClient.Instance.LeaveLobby();
+        FpsClient.GameClient.Instance.SendLeaveLobby();
         if (m_isMatchCreator)
         {
             createMatchMenu.GetComponent<CreateMatchUI>().ResetMenu();
@@ -149,7 +152,7 @@ public class MainMenuUI : MonoBehaviour {
     {
         if(m_inMatchLobby)
         {
-            FpsClient.GameClient.Instance.LeaveLobby();
+            FpsClient.GameClient.Instance.SendLeaveLobby();
         }
         joinMatchMenu.GetComponent<JoinMatchUI>().ResetMenu();
         createMatchMenu.GetComponent<CreateMatchUI>().ResetMenu();

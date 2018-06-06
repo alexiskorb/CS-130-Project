@@ -36,7 +36,6 @@ namespace FpsClient {
         public GameObject m_mainPlayer;
         private List<GameInput> input_ = new List<GameInput>();
         // The server ID of the main player.
-        public int ServerId { get; set; }
         public string RegionServerName { get; set; }
         //String name of the main player.
         private string m_mainPlayerName = "";
@@ -223,11 +222,14 @@ namespace FpsClient {
                 case Netcode.PacketType.START_GAME:
                     ProcessStartGame(buf);
                     break;
-                    /*
-				case Netcode.PacketType.INVITE_PLAYER:
-					ProcessInvitePlayer (buf);
-					break;*/
-				case Netcode.PacketType.DISCONNECT:
+                case Netcode.PacketType.JOIN_LOBBY:
+                    ReceiveJoinLobby(buf);
+                    break;
+                /*
+            case Netcode.PacketType.INVITE_PLAYER:
+                ProcessInvitePlayer (buf);
+                break;*/
+                case Netcode.PacketType.DISCONNECT:
 					ProcessDisconnect (buf);
 					break;
             }
@@ -241,7 +243,18 @@ namespace FpsClient {
             Netcode.RefreshPlayerList list = Netcode.Serializer.Deserialize<Netcode.RefreshPlayerList>(buf);
             LobbyPlayers = Netcode.Serializer.Deserialize(list.m_listOfPlayers).ToList();
         }
-        
+        public void ReceiveJoinLobby(byte[] buf)
+        {
+            Debug.Log("Received joinlobby from local");
+            Netcode.JoinLobby list = Netcode.Serializer.Deserialize<Netcode.JoinLobby>(buf);
+            if (WaitingForAck(Netcode.PacketType.JOIN_LOBBY.ToString() + list.m_playerName))
+            {
+                Debug.Log("Joined localserver lobby");
+                RemoveReliablePacket(Netcode.PacketType.JOIN_LOBBY.ToString() + list.m_playerName);
+                MainMenuUI.Instance.GoToStartMatchMenu();
+            }
+        }
+
         // @func SendRefreshLobbyList
         // @desc Sends a request to the server for an updated lobby list. Called by the UI.
         public void SendRefreshPlayerList()
@@ -256,8 +269,7 @@ namespace FpsClient {
         {
             Netcode.JoinLobby packet = new Netcode.JoinLobby(MainPlayerName);
             Debug.Log(packet.m_type);
-            //TODO: Reliable
-            QueuePacket(packet);
+            AddReliablePacket(Netcode.PacketType.JOIN_LOBBY.ToString() + MainPlayerName, m_client.m_lobbyServerAddr, packet);
         }
         /*
         // @func SendJoinLobbyFromInvite
@@ -295,10 +307,13 @@ namespace FpsClient {
         {
             Debug.Log("Received StartGame packet");
             Netcode.StartGame game = Netcode.Serializer.Deserialize<Netcode.StartGame>(buf);
-            ServerId = game.m_serverId;
-            EnterMatch(ServerId);
-
-			m_client.BeginSnapshots();
+            if (mainPlayerServerId != game.m_serverId)
+            {
+                mainPlayerServerId = game.m_serverId;
+                EnterMatch(mainPlayerServerId);
+                m_client.BeginSnapshots();
+            }
+            QueuePacket(m_client.m_lobbyServerAddr, buf);
         }
 
         // @func SendStartGame
@@ -324,18 +339,59 @@ namespace FpsClient {
         {
             Debug.Log("Receieved LeaveLobby packet");
             Netcode.LeaveLobby lobby = Netcode.Serializer.Deserialize<Netcode.LeaveLobby>(buf);
-            m_lobbyPlayers.Remove(lobby.m_playerName);
+            if(lobby.m_playerName == MainPlayerName && WaitingForAck(Netcode.PacketType.LEAVE_LOBBY.ToString()))
+            {
+                RemoveReliablePacket(Netcode.PacketType.LEAVE_LOBBY.ToString());
+            }
+            else
+            {
+                m_lobbyPlayers.Remove(lobby.m_playerName);
+            }
         }
     
-        public void LeaveLobby()
+        public void SendLeaveLobby()
         {
             Debug.Log("Sending leave lobby packet");
             Netcode.LeaveLobby packet = new Netcode.LeaveLobby(MainPlayerName);
-            QueuePacket(packet);
+            AddReliablePacket(Netcode.PacketType.LEAVE_LOBBY.ToString(), m_client.m_lobbyServerAddr, packet);
             m_currentLobby = "";
             m_lobbyPlayers.Clear();
         }
+        // @func SendDropMatch
+        // @desc When player wants to drop match, send DISCONNECT packet to server. Called by UI.
+        public void SendDropMatch()
+        {
+            Debug.Log("Sending disconnect packet");
+            Netcode.Disconnect packet = new Netcode.Disconnect(mainPlayerServerId, m_mainPlayerName);
+            AddReliablePacket(Netcode.PacketType.DISCONNECT.ToString() + mainPlayerServerId.ToString() + m_mainPlayerName, m_client.m_lobbyServerAddr, packet);
+        }
 
+        // @func ProcessDisconnect
+        // @desc When player wants to drop match, send DISCONNECT packet to server. Called by UI.
+        public void ProcessDisconnect(byte[] buf)
+        {
+            Debug.Log("Received disconnect packet");
+            Netcode.Disconnect disconnect = Netcode.Serializer.Deserialize<Netcode.Disconnect>(buf);
+            if (WaitingForAck(Netcode.PacketType.DISCONNECT.ToString() + disconnect.m_serverId.ToString() + disconnect.m_playerName))
+            {
+                RemoveReliablePacket(Netcode.PacketType.DISCONNECT.ToString() + disconnect.m_serverId.ToString() + disconnect.m_playerName);
+                m_currentLobby = "";
+                m_lobbyPlayers.Clear();
+                mainPlayerServerId = -1 * mainPlayerServerId;
+                KillEntity(mainPlayerServerId);
+                m_client.StopSnapshots();
+                SceneManager.LoadScene("MainMenu");
+            }
+            else
+            {
+                QueuePacket(m_client.m_lobbyServerAddr, buf);
+                if(m_lobbyPlayers.Contains(disconnect.m_playerName))
+                {
+                    m_lobbyPlayers.Remove(disconnect.m_playerName);
+                    KillEntity(disconnect.m_serverId);
+                }
+            }
+        }
         public override void MasterServerEvent(byte[] buf)
         {
             string s = System.Text.Encoding.UTF8.GetString(buf, 0, buf.Length);
@@ -363,6 +419,12 @@ namespace FpsClient {
                 case "pinvi":
                     ReceivePlayerInvite(arg);
                     break;
+                case "slerr":
+                    StartLobbyError(arg);
+                    break;
+                case "pserr":
+                    ServerListError(arg);
+                    break;
                 default:
                     break;
             }
@@ -378,10 +440,7 @@ namespace FpsClient {
                 Debug.Log("Received Joinlobby ACK matched name");
                 if (WaitingForAck("pjoin " + data[0]))
                     RemoveReliablePacket("pjoin " + data[0]);
-                Debug.Log(data[2]);
                 m_client.m_lobbyServerAddr = new Netcode.ClientAddress(data[1], Convert.ToInt32(data[2]));
-                Debug.Log(m_client.m_lobbyServerAddr.m_ipAddress);
-                Debug.Log(m_client.m_lobbyServerAddr.m_port);
                 SendJoinLobby();
             }
         }
@@ -389,8 +448,14 @@ namespace FpsClient {
         // @desc ACK for creating the lobby. 
         public void ReceiveCreateLobby(string buf)
         {
+            Debug.Log("Received Createlobby ack from master");
+            Debug.Log(WaitingForAck("stlob " + buf));
             if (WaitingForAck("stlob " + buf))
+            {
                 RemoveReliablePacket("stlob " + buf);
+                Debug.Log("Received stack from master. SendingPlayerJoin");
+                SendPlayerJoin();
+            }
         }
         // @func ReceiveLobbyList
         // @desc Masterserver sent a list of open lobbies. Update list.
@@ -409,14 +474,19 @@ namespace FpsClient {
         }
         public void ReceiveServerList(string buf)
         {
-            Debug.Log("Received Server List");
-            ServerList = new List<string>();
-            string[] data = buf.Split(':');
-            foreach (string entry in data)
+            if (WaitingForAck("pslis "+ MainPlayerName))
             {
-                if (entry != "")
+                RemoveReliablePacket("pslis " + MainPlayerName);
+
+                Debug.Log("Received Server List");
+                ServerList = new List<string>();
+                string[] data = buf.Split(':');
+                foreach (string entry in data)
                 {
-                    ServerList.Add(entry);
+                    if (entry != "")
+                    {
+                        ServerList.Add(entry);
+                    }
                 }
             }
             RegionServerName = "USW";
@@ -426,13 +496,15 @@ namespace FpsClient {
         {
             string[] data = buf.Split(':');
             string m_hostSteamName = data[0];
-            //Handle Invite
-            string text = "User " + m_hostSteamName + " has invited you to join a match with them.";
-            SteamJoinMatchUI.Instance.SetMatchText(text);
-            MainMenuUI.Instance.OpenSteamJoinMatchPopup();
-            //TODO: Additional playerinvite info
-            m_invitedRegion = data[2];
-            m_invitedLobby = data[3];
+            if(m_invitedLobby != data[3] && m_invitedRegion != data[2])
+            {
+                //Handle Invite
+                string text = "User " + m_hostSteamName + " has invited you to join a match with them.";
+                SteamJoinMatchUI.Instance.SetMatchText(text);
+                MainMenuUI.Instance.OpenSteamJoinMatchPopup();
+                m_invitedRegion = data[2];
+                m_invitedLobby = data[3];
+            }
             QueuePacket(m_client.MasterServer, "piack " + buf);
         }
 
@@ -442,6 +514,7 @@ namespace FpsClient {
         {
             string commandName = "stlob ";
             string buffer = commandName + RegionServerName + ":" + CurrentLobby;
+            Debug.Log(buffer);
             AddReliablePacket(buffer, m_client.MasterServer, buffer);
         }
         // @func SendRefreshServerList
@@ -452,7 +525,7 @@ namespace FpsClient {
             Debug.Log("Refreshing ServerList with masterserver");
             //Send player steamID here
             Debug.Log("Sending to " + m_client.MasterServer.m_ipAddress + " " + m_client.MasterServer.m_port);
-            QueuePacket(m_client.MasterServer, commandName + MainPlayerName);
+            AddReliablePacket(commandName + MainPlayerName, m_client.MasterServer, commandName + MainPlayerName);
         }
         // @func SendRefreshLobbyList
         // @desc Called by the client to get list of lobbies in a server. Called by the UI.
@@ -490,38 +563,23 @@ namespace FpsClient {
             if (WaitingForAck("pinvi " + buf))
                 RemoveReliablePacket("pinvi " + buf);
         }
+        public void StartLobbyError(string buf)
+        {
+            if (WaitingForAck("stlob " + buf))
+            {
+                RemoveReliablePacket("stlob " + buf);
+            }
+            MainMenuUI.Instance.createMatchMenu.GetComponent<CreateMatchUI>().ShowCreateMatchError();
+        }
+        public void ServerListError(string buf)
+        {
+            if (WaitingForAck("psack " + buf))
+            {
+                RemoveReliablePacket("psack " + buf);
+            }
+        }
 
-
-		// @func SendDropMatch
-		// @desc When player wants to drop match, send DISCONNECT packet to server. Called by UI.
-		public void SendDropMatch()
-		{
-			Debug.Log ("Sending disconnect packet");
-			Netcode.Disconnect packet = new Netcode.Disconnect (mainPlayerServerId, m_mainPlayerName);
-			QueuePacket (packet);
-		}
-
-		// @func ProcessDisconnect
-		// @desc When player wants to drop match, send DISCONNECT packet to server. Called by UI.
-		public void ProcessDisconnect(byte[] buf)
-		{
-			Debug.Log ("Received disconnect packet");
-			Netcode.Disconnect disconnect = Netcode.Serializer.Deserialize<Netcode.Disconnect> (buf);
-			if (mainPlayerServerId == disconnect.m_serverId && m_mainPlayerName == disconnect.m_playerName)
-			{
-                m_currentLobby = "";
-                m_lobbyPlayers.Clear();
-				KillEntity (mainPlayerServerId);
-				m_client.StopSnapshots ();
-				SceneManager.LoadScene ("MainMenu");
-			} else
-			{
-                m_lobbyPlayers.Remove(disconnect.m_playerName);
-				KillEntity (disconnect.m_serverId);
-			}
-		}
-
-		private GameObject SpawnBullet(Netcode.BulletSnapshot bulletState)
+        private GameObject SpawnBullet(Netcode.BulletSnapshot bulletState)
 		{
 			GameObject gameObject = Instantiate(bulletPrefab);
 			bulletState.Apply(ref gameObject);

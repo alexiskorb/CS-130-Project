@@ -118,7 +118,7 @@ namespace Netcode {
 	public class CreateLobby : Packet {
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
         public string m_lobbyName;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 20)]
         public string m_hostPlayerName;
 		public CreateLobby() : base(PacketType.CREATE_LOBBY) { }
 		public CreateLobby(string lobbyname, string hostPlayerName)
@@ -131,7 +131,7 @@ namespace Netcode {
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class RefreshPlayerList : Packet {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
         public string m_listOfPlayers;
 		public RefreshPlayerList() : base(PacketType.REFRESH_PLAYER_LIST) { }
 		public RefreshPlayerList(string[] listOfPlayers)
@@ -143,7 +143,7 @@ namespace Netcode {
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class JoinLobby : Packet {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 20)]
         public string m_playerName;
 		public JoinLobby() : base(PacketType.JOIN_LOBBY) { }
 		public JoinLobby(string playerName)
@@ -156,7 +156,7 @@ namespace Netcode {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public class LeaveLobby : Packet
     {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 20)]
         public string m_playerName;
         public LeaveLobby() : base(PacketType.LEAVE_LOBBY) { }
         public LeaveLobby(string playerName)
@@ -171,9 +171,6 @@ namespace Netcode {
 	public class StartGame : Packet {
 		public int m_serverId;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
-        public string m_hostIP;
-        public int m_hostPort;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
         public string m_matchName;
         public StartGame() : base(PacketType.START_GAME) { }
 		public StartGame(string lobbyName)
@@ -181,13 +178,11 @@ namespace Netcode {
         {
             m_matchName = lobbyName;
         }
-		public StartGame(string lobbyName, int serverId, string hostIP, int hostPort)
+		public StartGame(string lobbyName, int serverId)
 			: base(PacketType.START_GAME)
 		{
             m_matchName = lobbyName;
 			m_serverId = serverId;
-            m_hostIP = hostIP;
-            m_hostPort = hostPort;
 		}
 	}
 
@@ -215,7 +210,7 @@ namespace Netcode {
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class Disconnect : Packet {
 		public int m_serverId;
-		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 20)]
 		public string m_playerName;
 		public Disconnect() : base(PacketType.DISCONNECT) { }
 		public Disconnect(int serverId, string playerName)

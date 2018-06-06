@@ -12,11 +12,10 @@ namespace FpsServer {
 		public uint PREDICTION_BUFFER_SIZE = 20;
         private Dictionary<string, Netcode.ClientAddress?> m_clientAddresses= new Dictionary<string, Netcode.ClientAddress?>();
         public Server m_server;
-
         public string gameSceneName = "ServerMainScene";
         public string RegionServerName { get; set; }
         public string CurrentLobby { get; set; }
-
+        private bool inMatch = false;
 		public List<Vector3> m_spawnPoints = new List<Vector3> {
 			new Vector3(-10.0f, 1f, -10.0f),
 			new Vector3(-10.0f, 1f, 10.0f),
@@ -25,7 +24,7 @@ namespace FpsServer {
 		};
         private void Start()
         {
-            SendRegisterServer();
+            SendRegisterServer();            
         }
         public void OnEnable()
         {
@@ -39,22 +38,25 @@ namespace FpsServer {
             SceneManager.sceneLoaded -= OnSceneLoaded;
         }
 
-        private void OnApplicationQuit()
-        {
-            // SendClose();
-        }
 
         // Used to call relevant functions after the scene loads since scene loads complete in the frame after they're called
         void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            foreach (string client in m_clientAddresses.Keys)
+            if (scene.name == "ServerStartScene")
             {
-                Netcode.ClientAddress clientAddress = m_clientAddresses[client].Value;
-                int serverId = SpawnPlayer();
-                m_server.ServerIds[clientAddress] = serverId;
-                m_server.Clients[clientAddress] = new Netcode.SnapshotHistory<Netcode.Snapshot>(PREDICTION_BUFFER_SIZE);
-                Netcode.StartGame game = new Netcode.StartGame(CurrentLobby, serverId, m_server.SERVER_IP, m_server.SERVER_PORT);
-                QueuePacket(clientAddress, game);
+                inMatch = false;
+            }
+            else
+            {
+                foreach (string client in m_clientAddresses.Keys)
+                {
+                    Netcode.ClientAddress clientAddress = m_clientAddresses[client].Value;
+                    int serverId = SpawnPlayer();
+                    m_server.ServerIds[clientAddress] = serverId;
+                    m_server.Clients[clientAddress] = new Netcode.SnapshotHistory<Netcode.Snapshot>(PREDICTION_BUFFER_SIZE);
+                    Netcode.StartGame game = new Netcode.StartGame(CurrentLobby, serverId);
+                    AddReliablePacket(Netcode.PacketType.START_GAME.ToString() + serverId.ToString(), clientAddress, game);
+                }
             }
         }
 
@@ -90,7 +92,7 @@ namespace FpsServer {
 					ProcessInvitePlayer (buf);
 					break; */
 				case Netcode.PacketType.DISCONNECT:
-					ProcessDisconnect (buf);
+					ProcessDisconnect (clientAddr, buf);
 					break;
             }
         }
@@ -116,7 +118,6 @@ namespace FpsServer {
             if(m_clientAddresses.ContainsKey(lobby.m_playerName) && !m_clientAddresses[lobby.m_playerName].HasValue)
             {
                 m_clientAddresses[lobby.m_playerName] = clientAddr;
-                ProcessRefreshPlayerList(clientAddr);
                 foreach(string player in m_clientAddresses.Keys)
                 {
                     if(m_clientAddresses[player].HasValue)
@@ -125,6 +126,7 @@ namespace FpsServer {
                     }
                 }
             }
+            QueuePacket(clientAddr, buf);
         }
 
         // @func ProcessLeaveLobby
@@ -136,6 +138,7 @@ namespace FpsServer {
         {
             Debug.Log("Received LeaveLobby packet");
             Netcode.LeaveLobby lobby = Netcode.Serializer.Deserialize<Netcode.LeaveLobby>(buf);
+            QueuePacket(clientAddr, buf);
             if (m_clientAddresses.ContainsKey(lobby.m_playerName))
             {
                 m_clientAddresses.Remove(lobby.m_playerName);
@@ -162,7 +165,12 @@ namespace FpsServer {
             Netcode.StartGame game = Netcode.Serializer.Deserialize<Netcode.StartGame>(buf);
             string matchName = game.m_matchName;
             CurrentLobby = matchName;
-            EnterMatch();
+            if (WaitingForAck(Netcode.PacketType.START_GAME.ToString() + game.m_serverId.ToString()))
+            {
+                RemoveReliablePacket(Netcode.PacketType.START_GAME.ToString() + game.m_serverId.ToString());
+            }
+            if(!inMatch)
+                EnterMatch();
         }
         /*
 		// @func ProcessInvitePlayer
@@ -185,37 +193,44 @@ namespace FpsServer {
 			QueuePacket(m_clientAddresses[invitedPlayer].Value, packet);
 		}
         */
-		// @func ProcessDisconnect
-		// @desc A client wants to drop the game and disconnect.
-		public void ProcessDisconnect(byte[] buf)
+        // @func ProcessDisconnect
+        // @desc A client wants to drop the game and disconnect.
+        public void ProcessDisconnect(Netcode.ClientAddress clientAddr, byte[] buf)
 		{
 			Debug.Log("Received Disconnect");
 			Netcode.Disconnect disconnect = Netcode.Serializer.Deserialize<Netcode.Disconnect>(buf);
-			SendDisconnect (disconnect.m_serverId, disconnect.m_playerName);
-
-			if (m_clientAddresses.ContainsKey (disconnect.m_playerName)) 
-			{
-				Netcode.ClientAddress addr = m_clientAddresses [disconnect.m_playerName].Value;
-				KillEntity (disconnect.m_serverId);
-				m_clientAddresses.Remove (disconnect.m_playerName);
-				m_server.RemoveClient (addr);
+            string clientAddressString = clientAddr.m_ipAddress + clientAddr.m_port.ToString();
+            if (WaitingForAck(Netcode.PacketType.DISCONNECT.ToString() + disconnect.m_serverId + clientAddressString))
+            {
+                RemoveReliablePacket(Netcode.PacketType.DISCONNECT.ToString() + disconnect.m_serverId + clientAddressString);
+            }
+            else if (m_clientAddresses.ContainsKey(disconnect.m_playerName))
+            {
+                QueuePacket(clientAddr, buf);
+                SendDisconnect(disconnect.m_serverId, disconnect.m_playerName);
+                Netcode.ClientAddress addr = m_clientAddresses[disconnect.m_playerName].Value;
+                KillEntity(disconnect.m_serverId);
+                m_clientAddresses.Remove(disconnect.m_playerName);
+                m_server.RemoveClient(addr);
                 SendPlayerQuit(disconnect.m_playerName);
                 if (m_clientAddresses.Count == 0)
                 {
-                    SendClose();
+                    RestartServer();
                 }
-			}
-		}
-		public void SendDisconnect(int serverId, string name)
+            }
+            else
+                QueuePacket(clientAddr, buf);
+        }
+        public void SendDisconnect(int serverId, string name)
 		{
 			Debug.Log ("Sending Disconnect packet");
 			Netcode.Disconnect packet = new Netcode.Disconnect (serverId, name);
-			QueuePacket(packet);
-		}
-
-        //********************************
-        //This will be called by the server running the instance of the match
-
+            foreach (var client in m_clientAddresses.Keys)
+            {
+                string clientAddress = m_clientAddresses[client].Value.m_ipAddress + m_clientAddresses[client].Value.m_port.ToString();
+                AddReliablePacket(Netcode.PacketType.DISCONNECT.ToString() + packet.m_serverId + clientAddress, m_clientAddresses[client].Value, packet);
+            }
+        }
         // @func SpawnPlayer
         // @desc Spawns a new player and returns it
         public int SpawnPlayer()
@@ -235,14 +250,15 @@ namespace FpsServer {
         }
 
         public void EnterMatch()
-        { 
+        {
+            inMatch = true;
+            SendClose();
             foreach (string player in m_clientAddresses.Keys)
             {
                 if(!m_clientAddresses[player].HasValue)
                 {
                     m_clientAddresses.Remove(player);
                     Debug.Log(player + " removed for not joining before match start");
-                    SendPlayerQuit(player);
                 }
             }
             SceneManager.LoadScene(gameSceneName);
@@ -336,16 +352,7 @@ namespace FpsServer {
             string message = "close " + buf;
             if (WaitingForAck(message))
             {
-                CurrentLobby = null;
-                m_clientAddresses.Clear();
-                m_objects.Clear();
-                m_server.m_clients.Clear();
-                m_server.m_serverIds.Clear();
-                GetPacketQueue();
-                GetPacketsForClient();
-                GetReliablePackets().Clear();
                 RemoveReliablePacket(message);
-                SceneManager.LoadScene("ServerStartScene");
             }
         }
         // @func ReceivePlayerQuit
@@ -367,23 +374,7 @@ namespace FpsServer {
             string buffer = commandName + RegionServerName;
             AddReliablePacket(buffer, m_server.MasterServer, buffer);
         }
-        /*
-        // @func SendUpdateListOfPlayers
-        // @desc Packet sent periodically to the masterserver to update the players currently in the lobby.
-        public void SendUpdateListOfPlayers()
-        {
-            string commandName = "lobup ";
-            string serverName = RegionServerName + ":" + CurrentLobby;
-            string playerList = "";
-            foreach (string player in activeMatchPlayers)
-            {
-                playerList += player;
-                playerList += ":";
-            }
-            byte[] buffer = System.Text.Encoding.UTF8.GetBytes(commandName + serverName + ":" + playerList);
-            AddReliablePacket("", m_server.MasterServer, buffer);
-        }
-        */
+
         // @func SendPlayerQuit
         // @desc When a client leaves, notify masterserver. 
         public void SendPlayerQuit(string playerName)
@@ -401,6 +392,21 @@ namespace FpsServer {
             string buffer = commandName + regionLobby;
             AddReliablePacket(buffer, m_server.MasterServer, buffer);
         }
+
+        public void RestartServer()
+        {
+            CurrentLobby = null;
+            m_clientAddresses.Clear();
+            m_objects.Clear();
+            m_server.m_clients.Clear();
+            m_server.m_serverIds.Clear();
+            GetPacketQueue();
+            GetPacketsForClient();
+            GetReliablePackets().Clear();
+            SceneManager.LoadScene("ServerStartScene");
+            SendRegisterServer();
+        }
+
         public override void NetEvent(Netcode.PlayerInput playerInput)
         {
             GameObject gameObject = GetEntity(playerInput.serverId_);

@@ -141,7 +141,7 @@ namespace FpsClient {
 				return;
 			}
 
-			if (snapshot.m_serverId == m_game.ServerId) {
+			if (snapshot.m_serverId == m_game.mainPlayerServerId) {
 				if (!m_snapshotHistory.Reconcile(snapshot)) {
 					Debug.Log("Client is out of sync with the server -- reconciling");
 					m_serverSeqno = snapshot.m_seqno;
