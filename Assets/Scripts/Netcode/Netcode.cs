@@ -61,8 +61,9 @@ namespace Netcode {
 			return (position_ == other.position_) &&
 				(eulerAngles_ == other.eulerAngles_);
 		}
-    }
-    // @class PlayerSnapshot
+	}
+
+	// @class PlayerSnapshot
 	// @desc Game state of the player.
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public class PlayerSnapshot : ISnapshot<PlayerSnapshot>
@@ -94,7 +95,8 @@ namespace Netcode {
             return (m_currentLife == other.m_currentLife);
         }
     }
-    // @class PlayerInput
+
+	// @class PlayerInput
 	// @desc Packet containing the input pressed by the player. This is sent by the client
 	// every frame, and processed by the server.
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
