@@ -491,7 +491,6 @@ namespace FpsClient {
                     }
                 }
             }
-            RegionServerName = "USW";
 
         }
         public void ReceivePlayerInvite(string buf)
@@ -528,6 +527,7 @@ namespace FpsClient {
             //Send player steamID here
             Debug.Log("Sending to " + m_client.MasterServer.m_ipAddress + " " + m_client.MasterServer.m_port);
             AddReliablePacket(commandName + MainPlayerName, m_client.MasterServer, commandName + MainPlayerName);
+            RegionServerName = "USW";
         }
         // @func SendRefreshLobbyList
         // @desc Called by the client to get list of lobbies in a server. Called by the UI.
