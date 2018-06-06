@@ -114,7 +114,7 @@ namespace FpsClient {
                 SendPacket(packet.m_clientAddr, packet.m_packet);
             }
 
-            //m_reliablePacketTick.Run();
+            m_reliablePacketTick.Run();
         }
 
 		void ProcessBulletSnapshot(Netcode.ClientAddress clientAddress, byte[] buf)

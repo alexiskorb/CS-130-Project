@@ -23,7 +23,10 @@ namespace FpsServer {
 			new Vector3(10.0f, 1f, 10.0f),
 			new Vector3(10.0f, 1f, -10.0f)
 		};
-
+        private void Start()
+        {
+            SendRegisterServer();
+        }
         public void OnEnable()
         {
             DontDestroyOnLoad(this.gameObject);
@@ -82,9 +85,10 @@ namespace FpsServer {
                 case Netcode.PacketType.START_GAME:
                     ProcessStartGame(buf);
                     break;
+                    /*
 				case Netcode.PacketType.INVITE_PLAYER:
 					ProcessInvitePlayer (buf);
-					break;
+					break; */
 				case Netcode.PacketType.DISCONNECT:
 					ProcessDisconnect (buf);
 					break;
@@ -135,17 +139,8 @@ namespace FpsServer {
             if (m_clientAddresses.ContainsKey(lobby.m_playerName))
             {
                 m_clientAddresses.Remove(lobby.m_playerName);
-                if (m_clientAddresses.Count != 0)
-                {
-                    SendLeaveLobby(lobby.m_playerName);
-                    SendPlayerQuit(lobby.m_playerName);
-                }
-                else
-                {
-                    Debug.Log("Closing Lobby");
-                    m_clientAddresses.Clear();
-                    SendClose();
-                }
+                SendLeaveLobby(lobby.m_playerName);
+                SendPlayerQuit(lobby.m_playerName);
             }
         }
         public void SendLeaveLobby(string playerName)
@@ -169,7 +164,7 @@ namespace FpsServer {
             CurrentLobby = matchName;
             EnterMatch();
         }
-
+        /*
 		// @func ProcessInvitePlayer
 		// @desc A client wants to invite another player to join their existing lobby. Find the player based on their
 		// name and send them a packet with the lobby information and the source of the invite.
@@ -189,7 +184,7 @@ namespace FpsServer {
 			Netcode.InvitePlayer packet = new Netcode.InvitePlayer(lobbyName, hostPlayer, invitedPlayer);
 			QueuePacket(m_clientAddresses[invitedPlayer].Value, packet);
 		}
-
+        */
 		// @func ProcessDisconnect
 		// @desc A client wants to drop the game and disconnect.
 		public void ProcessDisconnect(byte[] buf)
@@ -198,14 +193,17 @@ namespace FpsServer {
 			Netcode.Disconnect disconnect = Netcode.Serializer.Deserialize<Netcode.Disconnect>(buf);
 			SendDisconnect (disconnect.m_serverId, disconnect.m_playerName);
 
-			if (activeMatchPlayers.Contains (disconnect.m_playerName)) 
+			if (m_clientAddresses.ContainsKey (disconnect.m_playerName)) 
 			{
-				Netcode.ClientAddress addr = m_clientAddresses [disconnect.m_playerName];
+				Netcode.ClientAddress addr = m_clientAddresses [disconnect.m_playerName].Value;
 				KillEntity (disconnect.m_serverId);
 				m_clientAddresses.Remove (disconnect.m_playerName);
-				activeMatchPlayers.Remove (disconnect.m_playerName);
-
 				m_server.RemoveClient (addr);
+                SendPlayerQuit(disconnect.m_playerName);
+                if (m_clientAddresses.Count == 0)
+                {
+                    SendClose();
+                }
 			}
 		}
 		public void SendDisconnect(int serverId, string name)
@@ -244,6 +242,7 @@ namespace FpsServer {
                 {
                     m_clientAddresses.Remove(player);
                     Debug.Log(player + " removed for not joining before match start");
+                    SendPlayerQuit(player);
                 }
             }
             SceneManager.LoadScene(gameSceneName);
@@ -338,7 +337,15 @@ namespace FpsServer {
             if (WaitingForAck(message))
             {
                 CurrentLobby = null;
+                m_clientAddresses.Clear();
+                m_objects.Clear();
+                m_server.m_clients.Clear();
+                m_server.m_serverIds.Clear();
+                GetPacketQueue();
+                GetPacketsForClient();
+                GetReliablePackets().Clear();
                 RemoveReliablePacket(message);
+                SceneManager.LoadScene("ServerStartScene");
             }
         }
         // @func ReceivePlayerQuit
@@ -356,6 +363,7 @@ namespace FpsServer {
         public void SendRegisterServer()
         {
             string commandName = "stser ";
+            RegionServerName = "USW";
             string buffer = commandName + RegionServerName;
             AddReliablePacket(buffer, m_server.MasterServer, buffer);
         }

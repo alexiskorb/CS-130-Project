@@ -9,132 +9,6 @@ using System.Collections.Generic;
 namespace Netcode {
 	public delegate void MainThreadWork();
 
-    public struct PacketForClient
-    {
-        public ClientAddress m_clientAddr;
-        public byte[] m_packet;
-        public PacketForClient(ClientAddress clientAddr, byte[] packet)
-        {
-            m_clientAddr = clientAddr;
-            m_packet = packet;
-        }
-    }
-
-    // @class MultiplayerGame
-    // @desc Games should implement this interface in order to be alerted to network events. 
-    public abstract class IMultiplayerGame : MonoBehaviour {
-		public abstract void NetEvent(Snapshot snapshot);
-		public abstract void NetEvent(BulletSnapshot bulletSnapshot);
-        public abstract void NetEvent(PlayerSnapshot playerSnapshot);
-        public abstract void NetEvent(PlayerInput playerInput);
-		public abstract void NetEvent(ClientAddress clientAddr, PacketType packetType, byte[] buf);
-        public abstract void MasterServerEvent(byte[] buf);
-
-        private InputBit inputBits_ = 0; // Bitmask for buttons pressed. 
-		private Queue<byte[]> m_packetQueue = new Queue<byte[]>();
-        private Queue<PacketForClient> m_packetQueueForClient = new Queue<PacketForClient>();
-
-        private Dictionary<string, PacketForClient> m_reliablePackets = new Dictionary<string, PacketForClient>();
-
-        // @func QueuePacket
-        // @desc Queue a packet for the client to send. 
-        public void QueuePacket<T>(T packet) where T : Packet
-		{
-			byte[] buf = Serializer.Serialize(packet);
-			m_packetQueue.Enqueue(buf);
-		}
-
-        public void QueuePacket<T>(ClientAddress clientAddr, T packet) where T : Packet
-        {
-            byte[] buf = Serializer.Serialize(packet);
-            m_packetQueueForClient.Enqueue(new PacketForClient(clientAddr, buf));
-        }
-        public void QueuePacket(ClientAddress clientAddr, string message)
-        {
-            byte[] buf = System.Text.Encoding.UTF8.GetBytes(message);
-            m_packetQueueForClient.Enqueue(new PacketForClient(clientAddr, buf));
-        }
-        public void AddReliablePacket(string key, ClientAddress clientAddr, string message)
-        {
-            byte[] buf = System.Text.Encoding.UTF8.GetBytes(message);
-            string com = key.Substring(0, 5);
-            Debug.Log("Adding " + com + "to ReliablePackets");
-            /*
-            PacketForClient packet = new PacketForClient(clientAddr, buf);
-            m_reliablePackets[key] = packet; */
-            QueuePacket(clientAddr, message);
-        }
-        public void RemoveReliablePacket(string key)
-        {
-            /*
-            string com = key.Substring(0, 5);
-            Debug.Log("Removing " + com + "from ReliablePackets");
-            m_reliablePackets.Remove(key);
-            */
-        }
-        public bool WaitingForAck(string key)
-        {
-            /*
-            if (m_reliablePackets.ContainsKey(key))
-                return true;
-            else
-                return false;
-                */
-            return true;
-        }
-
-        public Queue<PacketForClient> GetPacketsForClient()
-        {
-            Queue<PacketForClient> packetsForClient = new Queue<PacketForClient>(m_packetQueueForClient);
-            m_packetQueueForClient.Clear();
-            return packetsForClient;
-        }
-
-		public void QueueInput(InputBit cmd)
-		{
-			inputBits_ |= cmd;
-		}
-
-		public InputBit GetInput()
-		{
-			InputBit inputBits = inputBits_;
-			inputBits_ &= 0;
-			return inputBits;
-		}
-
-		// @func GetPacketQueue
-		// @desc Clears the packet queue and returns the packets. Used by the client to
-		// send game-related packets.
-		public Queue<byte[]> GetPacketQueue()
-		{
-			Queue<byte[]> packetQueue = new Queue<byte[]>(m_packetQueue);
-			m_packetQueue.Clear();
-			return packetQueue;
-		}
-        public Dictionary<string, PacketForClient> GetReliablePackets()
-        {
-            return m_reliablePackets;
-        }
-
-
-        // @func FindNetworkObjects
-        // @desc Finds all game objects in the scene with type T. 
-        public List<GameObject> FindNetworkObjects<T>() where T : MonoBehaviour
-		{
-			List<GameObject> networkObjects = new List<GameObject>();
-			var gos = Resources.FindObjectsOfTypeAll<T>();
-
-			foreach (var go in gos) {
-				if (go.hideFlags == HideFlags.None) {
-					networkObjects.Add(go.gameObject);
-					continue;
-				}
-			}
-
-			return networkObjects;
-		}
-	}
-
 	public enum PacketType : int {
 		CREATE_LOBBY,
 		REFRESH_PLAYER_LIST,
@@ -153,8 +27,9 @@ namespace Netcode {
 		BEGIN = 0,
 		PRIMARY_WEAPON = 1 << 0,
 		END
-	}
-
+    }
+    // @class BulletSnapshot
+	// @desc Game state of the bullet. 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class BulletSnapshot : ISnapshot<BulletSnapshot> {
 		public Vector3 position_;
@@ -186,8 +61,9 @@ namespace Netcode {
 			return (position_ == other.position_) &&
 				(eulerAngles_ == other.eulerAngles_);
 		}
-	}
-
+    }
+    // @class PlayerSnapshot
+	// @desc Game state of the player.
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public class PlayerSnapshot : ISnapshot<PlayerSnapshot>
     {
@@ -218,7 +94,9 @@ namespace Netcode {
             return (m_currentLife == other.m_currentLife);
         }
     }
-
+    // @class PlayerInput
+	// @desc Packet containing the input pressed by the player. This is sent by the client
+	// every frame, and processed by the server.
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class PlayerInput : Packet {
 		public int serverId_;
@@ -311,7 +189,7 @@ namespace Netcode {
 		}
 	}
 
-
+    /*
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class InvitePlayer : Packet {
 		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
@@ -329,6 +207,7 @@ namespace Netcode {
 			m_invitedSteamName = invitedSteamName;
 		}
 	}
+    */
 
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -343,11 +222,12 @@ namespace Netcode {
 			m_playerName = playerName;
 			m_serverId = serverId;
 		}
-	}
+    }
 
 
-	// @doc A Snapshot is the state that is synchronized among clients and server.
-	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+    // @doc A Snapshot is the game state predicted by the player, like position
+    // and rotation. 	
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class Snapshot : ISnapshot<Snapshot> {
 		public Vector3 m_position;
 		public Vector3 m_eulerAngles;
@@ -355,9 +235,8 @@ namespace Netcode {
         public int m_serverHash;
 
 		public Snapshot() { }
-		// @doc Constructor must take this form or you'll get compiler errors. 
-		// Static errors are better than runtime errors :)  
-		public Snapshot(uint seqno, int serverId, int serverHash, GameObject gameObject)
+        // Constructor must take this form or you'll get compiler errors.  
+        public Snapshot(uint seqno, int serverId, int serverHash, GameObject gameObject)
 			: base(serverId, PacketType.SNAPSHOT, seqno, gameObject)
 		{
 			m_serverHash = serverHash;
@@ -391,7 +270,10 @@ namespace Netcode {
                 (m_eulerAngles == other.m_eulerAngles) &&
                 (m_childEulerAngles== other.m_childEulerAngles);
 		}
-	}
+    }
+    // *****************************************************************************************
+	//		@doc Everything after this is game-independent and shouldn't really be touched 
+	// *****************************************************************************************
 
 	// @class SnapshotInterface
 	// @desc Implement this interface to have snapshots integrated with the rest of the server.
@@ -407,29 +289,29 @@ namespace Netcode {
 			m_seqno = seqno;
 			m_serverId = serverId;
 			FromObject(gameObject);
-		}
+        }
 
+        // @func Create
+		// @desc Used by the client and server to create packets. Developers
+		// should stick to instantiating objects with constructors.
 		public void Create(uint seqno, int serverId, GameObject gameObject)
 		{
 			m_seqno = seqno;
 			m_serverId = serverId;
 			FromObject(gameObject);
-		}
+        }
 
-		// @interface Equals
-		// @desc Performs an equality test. 
+		// @func Equals
+		// @desc Performs an equality test between the same type of packets. C# is a managed language,
+		// so it can't compare classes by value unless this method is overridden. 
 		public abstract bool Equals(T other);
-		// @interface FromObject
+		// @func FromObject
 		// @desc Initialize the snapshot with a Game Object.
 		public abstract void FromObject(GameObject gameObject);
-		// @interface Apply
+		// @func Apply
 		// @desc Applies the snapshot to the Game Object.
 		public abstract void Apply(ref GameObject gameObject);
 	}
-
-	// *****************************************************************************************
-	//		@doc Everything after this is game-independent and shouldn't really be touched 
-	// *****************************************************************************************
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public class Packet {

@@ -32,9 +32,7 @@ public class GameUI : MonoBehaviour {
     {
 		//send packet to server to drop from other games
 		FpsClient.GameClient.Instance.SendDropMatch();
-
 		SceneManager.LoadScene("MainMenu");
-        FpsClient.GameClient.Instance.LeaveLobby();
     }
 
     public void ResumeGame()

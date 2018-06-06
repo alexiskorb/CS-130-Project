@@ -117,7 +117,7 @@ public class MainMenuUI : MonoBehaviour {
 		if (FpsClient.GameClient.Instance.NamesSet())
 		{
 			m_isMatchCreator = false;
-			FpsClient.GameClient.Instance.SendJoinLobbyFromInvite();
+			//FpsClient.GameClient.Instance.SendJoinLobbyFromInvite();
 			ShowStartMatchMenu();
 		}
 		else

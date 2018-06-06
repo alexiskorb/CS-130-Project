@@ -2,100 +2,132 @@
 using UnityEngine;
 
 namespace Netcode {
-	// @class PacketForClient
-	// @desc IMultiplayerGame uses this for telling the netcode to send to a specific address.
-	public struct PacketForClient {
-		public ClientAddress m_clientAddr;
-		public byte[] m_packet;
-		public PacketForClient(ClientAddress clientAddr, byte[] packet)
-		{
-			m_clientAddr = clientAddr;
-			m_packet = packet;
-		}
-	}
+    // @class PacketForClient
+    // @desc IMultiplayerGame uses this for telling the netcode to send to a specific address.
 
-	// @class MultiplayerGame
-	// @desc Games should implement this interface in order to be alerted to network events. 
-	public abstract class IMultiplayerGame : MonoBehaviour {
-		public abstract void NetEvent(Snapshot snapshot);
-		public abstract void NetEvent(BulletSnapshot bulletSnapshot);
-		public abstract void NetEvent(PlayerSnapshot playerSnapshot);
-		public abstract void NetEvent(PlayerInput playerInput);
-		public abstract void NetEvent(ClientAddress clientAddr, PacketType packetType, byte[] buf);
+    public struct PacketForClient
+    {
+        public ClientAddress m_clientAddr;
+        public byte[] m_packet;
+        public PacketForClient(ClientAddress clientAddr, byte[] packet)
+        {
+            m_clientAddr = clientAddr;
+            m_packet = packet;
+        }
+    }
 
-		// Bitmask for buttons pressed. InputBit is defined in Netcode.cs
-		private InputBit inputBits_ = 0;
-		// Server broadcasts the packets in this queue. Client sends them to the server.
-		private Queue<byte[]> m_packetQueue = new Queue<byte[]>();
-		// Queue for packets sent to specific clients.
-		private Queue<PacketForClient> m_packetQueueForClient = new Queue<PacketForClient>();
+    // @class MultiplayerGame
+    // @desc Games should implement this interface in order to be alerted to network events. 
+    public abstract class IMultiplayerGame : MonoBehaviour
+    {
+        public abstract void NetEvent(Snapshot snapshot);
+        public abstract void NetEvent(BulletSnapshot bulletSnapshot);
+        public abstract void NetEvent(PlayerSnapshot playerSnapshot);
+        public abstract void NetEvent(PlayerInput playerInput);
+        public abstract void NetEvent(ClientAddress clientAddr, PacketType packetType, byte[] buf);
+        public abstract void MasterServerEvent(byte[] buf);
 
-		// @func QueuePacket
-		// @desc Queue a packet for the netcode to send. 
-		public void QueuePacket<T>(T packet) where T : Packet
-		{
-			byte[] buf = Serializer.Serialize(packet);
-			m_packetQueue.Enqueue(buf);
-		}
+        private InputBit inputBits_ = 0; // Bitmask for buttons pressed. 
+        private Queue<byte[]> m_packetQueue = new Queue<byte[]>();
+        private Queue<PacketForClient> m_packetQueueForClient = new Queue<PacketForClient>();
 
-		// @func QueuePacket
-		// @desc Queue a packet for the netcode to send to a specific client.
-		public void QueuePacket<T>(ClientAddress clientAddr, T packet) where T : Packet
-		{
-			byte[] buf = Serializer.Serialize(packet);
-			m_packetQueueForClient.Enqueue(new PacketForClient(clientAddr, buf));
-		}
+        private Dictionary<string, PacketForClient> m_reliablePackets = new Dictionary<string, PacketForClient>();
 
-		// @func GetPacketsForClient
-		// @desc Returns and clears all the packets in the queue.
-		public Queue<PacketForClient> GetPacketsForClient()
-		{
-			Queue<PacketForClient> packetsForClient = new Queue<PacketForClient>(m_packetQueueForClient);
-			m_packetQueueForClient.Clear();
-			return packetsForClient;
-		}
+        // @func QueuePacket
+        // @desc Queue a packet for the client to send. 
+        public void QueuePacket<T>(T packet) where T : Packet
+        {
+            byte[] buf = Serializer.Serialize(packet);
+            m_packetQueue.Enqueue(buf);
+        }
 
-		// @func QueueInput
-		// @desc Indicates that this button was pressed and should be sent in the PlayerInput packet.
-		public void QueueInput(InputBit cmd)
-		{
-			inputBits_ |= cmd;
-		}
+        public void QueuePacket<T>(ClientAddress clientAddr, T packet) where T : Packet
+        {
+            byte[] buf = Serializer.Serialize(packet);
+            m_packetQueueForClient.Enqueue(new PacketForClient(clientAddr, buf));
+        }
+        public void QueuePacket(ClientAddress clientAddr, string message)
+        {
+            byte[] buf = System.Text.Encoding.UTF8.GetBytes(message);
+            m_packetQueueForClient.Enqueue(new PacketForClient(clientAddr, buf));
+        }
+        public void AddReliablePacket(string key, ClientAddress clientAddr, string message)
+        {
+            byte[] buf = System.Text.Encoding.UTF8.GetBytes(message);
+            string com = key.Substring(0, 5);
+            Debug.Log("Adding " + com + "to ReliablePackets");
+            
+            PacketForClient packet = new PacketForClient(clientAddr, buf);
+            m_reliablePackets[key] = packet; 
+        }
+        public void RemoveReliablePacket(string key)
+        {
+            
+            string com = key.Substring(0, 5);
+            Debug.Log("Removing " + com + "from ReliablePackets");
+            m_reliablePackets.Remove(key);
+            
+        }
+        public bool WaitingForAck(string key)
+        {
+            
+            if (m_reliablePackets.ContainsKey(key))
+                return true;
+            else
+                return false;
+        }
 
-		// @func GetInput
-		// @desc Get the input bitmask and clear it for the next frame.
-		public InputBit GetInput()
-		{
-			InputBit inputBits = inputBits_;
-			inputBits_ &= 0;
-			return inputBits;
-		}
+        public Queue<PacketForClient> GetPacketsForClient()
+        {
+            Queue<PacketForClient> packetsForClient = new Queue<PacketForClient>(m_packetQueueForClient);
+            m_packetQueueForClient.Clear();
+            return packetsForClient;
+        }
 
-		// @func GetPacketQueue
-		// @desc Clears the packet queue and returns the packets. Used by the client to
-		// send game-related packets.
-		public Queue<byte[]> GetPacketQueue()
-		{
-			Queue<byte[]> packetQueue = new Queue<byte[]>(m_packetQueue);
-			m_packetQueue.Clear();
-			return packetQueue;
-		}
+        public void QueueInput(InputBit cmd)
+        {
+            inputBits_ |= cmd;
+        }
 
-		// @func FindNetworkObjects
-		// @desc Finds all game objects in the scene with type T. 
-		public List<GameObject> FindNetworkObjects<T>() where T : MonoBehaviour
-		{
-			List<GameObject> networkObjects = new List<GameObject>();
-			var gos = Resources.FindObjectsOfTypeAll<T>();
+        public InputBit GetInput()
+        {
+            InputBit inputBits = inputBits_;
+            inputBits_ &= 0;
+            return inputBits;
+        }
 
-			foreach (var go in gos) {
-				if (go.hideFlags == HideFlags.None && go.gameObject.scene.name != null) {
-					networkObjects.Add(go.gameObject);
-					continue;
-				}
-			}
+        // @func GetPacketQueue
+        // @desc Clears the packet queue and returns the packets. Used by the client to
+        // send game-related packets.
+        public Queue<byte[]> GetPacketQueue()
+        {
+            Queue<byte[]> packetQueue = new Queue<byte[]>(m_packetQueue);
+            m_packetQueue.Clear();
+            return packetQueue;
+        }
+        public Dictionary<string, PacketForClient> GetReliablePackets()
+        {
+            return m_reliablePackets;
+        }
 
-			return networkObjects;
-		}
-	}
+
+        // @func FindNetworkObjects
+        // @desc Finds all game objects in the scene with type T. 
+        public List<GameObject> FindNetworkObjects<T>() where T : MonoBehaviour
+        {
+            List<GameObject> networkObjects = new List<GameObject>();
+            var gos = Resources.FindObjectsOfTypeAll<T>();
+
+            foreach (var go in gos)
+            {
+                if (go.hideFlags == HideFlags.None)
+                {
+                    networkObjects.Add(go.gameObject);
+                    continue;
+                }
+            }
+
+            return networkObjects;
+        }
+    }
 }

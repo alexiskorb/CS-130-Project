@@ -100,7 +100,7 @@ namespace FpsServer {
                 SendPacket(packet.m_clientAddr, packet.m_packet);
             }
 
-            //m_reliablePacketTick.Run();
+            m_reliablePacketTick.Run();
 
             SendState<Bullet, Netcode.BulletSnapshot>();
 			SendState<NetworkedPlayer, Netcode.PlayerSnapshot>();

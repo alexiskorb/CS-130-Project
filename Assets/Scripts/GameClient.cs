@@ -223,9 +223,10 @@ namespace FpsClient {
                 case Netcode.PacketType.START_GAME:
                     ProcessStartGame(buf);
                     break;
+                    /*
 				case Netcode.PacketType.INVITE_PLAYER:
 					ProcessInvitePlayer (buf);
-					break;
+					break;*/
 				case Netcode.PacketType.DISCONNECT:
 					ProcessDisconnect (buf);
 					break;
@@ -280,14 +281,14 @@ namespace FpsClient {
             MainMenuUI.Instance.OpenSteamJoinMatchPopup();
             m_invitedLobby = invitation.m_lobbyName;
         }
-        /*
+        
         public void SendInvitePlayer(string invitedPlayer)
         {
             Netcode.InvitePlayer packet = new Netcode.InvitePlayer(CurrentLobby, MainPlayerName, invitedPlayer);
             Debug.Log(packet.m_type);
             QueuePacket(packet);
-        } */
-        
+        } 
+        */
         // @func ProcessStartGame
         // @desc With the START_GAME packet, save the client's new ID, and IP/port of the match server to communicate with.
         public void ProcessStartGame(byte[] buf)
@@ -332,6 +333,7 @@ namespace FpsClient {
             Netcode.LeaveLobby packet = new Netcode.LeaveLobby(MainPlayerName);
             QueuePacket(packet);
             m_currentLobby = "";
+            m_lobbyPlayers.Clear();
         }
 
         public override void MasterServerEvent(byte[] buf)
@@ -374,8 +376,8 @@ namespace FpsClient {
             if (MainPlayerName == data[0])
             {
                 Debug.Log("Received Joinlobby ACK matched name");
-                if (WaitingForAck("pjoin " + buf))
-                    RemoveReliablePacket("pjoin " + buf);
+                if (WaitingForAck("pjoin " + data[0]))
+                    RemoveReliablePacket("pjoin " + data[0]);
                 Debug.Log(data[2]);
                 m_client.m_lobbyServerAddr = new Netcode.ClientAddress(data[1], Convert.ToInt32(data[2]));
                 Debug.Log(m_client.m_lobbyServerAddr.m_ipAddress);
@@ -466,10 +468,19 @@ namespace FpsClient {
             string buffer = commandName + MainPlayerName + ":" + RegionServerName + ":" + CurrentLobby;
             AddReliablePacket(commandName + MainPlayerName, m_client.MasterServer, buffer);
         }
+        // @func SendJoinLobby
+        // @desc Overloaded SendPlayerJoin when you want to specify what region:lobby they want to join
+        // Used when accepting player invites
+        public void SendPlayerJoin(string regionName, string lobbyName)
+        {
+            string commandName = "pjoin ";
+            string buffer = commandName + MainPlayerName + ":" + regionName + ":" + lobbyName;
+            AddReliablePacket(commandName + MainPlayerName, m_client.MasterServer, buffer);
+        }
         public void SendPlayerInvite(string steamID)
         {
             string commandName = "pinvi ";
-            string buffer = commandName + MainPlayerName + steamID;
+            string buffer = commandName + MainPlayerName + ":" + steamID;
             AddReliablePacket(buffer, m_client.MasterServer, buffer);
         }
         public void SendPlayerInviteAck(string buf)
@@ -478,14 +489,6 @@ namespace FpsClient {
                 RemoveReliablePacket("pinvi " + buf);
         }
 
-
-        private GameObject SpawnBullet(Netcode.BulletSnapshot bulletState)
-        {
-            GameObject gameObject = Instantiate(bulletPrefab);
-            bulletState.Apply(ref gameObject);
-            PutEntity(bulletState.m_serverId, gameObject);
-            return gameObject;
-        }
 
 		// @func SendDropMatch
 		// @desc When player wants to drop match, send DISCONNECT packet to server. Called by UI.
@@ -504,11 +507,14 @@ namespace FpsClient {
 			Netcode.Disconnect disconnect = Netcode.Serializer.Deserialize<Netcode.Disconnect> (buf);
 			if (mainPlayerServerId == disconnect.m_serverId && m_mainPlayerName == disconnect.m_playerName)
 			{
+                m_currentLobby = "";
+                m_lobbyPlayers.Clear();
 				KillEntity (mainPlayerServerId);
 				m_client.StopSnapshots ();
 				SceneManager.LoadScene ("MainMenu");
 			} else
 			{
+                m_lobbyPlayers.Remove(disconnect.m_playerName);
 				KillEntity (disconnect.m_serverId);
 			}
 		}

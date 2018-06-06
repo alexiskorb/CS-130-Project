@@ -214,6 +214,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90dca5b0b17d56449907d010755f27f1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  SERVER_IP: 127.0.0.1
+  SERVER_PORT: 9001
   MasterServerIp: 127.0.0.1
   MasterServerPort: 8484
   PREDICTION_BUFFER_SIZE: 20
@@ -251,7 +253,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!81 &381044250
 AudioListener:
   m_ObjectHideFlags: 0
@@ -552,7 +554,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1219729862
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -673,9 +675,6 @@ MonoBehaviour:
     type: 2}
   PREDICTION_BUFFER_SIZE: 20
   m_server: {fileID: 51616473}
-  activeMatchPlayers: []
-  activeHostIp: 
-  activeHostPort: 0
   gameSceneName: ServerMainScene
   m_spawnPoints:
   - {x: -1, y: 0, z: -1}
