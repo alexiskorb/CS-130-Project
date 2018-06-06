@@ -120,8 +120,9 @@ public class MainMenuUI : MonoBehaviour {
 		if (FpsClient.GameClient.Instance.NamesSet())
 		{
 			m_isMatchCreator = false;
-			//FpsClient.GameClient.Instance.SendJoinLobbyFromInvite();
-			ShowStartMatchMenu();
+			FpsClient.GameClient.Instance.SendPlayerJoinFromInvite();
+            CloseSteamJoinMatchPopup();
+			//ShowStartMatchMenu();
 		}
 		else
 		{

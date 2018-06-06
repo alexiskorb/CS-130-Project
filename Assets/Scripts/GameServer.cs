@@ -42,9 +42,11 @@ namespace FpsServer {
         // Used to call relevant functions after the scene loads since scene loads complete in the frame after they're called
         void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (scene.name == "ServerStartScene")
+
+            if (scene.name == "ServerStandby")
             {
                 inMatch = false;
+                SendRegisterServer();
             }
             else
             {
@@ -200,12 +202,13 @@ namespace FpsServer {
 			Debug.Log("Received Disconnect");
 			Netcode.Disconnect disconnect = Netcode.Serializer.Deserialize<Netcode.Disconnect>(buf);
             string clientAddressString = clientAddr.m_ipAddress + clientAddr.m_port.ToString();
-            if (WaitingForAck(Netcode.PacketType.DISCONNECT.ToString() + disconnect.m_serverId + clientAddressString))
+            if (WaitingForAck(Netcode.PacketType.DISCONNECT.ToString() + disconnect.m_serverId.ToString() + clientAddressString))
             {
-                RemoveReliablePacket(Netcode.PacketType.DISCONNECT.ToString() + disconnect.m_serverId + clientAddressString);
+                RemoveReliablePacket(Netcode.PacketType.DISCONNECT.ToString() + disconnect.m_serverId.ToString() + clientAddressString);
             }
             else if (m_clientAddresses.ContainsKey(disconnect.m_playerName))
             {
+                Debug.Log("Destroying" + disconnect.m_playerName);
                 QueuePacket(clientAddr, buf);
                 SendDisconnect(disconnect.m_serverId, disconnect.m_playerName);
                 Netcode.ClientAddress addr = m_clientAddresses[disconnect.m_playerName].Value;
@@ -213,6 +216,7 @@ namespace FpsServer {
                 m_clientAddresses.Remove(disconnect.m_playerName);
                 m_server.RemoveClient(addr);
                 SendPlayerQuit(disconnect.m_playerName);
+                Debug.Log(m_clientAddresses.Count);
                 if (m_clientAddresses.Count == 0)
                 {
                     RestartServer();
@@ -227,8 +231,9 @@ namespace FpsServer {
 			Netcode.Disconnect packet = new Netcode.Disconnect (serverId, name);
             foreach (var client in m_clientAddresses.Keys)
             {
+                Debug.Log("Sending disconnect of " + name + " to " + client);
                 string clientAddress = m_clientAddresses[client].Value.m_ipAddress + m_clientAddresses[client].Value.m_port.ToString();
-                AddReliablePacket(Netcode.PacketType.DISCONNECT.ToString() + packet.m_serverId + clientAddress, m_clientAddresses[client].Value, packet);
+                AddReliablePacket(Netcode.PacketType.DISCONNECT.ToString() + packet.m_serverId.ToString() + clientAddress, m_clientAddresses[client].Value, packet);
             }
         }
         // @func SpawnPlayer
@@ -395,6 +400,7 @@ namespace FpsServer {
 
         public void RestartServer()
         {
+            Debug.Log("Closing Lobby, switching scenes");
             CurrentLobby = null;
             m_clientAddresses.Clear();
             m_objects.Clear();
@@ -403,8 +409,7 @@ namespace FpsServer {
             GetPacketQueue();
             GetPacketsForClient();
             GetReliablePackets().Clear();
-            SceneManager.LoadScene("ServerStartScene");
-            SendRegisterServer();
+            SceneManager.LoadScene("ServerStandby");
         }
 
         public override void NetEvent(Netcode.PlayerInput playerInput)

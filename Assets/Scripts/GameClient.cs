@@ -377,7 +377,7 @@ namespace FpsClient {
                 RemoveReliablePacket(Netcode.PacketType.DISCONNECT.ToString() + disconnect.m_serverId.ToString() + disconnect.m_playerName);
                 m_currentLobby = "";
                 m_lobbyPlayers.Clear();
-                mainPlayerServerId = -1 * mainPlayerServerId;
+                mainPlayerServerId = -1;
                 KillEntity(mainPlayerServerId);
                 m_client.StopSnapshots();
                 SceneManager.LoadScene("MainMenu");
@@ -548,10 +548,10 @@ namespace FpsClient {
         // @func SendJoinLobby
         // @desc Overloaded SendPlayerJoin when you want to specify what region:lobby they want to join
         // Used when accepting player invites
-        public void SendPlayerJoin(string regionName, string lobbyName)
+        public void SendPlayerJoinFromInvite()
         {
             string commandName = "pjoin ";
-            string buffer = commandName + MainPlayerName + ":" + regionName + ":" + lobbyName;
+            string buffer = commandName + MainPlayerName + ":" + m_invitedRegion + ":" + m_invitedLobby;
             AddReliablePacket(commandName + MainPlayerName, m_client.MasterServer, buffer);
         }
         public void SendPlayerInvite(string steamID)
