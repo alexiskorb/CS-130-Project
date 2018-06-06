@@ -187,7 +187,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 66af7ea253b4e70409824d61e48e974f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MasterServerIp: 127.0.0.1
+  MasterServerIp: 45.49.170.85
   MasterServerPort: 8484
   PREDICTION_BUFFER_SIZE: 20
   TICK_RATE: 0

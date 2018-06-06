@@ -20,7 +20,7 @@ namespace FpsServer {
 
         public uint PREDICTION_BUFFER_SIZE = 20;
 		// Rate at which updates are sent to the server.
-		public float TICK_RATE = 0f;
+		public float TICK_RATE = 0.06f;
 		// Enables performance logging.
 		public bool m_enablePerformanceLog = true;
         public float RELIABLE_TICK_RATE = 1.0f;

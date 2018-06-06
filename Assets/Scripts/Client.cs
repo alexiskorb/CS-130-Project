@@ -11,8 +11,8 @@ namespace FpsClient {
 		public string MasterServerIp = "127.0.0.1";
 		public int MasterServerPort = 9001;
 		public uint PREDICTION_BUFFER_SIZE = 20;
-		public float TICK_RATE = 0f; // The rate in seconds at which updates are sent to the server.
-        public float RELIABLE_TICK_RATE = 0.5f;
+		public float TICK_RATE = .06f; // The rate in seconds at which updates are sent to the server.
+        public float RELIABLE_TICK_RATE = 1.0f;
 
         // Address of the server. Initially, we talk to the master server. The server address changes to the 
         // game server that the master connects us to.
