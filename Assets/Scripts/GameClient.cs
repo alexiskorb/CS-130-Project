@@ -384,9 +384,11 @@ namespace FpsClient {
             }
             else
             {
+                Debug.Log("Trying to Disconnect player");
                 QueuePacket(m_client.m_lobbyServerAddr, buf);
                 if(m_lobbyPlayers.Contains(disconnect.m_playerName))
                 {
+                    Debug.Log("Removed Disconnecting player");
                     m_lobbyPlayers.Remove(disconnect.m_playerName);
                     KillEntity(disconnect.m_serverId);
                 }

@@ -59,13 +59,13 @@ public class JoinMatchUI : MonoBehaviour {
 
     public void RefreshOpenMatches()
     {
+        FpsClient.GameClient.Instance.SendRefreshServerList();
         FpsClient.GameClient.Instance.SendRefreshLobbyList();
     }
 
     public void SubmitPlayerName()
     {
         FpsClient.GameClient.Instance.MainPlayerName = inputPlayerNameText.GetComponent<Text>().text;
-        FpsClient.GameClient.Instance.SendRefreshServerList();
     }
 
     public void SubmitMatchName(string name)
