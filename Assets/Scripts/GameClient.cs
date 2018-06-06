@@ -392,6 +392,8 @@ namespace FpsClient {
             if (WaitingForAck("stlob " + buf))
                 RemoveReliablePacket("stlob " + buf);
         }
+        // @func ReceiveLobbyList
+        // @desc Masterserver sent a list of open lobbies. Update list.
         public void ReceiveLobbyList(string buf)
         {
             Debug.Log("Refreshed Lobbies");
