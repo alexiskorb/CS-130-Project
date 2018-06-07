@@ -35,11 +35,11 @@ namespace Netcode {
 		// the client player needs to be rolled back to the server's snapshot.
 		public bool Reconcile(T snapshot)
 		{
-			T predicted = GetSnapshot(snapshot.m_seqno);
-			if (!predicted.Equals(snapshot)) {
-				PutSnapshot(snapshot);
-				return false;
-			} else
+			//T predicted = GetSnapshot(snapshot.m_seqno);
+			//if (!predicted.Equals(snapshot)) {
+			//	PutSnapshot(snapshot);
+			//	return false;
+			//} else
 				return true;
 		}
 
