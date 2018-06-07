@@ -242,9 +242,7 @@ namespace FpsServer {
         }
         public void StopInitAcks(byte[] buf)
         {
-            Netcode.JoinInit lobby = Netcode.Serializer.Deserialize<Netcode.JoinInit>(buf);
-            if (WaitingForAck(Netcode.PacketType.JOIN_INIT.ToString() + lobby.m_playerName))
-                RemoveReliablePacket(Netcode.PacketType.JOIN_INIT.ToString() + lobby.m_playerName);
+            //Netcode.JoinInit lobby = Netcode.Serializer.Deserialize<Netcode.JoinInit>(buf);
         }
         // @func SpawnPlayer
         // @desc Spawns a new player and returns it
@@ -357,7 +355,7 @@ namespace FpsServer {
                     m_clientAddresses[data[0]] = null;
                     Netcode.ClientAddress tempPlayer = new Netcode.ClientAddress(data[1], Convert.ToInt32(data[2]));
                     Netcode.JoinInit initMessage = new Netcode.JoinInit(data[0]);
-                    AddReliablePacket(Netcode.PacketType.JOIN_INIT.ToString() + data[0], tempPlayer, initMessage);
+                    QueuePacket(tempPlayer, initMessage);
                 }
                 else
                     Debug.Log("PlayerJoin received wrong lobby name");

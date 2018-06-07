@@ -24,7 +24,7 @@ namespace FpsServer {
 		// Enables performance logging.
 		public bool m_enablePerformanceLog = true;
         public float RELIABLE_TICK_RATE = 1.0f;
-        public float HEART_BEAT_RATE = 3.0f;
+        public float HEART_BEAT_RATE = 30.0f;
 
 
         // The server-side game manager.

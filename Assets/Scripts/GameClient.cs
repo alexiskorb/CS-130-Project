@@ -62,7 +62,6 @@ namespace FpsClient {
 
         //State on whether the menu is open, used by the UI
         public bool MenuOpen { get; set; }
-        public bool m_waitingForInit = false; 
 
         private List<string> m_listOfServers = new List<string>();
         public List<string> ServerList
@@ -226,9 +225,9 @@ namespace FpsClient {
                 case Netcode.PacketType.JOIN_LOBBY:
                     ReceiveJoinLobby(buf);
                     break;
-                case Netcode.PacketType.JOIN_INIT:
-                    AcceptJoinInit(clientAddr, buf);
-                    break;
+                //case Netcode.PacketType.JOIN_INIT:
+                //    AcceptJoinInit(clientAddr, buf);
+                //    break;
                 /*
             case Netcode.PacketType.INVITE_PLAYER:
                 ProcessInvitePlayer (buf);
@@ -352,17 +351,17 @@ namespace FpsClient {
                 m_lobbyPlayers.Remove(lobby.m_playerName);
             }
         }
-        public void AcceptJoinInit(Netcode.ClientAddress sender, byte[] buf)
-        {
-            QueuePacket(sender, buf);
-            Netcode.JoinInit lobby = Netcode.Serializer.Deserialize<Netcode.JoinInit>(buf);
-            if (m_waitingForInit && m_client.m_lobbyServerAddr.m_ipAddress == sender.m_ipAddress && m_client.m_lobbyServerAddr.m_port == sender.m_port)
-            {
-                SendJoinLobby();
-                m_waitingForInit = false;
-            }
+        //public void AcceptJoinInit(Netcode.ClientAddress sender, byte[] buf)
+        //{
+        //    QueuePacket(sender, buf);
+        //    Netcode.JoinInit lobby = Netcode.Serializer.Deserialize<Netcode.JoinInit>(buf);
+        //    if (m_waitingForInit && m_client.m_lobbyServerAddr.m_ipAddress == sender.m_ipAddress && m_client.m_lobbyServerAddr.m_port == sender.m_port)
+        //    {
+        //        SendJoinLobby();
+        //        m_waitingForInit = false;
+        //    }
 
-        }
+        //}
         public void SendLeaveLobby()
         {
             Debug.Log("Sending leave lobby packet");
@@ -459,7 +458,9 @@ namespace FpsClient {
                 m_client.m_lobbyServerAddr = new Netcode.ClientAddress(data[1], Convert.ToInt32(data[2]));
                 Debug.Log(m_client.m_lobbyServerAddr.m_ipAddress);
                 Debug.Log(m_client.m_lobbyServerAddr.m_port);
-                m_waitingForInit = true;
+                //Netcode.JoinInit lobby = new Netcode.JoinInit(MainPlayerName);
+                //QueuePacket(m_client.m_lobbyServerAddr, lobby);
+                SendJoinLobby();
             }
         }
 
@@ -518,9 +519,9 @@ namespace FpsClient {
                 //Handle Invite
                 string text = "User " + m_hostSteamName + " has invited you to join a match with them.";
                 SteamJoinMatchUI.Instance.SetMatchText(text);
-                MainMenuUI.Instance.OpenSteamJoinMatchPopup();
                 m_invitedRegion = data[2];
                 m_invitedLobby = data[3];
+                MainMenuUI.Instance.OpenSteamJoinMatchPopup();
             }
             QueuePacket(m_client.MasterServer, "piack " + buf);
         }
