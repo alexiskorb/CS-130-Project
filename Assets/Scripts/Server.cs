@@ -24,9 +24,11 @@ namespace FpsServer {
 		// Enables performance logging.
 		public bool m_enablePerformanceLog = true;
         public float RELIABLE_TICK_RATE = 1.0f;
+        public float HEART_BEAT_RATE = 3.0f;
 
-		// The server-side game manager.
-		public GameServer m_game;
+
+        // The server-side game manager.
+        public GameServer m_game;
 		// Snapshots sent by all clients. 
 		public ClientHistoryMapping m_clients = new ClientHistoryMapping();
 		// Mapping from address to server ID. 
@@ -35,6 +37,7 @@ namespace FpsServer {
 		// the rate at which updates are sent to the server.
 		private Netcode.PeriodicFunction m_tick;
         private Netcode.PeriodicFunction m_reliablePacketTick;
+        private Netcode.PeriodicFunction m_heartBeatTick;
         // The time spent processing packets in one frame. 
         private System.TimeSpan timeProcessingPackets;
 		// m_clients getter.
@@ -56,10 +59,11 @@ namespace FpsServer {
 
             m_tick = new Netcode.PeriodicFunction(MainServerLoop, TICK_RATE);
             m_reliablePacketTick = new Netcode.PeriodicFunction(SendReliablePackets, RELIABLE_TICK_RATE);
+            m_heartBeatTick = new Netcode.PeriodicFunction(SendHeartBeatsToMaster, HEART_BEAT_RATE);
         }
-		// @func Update
-		// @desc Every update we do all the work in the work queue, then propagate updates to all connected clients.
-		void Update()
+        // @func Update
+        // @desc Every update we do all the work in the work queue, then propagate updates to all connected clients.
+        void Update()
 		{
 			if (m_enablePerformanceLog) {
 				var time = (timeProcessingPackets.Milliseconds / (Time.deltaTime * 10));
@@ -101,6 +105,7 @@ namespace FpsServer {
             }
 
             m_reliablePacketTick.Run();
+            m_heartBeatTick.Run();
 
             SendState<Bullet, Netcode.BulletSnapshot>();
 			SendState<NetworkedPlayer, Netcode.PlayerSnapshot>();
@@ -175,11 +180,17 @@ namespace FpsServer {
                 SendPacket(packet.m_clientAddr, packet.m_packet);
             }
         }
+        void SendHeartBeatsToMaster()
+        {
+            string commandName = "lobup";
+            byte[] buf = System.Text.Encoding.UTF8.GetBytes(commandName);
+            SendPacket(MasterServer, buf);
+        }
 
-		// @func ShouldDiscard
-		// @desc If we're the server, accept packets from anyone. When the master server transfers control
-		// to the game server, we should probably 
-		public override bool ShouldDiscard(Netcode.ClientAddress clientAddr, Netcode.Packet header)
+        // @func ShouldDiscard
+        // @desc If we're the server, accept packets from anyone. When the master server transfers control
+        // to the game server, we should probably 
+        public override bool ShouldDiscard(Netcode.ClientAddress clientAddr, Netcode.Packet header)
 		{
 			return false;
 		}

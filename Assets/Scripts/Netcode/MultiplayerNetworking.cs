@@ -36,7 +36,7 @@ namespace Netcode {
             MasterServer = new ClientAddress(MASTER_SERVER_IP, MASTER_SERVER_PORT);
             Debug.Log(MasterServer.m_ipAddress);
             Debug.Log(MasterServer.m_port);
-            m_udp = new UdpClient(portno);
+            m_udp = new UdpClient();
 			m_udp.BeginReceive(ReceiveCallback, m_udp);
 		}
 
@@ -79,8 +79,11 @@ namespace Netcode {
 		// the appropriate packet handler. 
 		public void HandlePacket(ClientAddress clientAddr, byte[] buf)
 		{
+            Debug.Log("Received Packet from " + clientAddr.m_ipAddress + ":" + clientAddr.m_port);
+            bool masterEvent = false;
             if (clientAddr.m_port == MasterServer.m_port && clientAddr.m_ipAddress == MasterServer.m_ipAddress)
             {
+                masterEvent = true;
                 m_multiplayerGame.MasterServerEvent(buf);
             }
             Packet header;
@@ -95,10 +98,10 @@ namespace Netcode {
 				return;
 
             //Debug.Log("Packet type is" + header.m_type);
-
 			if (m_packetCallbacks.ContainsKey(header.m_type)) {
 				m_packetCallbacks[header.m_type].Invoke(clientAddr, buf);
-			} else {
+			}
+            else if (!masterEvent) { 
 				m_multiplayerGame.NetEvent(clientAddr, header.m_type, buf);
 			}
 		}

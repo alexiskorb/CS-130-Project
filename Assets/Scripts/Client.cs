@@ -155,6 +155,7 @@ namespace FpsClient {
             var reliableQueue = m_game.GetReliablePackets();
             foreach (var packet in reliableQueue.Values)
             {
+                //Debug.Log("Sending packet to " + packet.m_clientAddr.m_ipAddress + ":" + packet.m_clientAddr.m_port);
                 SendPacket(packet.m_clientAddr, packet.m_packet);
             }
         }

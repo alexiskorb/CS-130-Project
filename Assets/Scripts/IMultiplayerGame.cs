@@ -66,6 +66,7 @@ namespace Netcode {
         public void AddReliablePacket<T>(string key, ClientAddress clientAddr, T packet) where T: Packet 
         {
             byte[] buf = Serializer.Serialize(packet);
+            Debug.Log("Adding " + packet.m_type.ToString() + " to ReliablePackets");
             PacketForClient reliablePacket = new PacketForClient(clientAddr, buf);
             m_reliablePackets[key] = reliablePacket;
         }

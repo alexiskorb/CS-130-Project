@@ -62,7 +62,7 @@ namespace FpsClient {
 
         //State on whether the menu is open, used by the UI
         public bool MenuOpen { get; set; }
-
+        public bool m_waitingForInit = false; 
 
         private List<string> m_listOfServers = new List<string>();
         public List<string> ServerList
@@ -210,6 +210,7 @@ namespace FpsClient {
         // The function analyzes the packet type and responds accordingly.
         public override void NetEvent(Netcode.ClientAddress clientAddr, Netcode.PacketType type, byte[] buf)
         {
+            Debug.Log("Received " + type.ToString() + " from " + clientAddr.m_ipAddress + ":" + clientAddr.m_port); 
             switch (type)
             {
                 
@@ -224,6 +225,9 @@ namespace FpsClient {
                     break;
                 case Netcode.PacketType.JOIN_LOBBY:
                     ReceiveJoinLobby(buf);
+                    break;
+                case Netcode.PacketType.JOIN_INIT:
+                    AcceptJoinInit(clientAddr, buf);
                     break;
                 /*
             case Netcode.PacketType.INVITE_PLAYER:
@@ -268,7 +272,7 @@ namespace FpsClient {
         public void SendJoinLobby()
         {
             Netcode.JoinLobby packet = new Netcode.JoinLobby(MainPlayerName);
-            Debug.Log(packet.m_type);
+            Debug.Log("Sending Joinlobby to " + m_client.m_lobbyServerAddr.m_ipAddress + ":" + m_client.m_lobbyServerAddr.m_port);
             AddReliablePacket(Netcode.PacketType.JOIN_LOBBY.ToString() + MainPlayerName, m_client.m_lobbyServerAddr, packet);
         }
         /*
@@ -348,7 +352,17 @@ namespace FpsClient {
                 m_lobbyPlayers.Remove(lobby.m_playerName);
             }
         }
-    
+        public void AcceptJoinInit(Netcode.ClientAddress sender, byte[] buf)
+        {
+            QueuePacket(sender, buf);
+            Netcode.JoinInit lobby = Netcode.Serializer.Deserialize<Netcode.JoinInit>(buf);
+            if (m_waitingForInit && m_client.m_lobbyServerAddr.m_ipAddress == sender.m_ipAddress && m_client.m_lobbyServerAddr.m_port == sender.m_port)
+            {
+                SendJoinLobby();
+                m_waitingForInit = false;
+            }
+
+        }
         public void SendLeaveLobby()
         {
             Debug.Log("Sending leave lobby packet");
@@ -443,9 +457,12 @@ namespace FpsClient {
                 if (WaitingForAck("pjoin " + data[0]))
                     RemoveReliablePacket("pjoin " + data[0]);
                 m_client.m_lobbyServerAddr = new Netcode.ClientAddress(data[1], Convert.ToInt32(data[2]));
-                SendJoinLobby();
+                Debug.Log(m_client.m_lobbyServerAddr.m_ipAddress);
+                Debug.Log(m_client.m_lobbyServerAddr.m_port);
+                m_waitingForInit = true;
             }
         }
+
         // @func ReceiveCreateLobby
         // @desc ACK for creating the lobby. 
         public void ReceiveCreateLobby(string buf)
@@ -455,8 +472,7 @@ namespace FpsClient {
             if (WaitingForAck("stlob " + buf))
             {
                 RemoveReliablePacket("stlob " + buf);
-                Debug.Log("Received stack from master. SendingPlayerJoin");
-                SendPlayerJoin();
+                SendPlayerJoinToMaster();
             }
         }
         // @func ReceiveLobbyList
@@ -539,7 +555,7 @@ namespace FpsClient {
         }
         // @func SendJoinLobby
         // @desc Called when player wants to join the game. Called by the UI.
-        public void SendPlayerJoin()
+        public void SendPlayerJoinToMaster()
         {
             string commandName = "pjoin ";
             string buffer = commandName + MainPlayerName + ":" + RegionServerName + ":" + CurrentLobby;

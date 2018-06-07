@@ -13,6 +13,7 @@ namespace Netcode {
 		CREATE_LOBBY,
 		REFRESH_PLAYER_LIST,
 		JOIN_LOBBY,
+        JOIN_INIT,
         LEAVE_LOBBY,
 		START_GAME,
 		SNAPSHOT,
@@ -152,6 +153,18 @@ namespace Netcode {
             m_playerName = playerName;
 		}
 	}
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public class JoinInit : Packet
+    {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 20)]
+        public string m_playerName;
+        public JoinInit() : base(PacketType.JOIN_INIT) { }
+        public JoinInit(string playerName)
+            : base(PacketType.JOIN_INIT)
+        {
+            m_playerName = playerName;
+        }
+    }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public class LeaveLobby : Packet

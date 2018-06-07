@@ -104,7 +104,7 @@ public class MainMenuUI : MonoBehaviour {
         if (FpsClient.GameClient.Instance.NamesSet())
         {
             m_isMatchCreator = false;
-            FpsClient.GameClient.Instance.SendPlayerJoin();
+            FpsClient.GameClient.Instance.SendPlayerJoinToMaster();
             ShowStartMatchMenu();
         }
         else
@@ -117,17 +117,11 @@ public class MainMenuUI : MonoBehaviour {
     // Join a lobby from the Steam join match invite
     public void JoinLobbyFromInvite()
     {
-		if (FpsClient.GameClient.Instance.NamesSet())
-		{
+
 			m_isMatchCreator = false;
 			FpsClient.GameClient.Instance.SendPlayerJoinFromInvite();
             CloseSteamJoinMatchPopup();
-			//ShowStartMatchMenu();
-		}
-		else
-		{
-			joinMatchMenu.GetComponent<JoinMatchUI>().ShowJoinMatchError();
-		}
+
 		// TODO: Possibly handle lobby joining failure
     }
    

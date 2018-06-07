@@ -46,7 +46,6 @@ namespace FpsServer {
             if (scene.name == "ServerStandby")
             {
                 inMatch = false;
-                SendRegisterServer();
             }
             else
             {
@@ -75,6 +74,7 @@ namespace FpsServer {
         // The function analyzes the packet type and responds accordingly.
         public override void NetEvent(Netcode.ClientAddress clientAddr, Netcode.PacketType type, byte[] buf)
 		{
+            Debug.Log("Received " + type.ToString() + " from " + clientAddr.m_ipAddress +":" +  clientAddr.m_port);
             switch (type)
             {
                 case Netcode.PacketType.REFRESH_PLAYER_LIST:
@@ -96,6 +96,9 @@ namespace FpsServer {
 				case Netcode.PacketType.DISCONNECT:
 					ProcessDisconnect (clientAddr, buf);
 					break;
+                case Netcode.PacketType.JOIN_INIT:
+                    StopInitAcks(buf);
+                    break;
             }
         }
 
@@ -115,7 +118,7 @@ namespace FpsServer {
         // in the lobby.
         public void ProcessJoinLobby(Netcode.ClientAddress clientAddr, byte[] buf)
         {
-            Debug.Log("Received JoinLobby packet");
+            Debug.Log("Received JoinLobby packet from " + clientAddr.m_ipAddress + clientAddr.m_port);
             Netcode.JoinLobby lobby = Netcode.Serializer.Deserialize<Netcode.JoinLobby>(buf);
             if(m_clientAddresses.ContainsKey(lobby.m_playerName) && !m_clientAddresses[lobby.m_playerName].HasValue)
             {
@@ -130,6 +133,7 @@ namespace FpsServer {
             }
             QueuePacket(clientAddr, buf);
         }
+
 
         // @func ProcessLeaveLobby
         // @desc A client requests to leave a lobby. Remove the player from the list.
@@ -219,7 +223,7 @@ namespace FpsServer {
                 Debug.Log(m_clientAddresses.Count);
                 if (m_clientAddresses.Count == 0)
                 {
-                    RestartServer();
+                    SendRegisterServer();
                 }
             }
             else
@@ -235,6 +239,12 @@ namespace FpsServer {
                 string clientAddress = m_clientAddresses[client].Value.m_ipAddress + m_clientAddresses[client].Value.m_port.ToString();
                 AddReliablePacket(Netcode.PacketType.DISCONNECT.ToString() + packet.m_serverId.ToString() + clientAddress, m_clientAddresses[client].Value, packet);
             }
+        }
+        public void StopInitAcks(byte[] buf)
+        {
+            Netcode.JoinInit lobby = Netcode.Serializer.Deserialize<Netcode.JoinInit>(buf);
+            if (WaitingForAck(Netcode.PacketType.JOIN_INIT.ToString() + lobby.m_playerName))
+                RemoveReliablePacket(Netcode.PacketType.JOIN_INIT.ToString() + lobby.m_playerName);
         }
         // @func SpawnPlayer
         // @desc Spawns a new player and returns it
@@ -303,7 +313,10 @@ namespace FpsServer {
         {
             string message = "stser " + buf;
             if (WaitingForAck(message))
+            {
                 RemoveReliablePacket(message);
+                SceneManager.LoadScene("ServerStandby");
+            }
         }
         // @func ReceiveCreateLobby
         // @desc Lobby was created on the server. Send an ACK to masterserver for confirmation of the packet.
@@ -339,9 +352,12 @@ namespace FpsServer {
             }
             else
             {
-                if (RegionServerName == data[1] && CurrentLobby == data[2])
+                if (RegionServerName == data[3] && CurrentLobby == data[4])
                 {
                     m_clientAddresses[data[0]] = null;
+                    Netcode.ClientAddress tempPlayer = new Netcode.ClientAddress(data[1], Convert.ToInt32(data[2]));
+                    Netcode.JoinInit initMessage = new Netcode.JoinInit(data[0]);
+                    AddReliablePacket(Netcode.PacketType.JOIN_INIT.ToString() + data[0], tempPlayer, initMessage);
                 }
                 else
                     Debug.Log("PlayerJoin received wrong lobby name");
@@ -350,6 +366,7 @@ namespace FpsServer {
             }
 
         }
+
         // @func ReceiveClose
         // @desc The lobby was closed. Process Acks from masterserver.
         public void ReceiveClose(string buf)
