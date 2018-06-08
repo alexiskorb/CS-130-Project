@@ -131,7 +131,7 @@ namespace Netcode {
 
             foreach (var go in gos)
             {
-                if (go.hideFlags == HideFlags.None)
+                if (go.hideFlags == HideFlags.None && go.gameObject.scene.name != null)
                 {
                     networkObjects.Add(go.gameObject);
                     continue;
