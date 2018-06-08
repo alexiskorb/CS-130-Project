@@ -73,7 +73,8 @@ namespace FpsServer {
         public override void NetEvent(Netcode.Snapshot snapshot)
 		{
 			GameObject gameObject = GetEntity(snapshot.m_serverId);
-			snapshot.Apply(ref gameObject);
+            if(gameObject != null)
+			    snapshot.Apply(ref gameObject);
 		}
 
         // @func NetEvent.PacketType 
@@ -168,8 +169,8 @@ namespace FpsServer {
         }
 
         // @func ProcessStartGame
-        // @desc A client requests to begin a match from an existing lobby. Find/Create a server to handle the match,
-        // and get its IP & port. Give the list of players and their ClientAddress off to the new match server.
+        // @desc The first time the GameServer receives a START_GAME packet, it will start the match, and let all other players know.
+        // In subsequent packets, this function is used to gurantee that it receives an Ack from all players that they were notified of the game starting.
         public void ProcessStartGame(byte[] buf)
         {
             Netcode.StartGame game = Netcode.Serializer.Deserialize<Netcode.StartGame>(buf);
@@ -190,18 +191,22 @@ namespace FpsServer {
 			Debug.Log("Received Disconnect");
 			Netcode.Disconnect disconnect = Netcode.Serializer.Deserialize<Netcode.Disconnect>(buf);
             string clientAddressString = clientAddr.m_ipAddress + clientAddr.m_port.ToString();
+            //Receive acks that all players know about a players disconnect
             if (WaitingForAck(Netcode.PacketType.DISCONNECT.ToString() + disconnect.m_serverId.ToString() + clientAddressString))
             {
                 RemoveReliablePacket(Netcode.PacketType.DISCONNECT.ToString() + disconnect.m_serverId.ToString() + clientAddressString);
             }
-            else if (m_clientAddresses.ContainsKey(disconnect.m_playerName))
+            //If its the first time a player sends that it is disconnecting
+            else if (m_objects[disconnect.m_serverId] != null)
             {
                 Debug.Log("Destroying" + disconnect.m_playerName);
-                QueuePacket(clientAddr, buf);
+                Destroy(m_objects[disconnect.m_serverId]);
+                m_objects[disconnect.m_serverId] = null;
+                QueuePacket(clientAddr, buf); 
                 SendDisconnect(disconnect.m_serverId, disconnect.m_playerName);
                 Netcode.ClientAddress addr = m_clientAddresses[disconnect.m_playerName].Value;
-                KillEntity(disconnect.m_serverId);
-                m_clientAddresses.Remove(disconnect.m_playerName);
+                if (m_clientAddresses.ContainsKey(disconnect.m_playerName))
+                    m_clientAddresses.Remove(disconnect.m_playerName);
                 m_server.RemoveClient(addr);
                 SendPlayerQuit(disconnect.m_playerName);
                 Debug.Log(m_clientAddresses.Count);

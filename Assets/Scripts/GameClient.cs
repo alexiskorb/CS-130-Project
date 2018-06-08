@@ -259,9 +259,10 @@ namespace FpsClient {
             Netcode.RefreshPlayerList packet = new Netcode.RefreshPlayerList();
             QueuePacket(packet);
         }
-        
+
         // @func SendJoinLobby
         // @desc Request the server to join a lobby. This function is called by the UI.
+        // This packet is sent reliably.
         public void SendJoinLobby()
         {
             Netcode.JoinLobby packet = new Netcode.JoinLobby(MainPlayerName);
@@ -342,9 +343,13 @@ namespace FpsClient {
         {
             Debug.Log("Received disconnect packet");
             Netcode.Disconnect disconnect = Netcode.Serializer.Deserialize<Netcode.Disconnect>(buf);
+            //If its ACK for the disconnect packet this client sent, disconnect from the game
             if (WaitingForAck(Netcode.PacketType.DISCONNECT.ToString() + disconnect.m_serverId.ToString() + disconnect.m_playerName))
             {
                 RemoveReliablePacket(Netcode.PacketType.DISCONNECT.ToString() + disconnect.m_serverId.ToString() + disconnect.m_playerName);
+                //Clear queues
+                GetPacketQueue();
+                GetPacketsForClient();
                 m_currentLobby = "";
                 m_lobbyPlayers.Clear();
                 mainPlayerServerId = -1;
@@ -354,13 +359,15 @@ namespace FpsClient {
             }
             else
             {
+                //If its for another player, remove the gameobject
                 Debug.Log("Trying to Disconnect player");
                 QueuePacket(m_client.m_lobbyServerAddr, buf);
-                if(m_lobbyPlayers.Contains(disconnect.m_playerName))
+                if(GetEntity(disconnect.m_serverId) != null)
                 {
                     Debug.Log("Removed Disconnecting player");
-                    m_lobbyPlayers.Remove(disconnect.m_playerName);
                     KillEntity(disconnect.m_serverId);
+                    if (m_lobbyPlayers.Contains(disconnect.m_playerName))
+                        m_lobbyPlayers.Remove(disconnect.m_playerName);
                 }
             }
         }
@@ -389,7 +396,7 @@ namespace FpsClient {
                     ReceiveServerList(arg);
                     break;
                 case "piack":
-                    SendPlayerInviteAck(arg);
+                    ReceivePlayerInviteAck(arg);
                     break;
                 case "pinvi":
                     ReceivePlayerInvite(arg);
@@ -405,7 +412,7 @@ namespace FpsClient {
             }
         }
         // @func ReceiveJoinLobby
-        // @desc Receive IP and Port info of the lobby player is joining.
+        // @desc MasterServer acknowledged that the player is joining the lobby. Sends a join packet to the lobbyserver directly.
         public void ReceivePlayerJoin(string buf)
         {
             Debug.Log("Received Joinlobby ACK from masterserver");
@@ -423,7 +430,7 @@ namespace FpsClient {
         }
 
         // @func ReceiveCreateLobby
-        // @desc ACK for creating the lobby. 
+        // @desc ACK from masterserver for creating the lobby. Automatically attempt to join the lobby created. 
         public void ReceiveCreateLobby(string buf)
         {
             Debug.Log("Received Createlobby ack from master");
@@ -489,6 +496,7 @@ namespace FpsClient {
 
         // @func SendCreateLobby
         // @desc Player created a lobby. Send info to masterserver. Function called by UI.
+        // This packet is sent reliably.
         public void SendCreateLobby()
         {
             string commandName = "stlob ";
@@ -496,9 +504,10 @@ namespace FpsClient {
             Debug.Log(buffer);
             AddReliablePacket(buffer, m_client.MasterServer, buffer);
         }
-        // @func SendCreateLobby
-        // @desc Player created a lobby. Send info to masterserver. Function called by UI.
-        // This packet is sent reliably. 
+        // @func SendRefreshServerList
+        // @desc Called by the client when they start the game, to get list of regional servers. It also serves to initialize the client's presence
+        // On the masterserver, so that it can receive invites.
+        // This packet is sent reliably.
         public void SendRefreshServerList()
         {
             string commandName = "pslis ";
@@ -547,7 +556,7 @@ namespace FpsClient {
         }
         // @func ReceivePlayerInviteAck
         // @desc Masterserver will respond to SendPlayerInvite with an Ack. Process the ack by not sending invite packets.
-        public void SendPlayerInviteAck(string buf)
+        public void ReceivePlayerInviteAck(string buf)
         {
             if (WaitingForAck("pinvi " + buf))
                 RemoveReliablePacket("pinvi " + buf);
@@ -622,7 +631,8 @@ namespace FpsClient {
 				gameObject = SpawnPlayer(snapshot);
 			} else {
 				gameObject = GetEntity(snapshot.m_serverId);
-				snapshot.Apply(ref gameObject);
+                if(gameObject != null)
+                    snapshot.Apply(ref gameObject);
 			}
 		}
 	}
