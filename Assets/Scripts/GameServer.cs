@@ -122,6 +122,8 @@ namespace FpsServer {
             Netcode.JoinLobby lobby = Netcode.Serializer.Deserialize<Netcode.JoinLobby>(buf);
             if(m_clientAddresses.ContainsKey(lobby.m_playerName) && !m_clientAddresses[lobby.m_playerName].HasValue)
             {
+                if (WaitingForAck("ABC" + lobby.m_playerName))
+                    RemoveReliablePacket("ABC" + lobby.m_playerName);
                 m_clientAddresses[lobby.m_playerName] = clientAddr;
                 foreach(string player in m_clientAddresses.Keys)
                 {
@@ -354,9 +356,9 @@ namespace FpsServer {
                 {
                     m_clientAddresses[data[0]] = null;
                     Netcode.ClientAddress tempPlayer = new Netcode.ClientAddress(data[1], Convert.ToInt32(data[2]));
-                    Netcode.JoinInit initMessage = new Netcode.JoinInit(data[0]);
-                    QueuePacket(tempPlayer, initMessage);
-                }
+                    string init = "ABC";
+                    AddReliablePacket(init + data[0], tempPlayer, init);
+                    }
                 else
                     Debug.Log("PlayerJoin received wrong lobby name");
                 QueuePacket(m_server.MasterServer, "pjack " + buf);
