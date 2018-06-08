@@ -10,8 +10,8 @@ namespace FpsClient {
 	public class Client : Netcode.MultiplayerNetworking {
 		public string MasterServerIp = "127.0.0.1";
 		public int MasterServerPort = 9001;
-		public uint PREDICTION_BUFFER_SIZE = 20;
-		public float TICK_RATE = .06f; // The rate in seconds at which updates are sent to the server.
+		public uint PREDICTION_BUFFER_SIZE = 40;
+		public float TICK_RATE = .01667f; // The rate in seconds at which updates are sent to the server.
         public float RELIABLE_TICK_RATE = 1.0f;
 
         // Address of the server. Initially, we talk to the master server. The server address changes to the 
@@ -137,18 +137,21 @@ namespace FpsClient {
 			MySnapshot snapshot = Netcode.Serializer.Deserialize<MySnapshot>(buf);
 
 			if (snapshot.m_seqno < m_serverSeqno) {
-				Debug.Log("Snapshot from server received out of order.");
+			    Debug.Log("Snapshot from server received out of order.");
 				return;
 			}
 
-			if (snapshot.m_serverId == m_game.mainPlayerServerId) {
-				if (!m_snapshotHistory.Reconcile(snapshot)) {
-					Debug.Log("Client is out of sync with the server -- reconciling");
-					m_serverSeqno = snapshot.m_seqno;
-					m_game.NetEvent(snapshot);
-				}
-			} else
-				m_game.NetEvent(snapshot);
+            if (snapshot.m_serverId == m_game.mainPlayerServerId)
+            {
+                if (!m_snapshotHistory.Reconcile(snapshot))
+                {
+                    Debug.Log("Client is out of sync with the server -- reconciling");
+                    m_serverSeqno = snapshot.m_seqno;
+                    m_game.NetEvent(snapshot);
+                }
+            }
+            else
+                m_game.NetEvent(snapshot);
 		}
         void SendReliablePackets()
         {

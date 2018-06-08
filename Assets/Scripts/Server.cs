@@ -18,9 +18,9 @@ namespace FpsServer {
         public string MasterServerIp;
         public int MasterServerPort;
 
-        public uint PREDICTION_BUFFER_SIZE = 20;
+        public uint PREDICTION_BUFFER_SIZE = 40;
 		// Rate at which updates are sent to the server.
-		public float TICK_RATE = 0.06f;
+		public float TICK_RATE = 0.01667f;
 		// Enables performance logging.
 		public bool m_enablePerformanceLog = true;
         public float RELIABLE_TICK_RATE = 1.0f;
