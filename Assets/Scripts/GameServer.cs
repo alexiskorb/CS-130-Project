@@ -10,6 +10,11 @@ namespace FpsServer {
 	public class GameServer : Game {
 		public GameObject spawnPlayerPrefab;
 		public uint PREDICTION_BUFFER_SIZE = 20;
+
+
+        //This structure saves all of the connected player names and their network addresses.
+        //The ClientAddress value can be a null type, which indicates that a player has joined on MasterServer but hasn't
+        //Made connection with the GameServer itself yet.
         private Dictionary<string, Netcode.ClientAddress?> m_clientAddresses= new Dictionary<string, Netcode.ClientAddress?>();
         public Server m_server;
         public string gameSceneName = "ServerMainScene";
@@ -22,6 +27,7 @@ namespace FpsServer {
 			new Vector3(10.0f, 1f, 10.0f),
 			new Vector3(10.0f, 1f, -10.0f)
 		};
+        //GameServer lets the masterserver know its online.
         private void Start()
         {
             SendRegisterServer();            
@@ -42,13 +48,14 @@ namespace FpsServer {
         // Used to call relevant functions after the scene loads since scene loads complete in the frame after they're called
         void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-
+            // The ServerStandby scene is loaded when a gameserver is connected to the masterserver, but has no match running.
             if (scene.name == "ServerStandby")
             {
                 inMatch = false;
             }
             else
             {
+                // When the match starts, spawn all connected players, and tell every player that the match has started. 
                 foreach (string client in m_clientAddresses.Keys)
                 {
                     Netcode.ClientAddress clientAddress = m_clientAddresses[client].Value;
@@ -70,7 +77,7 @@ namespace FpsServer {
 		}
 
         // @func NetEvent.PacketType 
-        // @desc If this is called, the game has received a packet, that is not a snapshot
+        // @desc If this is called, the game has received a packet from a player, that is not a snapshot
         // The function analyzes the packet type and responds accordingly.
         public override void NetEvent(Netcode.ClientAddress clientAddr, Netcode.PacketType type, byte[] buf)
 		{
@@ -89,20 +96,14 @@ namespace FpsServer {
                 case Netcode.PacketType.START_GAME:
                     ProcessStartGame(buf);
                     break;
-                    /*
-				case Netcode.PacketType.INVITE_PLAYER:
-					ProcessInvitePlayer (buf);
-					break; */
 				case Netcode.PacketType.DISCONNECT:
 					ProcessDisconnect (clientAddr, buf);
 					break;
-                case Netcode.PacketType.JOIN_INIT:
-                    StopInitAcks(buf);
-                    break;
+
             }
         }
 
-        // @func RefreshLobbyList
+        // @func ReceiveRefreshPlayerList
         // @desc A client asked for LobbyList. Sends the packet to the client.
         public void ProcessRefreshPlayerList(Netcode.ClientAddress clientAddr)
         {
@@ -136,12 +137,11 @@ namespace FpsServer {
             QueuePacket(clientAddr, buf);
         }
 
-
         // @func ProcessLeaveLobby
         // @desc A client requests to leave a lobby. Remove the player from the list.
         // If the lobby is non-empty, send a packet to all players in that lobby with an
         // updated list of players in the lobby.
-        // Otherwise, remove the lobby from the list of matches.
+        // Tell the masterserver the player left.
         public void ProcessLeaveLobby(Netcode.ClientAddress clientAddr, byte[] buf)
         {
             Debug.Log("Received LeaveLobby packet");
@@ -154,6 +154,8 @@ namespace FpsServer {
                 SendPlayerQuit(lobby.m_playerName);
             }
         }
+        // @func SendLeaveLobby
+        // @desc Notify every player connected to the lobby that another player left.
         public void SendLeaveLobby(string playerName)
         {
             Debug.Log("Sending LeaveLobby packet");
@@ -180,27 +182,7 @@ namespace FpsServer {
             if(!inMatch)
                 EnterMatch();
         }
-        /*
-		// @func ProcessInvitePlayer
-		// @desc A client wants to invite another player to join their existing lobby. Find the player based on their
-		// name and send them a packet with the lobby information and the source of the invite.
-		public void ProcessInvitePlayer(byte[] buf)
-		{
-			Debug.Log("Received InvitePlayer packet");
-			Netcode.InvitePlayer invitation = Netcode.Serializer.Deserialize<Netcode.InvitePlayer>(buf);
-			if (m_clientAddresses.ContainsKey(invitation.m_invitedSteamName))
-			{
-				SendInvitePlayer (invitation.m_lobbyName, invitation.m_hostSteamName, invitation.m_invitedSteamName);
-			}
-			
-		}
-		public void SendInvitePlayer(string lobbyName, string hostPlayer, string invitedPlayer)
-		{
-			Debug.Log("Sending InvitePlayer packet");
-			Netcode.InvitePlayer packet = new Netcode.InvitePlayer(lobbyName, hostPlayer, invitedPlayer);
-			QueuePacket(m_clientAddresses[invitedPlayer].Value, packet);
-		}
-        */
+
         // @func ProcessDisconnect
         // @desc A client wants to drop the game and disconnect.
         public void ProcessDisconnect(Netcode.ClientAddress clientAddr, byte[] buf)
@@ -231,6 +213,9 @@ namespace FpsServer {
             else
                 QueuePacket(clientAddr, buf);
         }
+        // @func SendDisconnect
+        // @desc Tells all players that a player disconnected.
+        // This packet is sent reliably.
         public void SendDisconnect(int serverId, string name)
 		{
 			Debug.Log ("Sending Disconnect packet");
@@ -242,10 +227,7 @@ namespace FpsServer {
                 AddReliablePacket(Netcode.PacketType.DISCONNECT.ToString() + packet.m_serverId.ToString() + clientAddress, m_clientAddresses[client].Value, packet);
             }
         }
-        public void StopInitAcks(byte[] buf)
-        {
-            //Netcode.JoinInit lobby = Netcode.Serializer.Deserialize<Netcode.JoinInit>(buf);
-        }
+
         // @func SpawnPlayer
         // @desc Spawns a new player and returns it
         public int SpawnPlayer()
@@ -263,7 +245,10 @@ namespace FpsServer {
             PutEntity(serverId, gameObject);
             return serverId;
         }
-
+        // @func EnterMatch
+        // @desc Start the match. Notify the masterserver that it is starting a match with SendClose.
+        // If there are any players that are "joined" on the masterserver but hasn't established connection with
+        // the GameServer directly, remove them and notify the masterserver.
         public void EnterMatch()
         {
             inMatch = true;
@@ -279,6 +264,9 @@ namespace FpsServer {
             SceneManager.LoadScene(gameSceneName);
         }
 
+        // @func MasterServerEvent
+        // @desc Handles packets received from the MasterServer
+        // Communication with the masterserver uses strings where the first 5 characters denote the command name
         public override void MasterServerEvent(byte[] buf)
         {
             string message = System.Text.Encoding.UTF8.GetString(buf, 0, buf.Length);
@@ -414,7 +402,8 @@ namespace FpsServer {
             string buffer = commandName + regionLobby;
             AddReliablePacket(buffer, m_server.MasterServer, buffer);
         }
-
+        //@func RestartServer
+        //@desc Clear all stored info to restart the server.
         public void RestartServer()
         {
             Debug.Log("Closing Lobby, switching scenes");

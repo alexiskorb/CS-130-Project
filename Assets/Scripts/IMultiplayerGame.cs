@@ -31,6 +31,9 @@ namespace Netcode {
         private Queue<byte[]> m_packetQueue = new Queue<byte[]>();
         private Queue<PacketForClient> m_packetQueueForClient = new Queue<PacketForClient>();
 
+        //A dictionary that holds packets that are sent periodically to ensure reliable delivery. When using the dictionary,
+        //select a string key that will uniquely identify the packet and its ack, so that when the ack is received, remove the
+        //dictionary entry with the key.
         private Dictionary<string, PacketForClient> m_reliablePackets = new Dictionary<string, PacketForClient>();
 
         // @func QueuePacket
@@ -55,6 +58,8 @@ namespace Netcode {
         {
             m_packetQueueForClient.Enqueue(new PacketForClient(clientAddr, message));
         }
+        //Add to dictionary of packets to be sent reliably. Packets included will be sent periodically.
+        //Select a unique key string so that the packet can be identified when the ack is received.
         public void AddReliablePacket(string key, ClientAddress clientAddr, string message)
         {
             byte[] buf = System.Text.Encoding.UTF8.GetBytes(message);
@@ -70,7 +75,7 @@ namespace Netcode {
             PacketForClient reliablePacket = new PacketForClient(clientAddr, buf);
             m_reliablePackets[key] = reliablePacket;
         }
-
+        //Remove the reliable packet using a key. The packet will not be sent periodically after the function.
         public void RemoveReliablePacket(string key)
         {
             
@@ -79,6 +84,9 @@ namespace Netcode {
             m_reliablePackets.Remove(key);
             
         }
+        // @func WaitingForAck
+        // @desc Checks if there is a packet that is being sent reliably based on the key. This is used to process the ack once,
+        // and ignore all duplicate acks received later.
         public bool WaitingForAck(string key)
         {
             
@@ -116,6 +124,8 @@ namespace Netcode {
             m_packetQueue.Clear();
             return packetQueue;
         }
+        // @func GetReliablePackets
+        // @desc Return all packets that require reliable transmission.
         public Dictionary<string, PacketForClient> GetReliablePackets()
         {
             return m_reliablePackets;

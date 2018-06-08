@@ -12,9 +12,10 @@ namespace FpsClient {
 		public int MasterServerPort = 9001;
 		public uint PREDICTION_BUFFER_SIZE = 40;
 		public float TICK_RATE = .01667f; // The rate in seconds at which updates are sent to the server.
+        // Rate at which reliable packets are repeatedly sent.
         public float RELIABLE_TICK_RATE = 1.0f;
 
-        // Address of the server. Initially, we talk to the master server. The server address changes to the 
+        // Address of the lobby server. The server address changes to the 
         // game server that the master connects us to.
         public Netcode.ClientAddress m_lobbyServerAddr;
 
@@ -24,6 +25,7 @@ namespace FpsClient {
 		private Netcode.SnapshotHistory<MySnapshot> m_snapshotHistory;
 		// The tick function sends client commands at the specified tick rate.
 		private Netcode.PeriodicFunction m_tick;
+        // The tick function sends reliable packets at the specified tick rate.
         private Netcode.PeriodicFunction m_reliablePacketTick;
 
         public Netcode.PeriodicFunction Tick
@@ -153,6 +155,8 @@ namespace FpsClient {
             else
                 m_game.NetEvent(snapshot);
 		}
+        // @func SendReliablePackets
+        // @desc Called every RELIABLE_TICK_RATE to send any packets that require reliable transmission.
         void SendReliablePackets()
         {
             var reliableQueue = m_game.GetReliablePackets();

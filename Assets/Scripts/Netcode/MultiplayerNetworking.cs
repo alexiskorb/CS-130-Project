@@ -81,6 +81,7 @@ namespace Netcode {
 		{
             Debug.Log("Received Packet from " + clientAddr.m_ipAddress + ":" + clientAddr.m_port);
             bool masterEvent = false;
+            //If messages are from masterserver, handle it in MasterServerEvent
             if (clientAddr.m_port == MasterServer.m_port && clientAddr.m_ipAddress == MasterServer.m_ipAddress)
             {
                 masterEvent = true;

@@ -23,7 +23,9 @@ namespace FpsServer {
 		public float TICK_RATE = 0.01667f;
 		// Enables performance logging.
 		public bool m_enablePerformanceLog = true;
+        // Rate at which reliable packets are repeatedly sent.
         public float RELIABLE_TICK_RATE = 1.0f;
+        // Rate at which heartbeat packets are repeatedly sent.
         public float HEART_BEAT_RATE = 30.0f;
 
 
@@ -36,7 +38,9 @@ namespace FpsServer {
 		// The function that gets called every tick, where tick is 
 		// the rate at which updates are sent to the server.
 		private Netcode.PeriodicFunction m_tick;
+        // The tick function sends reliable packets at the specified tick rate.
         private Netcode.PeriodicFunction m_reliablePacketTick;
+        // The tick function sends heartbeat messages to masterserver to remain connections.
         private Netcode.PeriodicFunction m_heartBeatTick;
         // The time spent processing packets in one frame. 
         private System.TimeSpan timeProcessingPackets;
@@ -103,8 +107,9 @@ namespace FpsServer {
             {
                 SendPacket(packet.m_clientAddr, packet.m_packet);
             }
-
+            //If there are any reliable packets that need to be retransmitted, run.
             m_reliablePacketTick.Run();
+            //Send heartbeat messages to masterserver if necessary.
             m_heartBeatTick.Run();
 
             SendState<Bullet, Netcode.BulletSnapshot>();
@@ -172,6 +177,8 @@ namespace FpsServer {
 				SendPacket(clientAddr, buf);
 			}
 		}
+        // @func SendReliablePackets
+        // @desc Called every RELIABLE_TICK_RATE to send any packets that require reliable transmission.
         void SendReliablePackets()
         {
             var reliableQueue = m_game.GetReliablePackets();
@@ -180,6 +187,9 @@ namespace FpsServer {
                 SendPacket(packet.m_clientAddr, packet.m_packet);
             }
         }
+        // @func SendHeartBeatsToMaster
+        // @desc Every HEART_BEAT_RATE, send a packet to the masterserver so you can still establish connection with the masterserver.
+        // This is used since routers can block any incoming packets from ports that a host hasn't communicated with in a while.
         void SendHeartBeatsToMaster()
         {
             string commandName = "lobup";

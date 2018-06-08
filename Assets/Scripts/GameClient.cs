@@ -134,7 +134,6 @@ namespace FpsClient {
                 string playerSteamName = SteamFriends.GetPersonaName();
                 Debug.Log(playerSteamName);
                 m_mainPlayerName = playerSteamName;
-                // SendRefreshServerList();
             }
             else
             {
@@ -205,8 +204,8 @@ namespace FpsClient {
         }
 
         // @func NetEvent.PacketType 
-        // @desc If this is called, the game has received a packet, that is not a snapshot
-        // The function analyzes the packet type and responds accordingly.
+        // @desc If this is called, the game has received a packet from the lobby, that is not a snapshot
+        // Communication with the lobbyserver uses packets declared in Netcode.
         public override void NetEvent(Netcode.ClientAddress clientAddr, Netcode.PacketType type, byte[] buf)
         {
             Debug.Log("Received " + type.ToString() + " from " + clientAddr.m_ipAddress + ":" + clientAddr.m_port); 
@@ -225,13 +224,6 @@ namespace FpsClient {
                 case Netcode.PacketType.JOIN_LOBBY:
                     ReceiveJoinLobby(buf);
                     break;
-                //case Netcode.PacketType.JOIN_INIT:
-                //    AcceptJoinInit(clientAddr, buf);
-                //    break;
-                /*
-            case Netcode.PacketType.INVITE_PLAYER:
-                ProcessInvitePlayer (buf);
-                break;*/
                 case Netcode.PacketType.DISCONNECT:
 					ProcessDisconnect (buf);
 					break;
@@ -246,6 +238,8 @@ namespace FpsClient {
             Netcode.RefreshPlayerList list = Netcode.Serializer.Deserialize<Netcode.RefreshPlayerList>(buf);
             LobbyPlayers = Netcode.Serializer.Deserialize(list.m_listOfPlayers).ToList();
         }
+        // @func ReceiveJoinLobby
+        // @desc Player successfully joined the lobby. Enter the StartMatchMenu.
         public void ReceiveJoinLobby(byte[] buf)
         {
             Debug.Log("Received joinlobby from local");
@@ -258,7 +252,7 @@ namespace FpsClient {
             }
         }
 
-        // @func SendRefreshLobbyList
+        // @func SendRefreshPlayerList
         // @desc Sends a request to the server for an updated lobby list. Called by the UI.
         public void SendRefreshPlayerList()
         {
@@ -274,36 +268,6 @@ namespace FpsClient {
             Debug.Log("Sending Joinlobby to " + m_client.m_lobbyServerAddr.m_ipAddress + ":" + m_client.m_lobbyServerAddr.m_port);
             AddReliablePacket(Netcode.PacketType.JOIN_LOBBY.ToString() + MainPlayerName, m_client.m_lobbyServerAddr, packet);
         }
-        /*
-        // @func SendJoinLobbyFromInvite
-        // @desc Request the server to join the lobby that the player was invited to. This is called by the UI.
-        public void SendJoinLobbyFromInvite()
-        {
-            Netcode.JoinLobby packet = new Netcode.JoinLobby(MainPlayerName);
-            Debug.Log(packet.m_type);
-            QueuePacket(packet);
-        }*/
-
-        /*
-        // @func ProcessInvitePlayer
-        // @desc Server will send a INVITE_PLAYER packet when another player asks to invite 
-        public void ProcessInvitePlayer(byte[] buf)
-        {
-            Debug.Log("Receieved InvitePlayer packet");
-            Netcode.InvitePlayer invitation = Netcode.Serializer.Deserialize<Netcode.InvitePlayer>(buf);
-            string text = "User " + invitation.m_hostSteamName + " has invited you to join a match with them.";
-            SteamJoinMatchUI.Instance.SetMatchText(text);
-            MainMenuUI.Instance.OpenSteamJoinMatchPopup();
-            m_invitedLobby = invitation.m_lobbyName;
-        }
-        
-        public void SendInvitePlayer(string invitedPlayer)
-        {
-            Netcode.InvitePlayer packet = new Netcode.InvitePlayer(CurrentLobby, MainPlayerName, invitedPlayer);
-            Debug.Log(packet.m_type);
-            QueuePacket(packet);
-        } 
-        */
         // @func ProcessStartGame
         // @desc With the START_GAME packet, save the client's new ID, and IP/port of the match server to communicate with.
         public void ProcessStartGame(byte[] buf)
@@ -351,17 +315,9 @@ namespace FpsClient {
                 m_lobbyPlayers.Remove(lobby.m_playerName);
             }
         }
-        //public void AcceptJoinInit(Netcode.ClientAddress sender, byte[] buf)
-        //{
-        //    QueuePacket(sender, buf);
-        //    Netcode.JoinInit lobby = Netcode.Serializer.Deserialize<Netcode.JoinInit>(buf);
-        //    if (m_waitingForInit && m_client.m_lobbyServerAddr.m_ipAddress == sender.m_ipAddress && m_client.m_lobbyServerAddr.m_port == sender.m_port)
-        //    {
-        //        SendJoinLobby();
-        //        m_waitingForInit = false;
-        //    }
-
-        //}
+        // @func SendLeaveLobby
+        // @desc Tell the lobby that it is leaving the lobby.
+        // This packet is sent reliably.
         public void SendLeaveLobby()
         {
             Debug.Log("Sending leave lobby packet");
@@ -371,7 +327,8 @@ namespace FpsClient {
             m_lobbyPlayers.Clear();
         }
         // @func SendDropMatch
-        // @desc When player wants to drop match, send DISCONNECT packet to server. Called by UI.
+        // @desc Disconnect from a match that has already started.
+        // This packet is sent reliably.
         public void SendDropMatch()
         {
             Debug.Log("Sending disconnect packet");
@@ -407,6 +364,9 @@ namespace FpsClient {
                 }
             }
         }
+        // @func MasterServerEvent
+        // @desc Handles packets received from the MasterServer
+        // Communication with the masterserver uses strings where the first 5 characters denote the command name
         public override void MasterServerEvent(byte[] buf)
         {
             string s = System.Text.Encoding.UTF8.GetString(buf, 0, buf.Length);
@@ -458,8 +418,6 @@ namespace FpsClient {
                 m_client.m_lobbyServerAddr = new Netcode.ClientAddress(data[1], Convert.ToInt32(data[2]));
                 Debug.Log(m_client.m_lobbyServerAddr.m_ipAddress);
                 Debug.Log(m_client.m_lobbyServerAddr.m_port);
-                //Netcode.JoinInit lobby = new Netcode.JoinInit(MainPlayerName);
-                //QueuePacket(m_client.m_lobbyServerAddr, lobby);
                 SendJoinLobby();
             }
         }
@@ -491,6 +449,8 @@ namespace FpsClient {
                 }
             }
         }
+        // @func ReceiveServerList
+        // @desc Masterserver sent a list of open servers. Update the list.
         public void ReceiveServerList(string buf)
         {
             if (WaitingForAck("pslis "+ MainPlayerName))
@@ -508,8 +468,9 @@ namespace FpsClient {
                     }
                 }
             }
-
         }
+        // @func ReceivePlayerInvite
+        // @desc A player invited this client to a match. Save the region:lobby invited to, and popup the invite notification in the UI.
         public void ReceivePlayerInvite(string buf)
         {
             string[] data = buf.Split(':');
@@ -535,8 +496,9 @@ namespace FpsClient {
             Debug.Log(buffer);
             AddReliablePacket(buffer, m_client.MasterServer, buffer);
         }
-        // @func SendRefreshServerList
-        // @desc Called by the client when they start the game, to get list of regional servers. 
+        // @func SendCreateLobby
+        // @desc Player created a lobby. Send info to masterserver. Function called by UI.
+        // This packet is sent reliably. 
         public void SendRefreshServerList()
         {
             string commandName = "pslis ";
@@ -546,42 +508,52 @@ namespace FpsClient {
             AddReliablePacket(commandName + MainPlayerName, m_client.MasterServer, commandName + MainPlayerName);
             RegionServerName = "USW";
         }
-        // @func SendRefreshLobbyList
-        // @desc Called by the client to get list of lobbies in a server. Called by the UI.
+        // @func SendRefreshServerList
+        // @desc Called by the client when they start the game, to get list of regional servers. It also serves to initialize the client's presence
+        // On the masterserver, so that it can receive invites.
+        // This packet is sent reliably.
         public void SendRefreshLobbyList()
         {
             string commandName = "pllis ";
             string message = commandName + RegionServerName;
             QueuePacket(m_client.MasterServer, message);
         }
-        // @func SendJoinLobby
-        // @desc Called when player wants to join the game. Called by the UI.
+        // @func SendPlayerJoinToMaster
+        // @desc Called by the UI. Tells masterserver that it wants to join lobby.
+        // This packet is sent reliably.
         public void SendPlayerJoinToMaster()
         {
             string commandName = "pjoin ";
             string buffer = commandName + MainPlayerName + ":" + RegionServerName + ":" + CurrentLobby;
             AddReliablePacket(commandName + MainPlayerName, m_client.MasterServer, buffer);
         }
-        // @func SendJoinLobby
-        // @desc Overloaded SendPlayerJoin when you want to specify what region:lobby they want to join
-        // Used when accepting player invites
+        // @func SendPlayerJoinFromInvite
+        // @desc Tells masterserver it wants to join the lobby it was invited to.
+        // This packet is sent reliably.
         public void SendPlayerJoinFromInvite()
         {
             string commandName = "pjoin ";
             string buffer = commandName + MainPlayerName + ":" + m_invitedRegion + ":" + m_invitedLobby;
             AddReliablePacket(commandName + MainPlayerName, m_client.MasterServer, buffer);
         }
+        // @func SendPlayerInvite
+        // @desc Invite a player from the Steam Friend list that's online.
+        // This packet is sent reliably.
         public void SendPlayerInvite(string steamID)
         {
             string commandName = "pinvi ";
             string buffer = commandName + MainPlayerName + ":" + steamID;
             AddReliablePacket(buffer, m_client.MasterServer, buffer);
         }
+        // @func ReceivePlayerInviteAck
+        // @desc Masterserver will respond to SendPlayerInvite with an Ack. Process the ack by not sending invite packets.
         public void SendPlayerInviteAck(string buf)
         {
             if (WaitingForAck("pinvi " + buf))
                 RemoveReliablePacket("pinvi " + buf);
         }
+        // @func StartLobbyError
+        // @desc Error in Creating Lobby. Stop reliably sending CreateLobby packet.
         public void StartLobbyError(string buf)
         {
             if (WaitingForAck("stlob " + buf))
@@ -590,6 +562,8 @@ namespace FpsClient {
             }
             MainMenuUI.Instance.createMatchMenu.GetComponent<CreateMatchUI>().ShowCreateMatchError();
         }
+        // @func ServerListError
+        // @desc Error registering to the server. Stop reliably sending the StartServer Message 
         public void ServerListError(string buf)
         {
             if (WaitingForAck("psack " + buf))
